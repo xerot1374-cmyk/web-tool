@@ -1,0 +1,209 @@
+@import url("./li2.css");
+
+/* =========================
+   VIDEO RENDER — PRESET AWARE
+   ========================= */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  width: 100%;
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ===== LinkedIn ===== */
+.li2-viewport.preset-linkedin,
+.li2-viewport--autoHeight.preset-linkedin {
+  --li2-scale: 1;
+  width: 800px !important;
+  height: 3000px !important;
+  min-height: 3000px !important;
+  overflow: hidden !important;
+  background: #fff !important;
+}
+
+.li2-root.preset-linkedin,
+.li2-root--autoHeight.preset-linkedin {
+  width: 800px !important;
+  height: 3000px !important;
+  min-height: 3000px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  border-radius: 26px !important;
+}
+
+.li2-root.preset-linkedin .li2-header--hasimg {
+  height: 850px !important;
+  min-height: 850px !important;
+}
+
+.li2-root.preset-linkedin .li2-content,
+.li2-root--autoHeight.preset-linkedin .li2-content,
+.li2-root.preset-linkedin .li2-content--autoHeight,
+.li2-root--autoHeight.preset-linkedin .li2-content--autoHeight {
+  padding: 20px 28px 22px !important;
+}
+
+/* ===== Instagram Feed ===== */
+.li2-viewport.preset-instagram,
+.li2-viewport--autoHeight.preset-instagram {
+  --li2-scale: 1;
+  width: 1080px !important;
+  height: 1080px !important;
+  min-height: 1080px !important;
+  overflow: hidden !important;
+  background: #fff !important;
+}
+
+.li2-root.preset-instagram,
+.li2-root--autoHeight.preset-instagram {
+  width: 1080px !important;
+  height: 1080px !important;
+  min-height: 1080px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  border-radius: 32px !important;
+}
+
+.li2-root.preset-instagram .li2-header--hasimg {
+  height: 420px !important;
+  min-height: 420px !important;
+}
+
+.li2-root.preset-instagram .li2-content,
+.li2-root--autoHeight.preset-instagram .li2-content,
+.li2-root.preset-instagram .li2-content--autoHeight,
+.li2-root--autoHeight.preset-instagram .li2-content--autoHeight {
+  padding: 32px 32px 28px !important;
+}
+
+/* ===== Instagram Story ===== */
+.li2-viewport.preset-instagramStory,
+.li2-viewport--autoHeight.preset-instagramStory {
+  --li2-scale: 1;
+  width: 1080px !important;
+  height: 1920px !important;
+  min-height: 1920px !important;
+  overflow: hidden !important;
+  background: #fff !important;
+}
+
+.li2-root.preset-instagramStory,
+.li2-root--autoHeight.preset-instagramStory {
+  width: 1080px !important;
+  height: 1920px !important;
+  min-height: 1920px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  border-radius: 36px !important;
+}
+
+.li2-root.preset-instagramStory .li2-header--hasimg {
+  height: 760px !important;
+  min-height: 760px !important;
+}
+
+.li2-root.preset-instagramStory .li2-content,
+.li2-root--autoHeight.preset-instagramStory .li2-content,
+.li2-root.preset-instagramStory .li2-content--autoHeight,
+.li2-root--autoHeight.preset-instagramStory .li2-content--autoHeight {
+  padding: 40px 40px 34px !important;
+}
+
+/* ===== Shared ===== */
+.li2-raster {
+  display: none !important;
+}
+
+.li2-header {
+  overflow: hidden !important;
+}
+
+.li2-header--noimg {
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+.li2-productFrame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+#videoBox {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 1);
+}
+
+.li2-companyLogo {
+  position: absolute !important;
+  left: 22px !important;
+  top: 22px !important;
+  z-index: 7 !important;
+}
+
+.li2-badge {
+  position: absolute;
+  left: 26px;
+  right: 29px;
+  top: calc(18px + 20mm);
+  z-index: 5;
+}
+
+.li2-userTop {
+  position: absolute;
+  right: 26px;
+  top: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 6;
+}
+
+.li2-avatarWrap {
+  width: 150px;
+  height: 150px;
+}
+
+.li2-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.li2-content,
+.li2-content--autoHeight {
+  flex: 1 1 auto !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+.li2-bottom {
+  height: 66px;
+  min-height: 66px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 12px 26px;
+  display: flex;
+  align-items: center;
+  overflow: hidden !important;
+}

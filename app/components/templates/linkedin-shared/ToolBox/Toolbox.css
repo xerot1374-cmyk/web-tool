@@ -1,0 +1,205 @@
+.tb {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tb__header {
+  padding: 16px 18px 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.tb__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.tb__scroll {
+  padding: 14px 18px;
+  overflow: auto;
+  flex: 1;
+}
+
+.tb__section {
+  border: 1px solid #eee;
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 14px;
+  background: #fff;
+}
+
+.tb__sectionTitle {
+  font-weight: 900;
+  font-size: 12px;
+  margin-bottom: 10px;
+  color: #111;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.tb__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.tb__row--wrap {
+  flex-wrap: wrap;
+}
+
+.tb__emojiRow {
+  margin-top: 10px;
+}
+
+.tb__emojiBtn {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 16px;
+}
+
+.tb__hint {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: right;
+  margin-top: 6px;
+}
+
+.tb__actions {
+  padding: 14px 18px 18px;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #fff;
+}
+
+.tb__action {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.tb__action:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.tb__action--primary {
+  border: none;
+  background: #2563eb;
+  color: #fff;
+}
+
+.tb__action--dark {
+  border: none;
+  background: #111827;
+  color: #fff;
+}
+
+.tb__download {
+  display: inline-block;
+  font-size: 13px;
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.tb__section:last-child { margin-bottom: 0; }
+
+.editor-field input[type="file"]{
+  font-size: 13px;
+}
+
+.editor-input:focus,
+.editor-textarea:focus{
+  border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.15);
+}
+
+.tb__scroll{
+  scrollbar-gutter: stable;
+}
+
+/* Toolbox.css */
+.tb__sectionTitle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.tb__actions{
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: #fff;
+  padding: 14px 18px 18px;
+  border-top: 1px solid #eee;
+}
+
+/* Toolbox.css */
+.tb{
+  height: 100%;
+}
+
+.tb__scroll{
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.tb .editor-textarea{
+  width: 100%;
+  min-height: 500px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* Toolbox.css — add */
+.tb__captionPreview{
+  margin-top: 14px;
+  padding: 12px;
+  background:#f9fafb;
+  border-radius:12px;
+  border:1px solid #eee;
+}
+
+.tb__captionPreviewHeader{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.tb__captionPreviewTitle{
+  font-size:12px;
+  font-weight:900;
+  color:#111;
+  letter-spacing:.3px;
+  text-transform:uppercase;
+}
+
+.tb__copyBtn{
+  border:1px solid #e5e7eb;
+  background:#fff;
+  border-radius:10px;
+  padding:8px 10px;
+  cursor:pointer;
+  font-weight:800;
+  font-size:13px;
+}
+
+.tb__captionText{
+  white-space: pre-wrap;
+  font-size:14px;
+  color:#111827;
+  line-height:1.5;
+}

@@ -1,0 +1,623 @@
+/* =========================
+   LinkedInTemplate2 — SHARED (li2-*)
+   Source of truth for Preview + PDF + Video
+   ========================= */
+
+.li2-viewport {
+  --li2-scale: 1;
+
+  --li2-frame-w: 800px;
+  --li2-frame-h: 3000px;
+
+  --li2-radius: 26px;
+  --li2-content-pad-x: 28px;
+  --li2-content-pad-top: 20px;
+  --li2-content-pad-bottom: 22px;
+
+  --li2-companyLogo-left: 22px;
+  --li2-companyLogo-top: 22px;
+  --li2-companyLogo-h: 42px;
+  --li2-companyLogo-maxw: 185px;
+
+  --li2-badge-left: 26px;
+  --li2-badge-right: 29px;
+  --li2-badge-top: calc(18px + 20mm);
+  --li2-badge-pad-y: 10px;
+  --li2-badge-pad-x: 16px;
+  --li2-badge-font: 20px;
+  --li2-badge-maxw: 700px;
+
+  --li2-userTop-right: 26px;
+  --li2-userTop-top: 22px;
+  --li2-avatar-size: 150px;
+  --li2-userTop-maxw: 360px;
+  --li2-userTop-name-maxw: 250px;
+
+  --li2-linkTitle-font: 28px;
+  --li2-linkTitle-maxw: 520px;
+  --li2-company-font: 13px;
+  --li2-headline-font: 16px;
+  --li2-subline-font: 14px;
+  --li2-body-font: 18px;
+
+  --li2-bottom-h: 66px;
+  --li2-bottom-pad-x: 26px;
+  --li2-bottom-pad-y: 12px;
+
+  width: calc(var(--li2-frame-w) * var(--li2-scale));
+  height: calc(var(--li2-frame-h) * var(--li2-scale));
+  overflow: hidden;
+  background:
+    radial-gradient(900px 420px at 20% 10%, rgba(0, 0, 0, 0.06), transparent 60%),
+    linear-gradient(135deg, #f5f6f8 0%, #ffffff 45%, #ffffff 100%);
+}
+
+.li2-viewport--autoHeight {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.li2-root {
+  --li2-red: #a4072f;
+  --li2-text: #0f172a;
+  --li2-muted: rgba(15, 23, 42, 0.62);
+  --li2-border: rgba(15, 23, 42, 0.1);
+  --li2-card-bg: #ffffff;
+
+  width: var(--li2-frame-w);
+  height: var(--li2-frame-h);
+  transform: scale(var(--li2-scale));
+  transform-origin: top left;
+
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+
+  border-radius: var(--li2-radius);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background-color: var(--li2-card-bg);
+
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.li2-root--editing {
+  overflow: visible !important;
+}
+.li2-root--editing .li2-productSlot[data-selected="true"] {
+  z-index: 1000 !important;
+}
+.li2-root--editing .li2-header,
+.li2-root--editing .li2-content,
+.li2-root--editing .li2-bottom {
+  overflow: visible !important;
+}
+
+.li2-root--autoHeight {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* ===== RASTER / GRID ===== */
+.li2-raster {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.li2-raster--grid {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.10) 1px, transparent 1px),
+    linear-gradient(rgba(37, 99, 235, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.16) 1px, transparent 1px);
+  background-size:
+    20px 20px,
+    20px 20px,
+    100px 100px,
+    100px 100px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+}
+
+.li2-raster--dots {
+  background-image:
+    radial-gradient(circle, rgba(37, 99, 235, 0.22) 1.2px, transparent 1.2px),
+    radial-gradient(circle, rgba(37, 99, 235, 0.10) 1px, transparent 1px);
+  background-size:
+    24px 24px,
+    96px 96px;
+  background-position: 0 0, 0 0;
+}
+
+.li2-raster--cross {
+  background-image:
+    linear-gradient(rgba(37, 99, 235, 0.14) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.14) 1px, transparent 1px),
+    radial-gradient(circle, rgba(37, 99, 235, 0.18) 1.4px, transparent 1.4px);
+  background-size:
+    28px 28px,
+    28px 28px,
+    56px 56px;
+  background-position: 0 0, 0 0, 0 0;
+}
+
+.li2-raster--blueprint {
+  background-color: rgba(59, 130, 246, 0.03);
+  background-image:
+    linear-gradient(rgba(30, 64, 175, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 64, 175, 0.12) 1px, transparent 1px),
+    linear-gradient(rgba(30, 64, 175, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 64, 175, 0.18) 1px, transparent 1px);
+  background-size:
+    16px 16px,
+    16px 16px,
+    80px 80px,
+    80px 80px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+}
+
+/* ===== HEADER ===== */
+.li2-header {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  background-color: var(--li2-card-bg);
+  background-image:
+    radial-gradient(1200px 600px at 0% 0%, rgba(196, 168, 110, 0.06), transparent 10%),
+    linear-gradient(180deg, #828282 0%, #ffffff 100%);
+  z-index: 2;
+}
+
+.li2-header--hasimg {
+  height: 850px;
+}
+
+.li2-header--noimg {
+  height: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+/* ===== PRODUCT ===== */
+.li2-productSlot {
+  position: absolute;
+  z-index: 30;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.li2-productSlot--left {
+  left: 0;
+  right: auto;
+  transform: none;
+}
+
+.li2-productSlot--center {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+.li2-productSlot--right {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.li2-productFrame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  border: none;
+  background: transparent;
+  overflow: hidden;
+  box-sizing: border-box;
+  isolation: isolate;
+}
+
+.li2-productFrame--landscape,
+.li2-productFrame--portrait {
+  width: 100%;
+  height: 100%;
+}
+
+.li2-productImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: transparent;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.li2-productImg--cropped {
+  object-fit: cover;
+}
+
+/* ===== COMPANY LOGO ===== */
+.li2-companyLogo {
+  position: absolute;
+  left: var(--li2-companyLogo-left);
+  top: var(--li2-companyLogo-top);
+  height: var(--li2-companyLogo-h);
+  width: auto;
+  max-width: var(--li2-companyLogo-maxw);
+  object-fit: contain;
+  z-index: 7;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 6px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.li2-badge {
+  position: absolute;
+  left: var(--li2-badge-left);
+  right: var(--li2-badge-right);
+  top: var(--li2-badge-top);
+
+  padding: var(--li2-badge-pad-y) var(--li2-badge-pad-x);
+  border-radius: 999px;
+
+  background: linear-gradient(90deg, #a4072f 0%, #c10a39 45%, #000000 100%);
+  color: #fff;
+
+  font-weight: 800;
+  font-size: var(--li2-badge-font);
+  letter-spacing: 0.3px;
+
+  max-width: var(--li2-badge-maxw, 700px);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+
+  z-index: 6;
+  box-shadow: 0 10px 24px rgba(164, 7, 47, 0.22);
+  box-sizing: border-box;
+}
+
+.li2-badge:empty::before {
+  content: "\00a0";
+}
+
+.li2-userTop {
+  position: absolute;
+  right: var(--li2-userTop-right);
+  top: var(--li2-userTop-top);
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+
+  z-index: 8;
+}
+
+.li2-avatarWrap {
+  order: 1;
+  width: var(--li2-avatar-size);
+  height: var(--li2-avatar-size);
+  border-radius: 50%;
+  background: transparent;
+  padding: 6px;
+  box-sizing: border-box;
+}
+
+.li2-userTopMeta {
+  order: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  max-width: var(--li2-userTop-maxw);
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.li2-userTopName,
+.li2-userTopRole {
+  text-align: right;
+  max-width: var(--li2-userTop-name-maxw);
+}
+
+.li2-userTopName {
+  font-size: 22px;
+  font-weight: 900;
+  margin: 0;
+  color: var(--li2-text);
+  line-height: 1.12;
+  letter-spacing: -0.2px;
+}
+
+.li2-userTopRole {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--li2-muted);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.li2-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  border: 5px dashed var(--li2-red);
+}
+
+.li2-content {
+  flex: 1;
+  padding: var(--li2-content-pad-top) var(--li2-content-pad-x) var(--li2-content-pad-bottom);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+}
+
+.li2-content--autoHeight {
+  flex: 0 0 auto !important;
+  overflow: visible !important;
+}
+
+.li2-header--noimg + .li2-content {
+  padding-top: 168px;
+}
+
+.li2-linkTitle {
+  margin-top: 10px;
+  font-size: var(--li2-linkTitle-font);
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.6px;
+  color: var(--li2-text);
+  max-width: var(--li2-linkTitle-maxw);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.li2-company {
+  margin-top: 8px;
+  font-size: var(--li2-company-font);
+  color: var(--li2-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.li2-headline {
+  margin-top: 12px;
+  font-size: var(--li2-headline-font);
+  font-weight: 850;
+  color: var(--li2-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.li2-subline {
+  margin-top: 8px;
+  font-size: var(--li2-subline-font);
+  color: rgba(15, 23, 42, 0.78);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.li2-body {
+  flex: 0 0 auto;
+  margin-top: 12px;
+  font-size: var(--li2-body-font);
+  color: rgba(15, 23, 42, 0.88);
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow: visible;
+  padding-right: 6px;
+  max-width: 100%;
+  height: auto;
+  min-height: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.li2-linkRow {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--li2-muted);
+}
+
+.li2-link {
+  color: var(--li2-red);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.li2-linksList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+}
+
+.li2-bottom {
+  height: var(--li2-bottom-h);
+  min-height: var(--li2-bottom-h);
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+  padding: var(--li2-bottom-pad-y) var(--li2-bottom-pad-x);
+
+  display: flex;
+  align-items: center;
+
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+}
+
+.li2-bottomLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.li2-profileMini {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.li2-bottomMeta {
+  min-width: 0;
+}
+
+.li2-bottomName {
+  font-size: 13px;
+  font-weight: 850;
+  color: var(--li2-text);
+  line-height: 1.1;
+}
+
+.li2-bottomRole {
+  font-size: 12px;
+  color: var(--li2-muted);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 520px;
+}
+
+.li2-headerDivider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 12px;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.18), rgba(15, 23, 42, 0));
+}
+
+.li2-theme-white { --li2-card-bg: #ffffff; }
+.li2-theme-gray { --li2-card-bg: #ffffff; }
+.li2-theme-cream { --li2-card-bg: #ffffff; }
+.li2-theme-blue { --li2-card-bg: #eff6ff; }
+.li2-theme-green { --li2-card-bg: #ecfdf5; }
+
+.li2-productAlign--center {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.li2-productAlign--left {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.li2-productAlign--right {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+/* =========================
+   PRESET MODIFIERS
+   LinkedIn = default
+   ========================= */
+
+.li2-viewport--linkedin,
+.li2-root--linkedin {
+  --li2-frame-w: 800px;
+  --li2-frame-h: 3000px;
+}
+.li2-viewport--instagram,
+.li2-root--instagram {
+  --li2-frame-w: 1080px;
+  --li2-frame-h: 1080px;
+
+  --li2-radius: 30px;
+
+  --li2-content-pad-x: 34px;
+  --li2-content-pad-top: 22px;
+  --li2-content-pad-bottom: 22px;
+
+  --li2-companyLogo-left: 30px;
+  --li2-companyLogo-top: 22px;
+  --li2-companyLogo-h: 44px;
+  --li2-companyLogo-maxw: 180px;
+
+  --li2-badge-left: 30px;
+  --li2-badge-right: 100px;
+  --li2-badge-top: 80px;
+  --li2-badge-pad-y: 10px;
+  --li2-badge-pad-x: 16px;
+  --li2-badge-font: 18px;
+  --li2-badge-maxw: none;
+
+  --li2-userTop-right: 24px;
+  --li2-userTop-top: 24px;
+  --li2-avatar-size: 118px;
+  --li2-userTop-maxw: 280px;
+  --li2-userTop-name-maxw: 220px;
+
+  --li2-linkTitle-font: 34px;
+  --li2-linkTitle-maxw: 760px;
+  --li2-company-font: 14px;
+  --li2-headline-font: 18px;
+  --li2-subline-font: 16px;
+  --li2-body-font: 22px;
+
+  --li2-bottom-h: 72px;
+  --li2-bottom-pad-x: 24px;
+  --li2-bottom-pad-y: 12px;
+}
+
+.li2-viewport--story,
+.li2-root--story {
+  --li2-frame-w: 1080px;
+  --li2-frame-h: 1920px;
+
+  --li2-radius: 0px;
+
+  --li2-content-pad-x: 42px;
+  --li2-content-pad-top: 26px;
+  --li2-content-pad-bottom: 28px;
+
+  --li2-companyLogo-left: 34px;
+  --li2-companyLogo-top: 22px;
+  --li2-companyLogo-h: 44px;
+  --li2-companyLogo-maxw: 220px;
+
+  --li2-badge-left: 34px;
+  --li2-badge-right: 100px;
+  --li2-badge-top: 80px;
+  --li2-badge-pad-y: 12px;
+  --li2-badge-pad-x: 18px;
+  --li2-badge-font: 20px;
+  --li2-badge-maxw: none;
+
+  --li2-userTop-right: 28px;
+  --li2-userTop-top: 28px;
+  --li2-avatar-size: 128px;
+  --li2-userTop-maxw: 300px;
+  --li2-userTop-name-maxw: 240px;
+
+  --li2-linkTitle-font: 44px;
+  --li2-linkTitle-maxw: 860px;
+  --li2-company-font: 16px;
+  --li2-headline-font: 22px;
+  --li2-subline-font: 18px;
+  --li2-body-font: 28px;
+
+  --li2-bottom-h: 84px;
+  --li2-bottom-pad-x: 28px;
+  --li2-bottom-pad-y: 14px;
+}

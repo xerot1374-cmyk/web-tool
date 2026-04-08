@@ -1,0 +1,277 @@
+/* public/dsfad.css */
+/* =========================
+   LinkedInTemplate2 — SHARED (li2-*)
+   Source of truth for Preview + PDF + Video
+   ========================= */
+
+/* ===== viewport / scale ===== */
+.li2-viewport{
+  --li2-scale: 1;
+  width: calc(700px * var(--li2-scale));
+  height: calc(1500px * var(--li2-scale));
+  overflow: hidden;
+  background:
+    radial-gradient(900px 360px at 20% 10%, rgba(106, 98, 98, 0.1), transparent 60%),
+    linear-gradient(135deg, #ffffff 0%, #ffffff 45%, #ffffff 100%);
+}
+
+.li2-root{
+  width: 700px;
+  height: auto;
+  background: #ffffff;
+  transform: scale(var(--li2-scale));
+  transform-origin: top left;
+
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ===== HEADER ===== */
+.li2-header{
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 360px at 20% 10%, rgb(255, 255, 255), transparent 60%),
+    linear-gradient(135deg, #ffffff 0%, #ffffff 45%, #ffffff 100%);
+}
+
+/* وقتی عکس محصول هست */
+.li2-header--hasimg{
+  height: 750px;
+}
+
+/* وقتی عکس محصول نیست → هدر حذف میشه ولی user باقی می‌مونه */
+.li2-header--noimg{
+  height: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+/* header: layout row */
+.li2-header{
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* ===== PRODUCT ===== */
+.li2-productFrame{
+  position: relative;
+  left: 22px;
+  top: 200px;
+
+  width: 350px;
+  height: 350px;
+
+  border-radius: 8px;
+  border: 0.1px solid rgb(255, 255, 255);
+  box-shadow: 0 18px 40px rgb(255, 255, 255);
+  background: rgba(255,255,255,255);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.li2-productImg{
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  background: transparent;
+  max-height: 100%;
+}
+
+/* ===== BADGE ===== */
+.li2-badge{
+  position:absolute;
+  left:22px;
+  top: calc(40px + 20mm);
+
+  padding:8px 14px;
+  border-radius:5px;
+  background: #a4072f;
+  color:#fff;
+  font-family: 'Lucida Grande', 'Lucida Sans Unicode', arial, sans-serif;
+  font-weight:800;
+  font-size:22px;
+  white-space:nowrap;
+
+  z-index:3;
+}
+
+/* ===== USER ===== */
+.li2-userTop{
+  position:absolute;
+  right:22px;
+  top:1px;
+
+  display:flex;
+  align-items:center;
+  gap:5px;
+
+  z-index:3;
+}
+
+.li2-userTopMeta{
+  display:flex;
+  position:absolute;
+  right: 140px;
+  top: calc(30px + 20mm);
+  flex-direction:column;
+  align-items:flex-end;
+  max-width:360px;
+
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0,0,0,0);
+  border: 1px solid rgba(0,0,0,0);
+}
+
+.li2-userTopName{
+  font-size:14px;
+  font-weight:800;
+  color: #3e0202;
+  font-family: 'Lucida Grande', 'Lucida Sans Unicode', arial, sans-serif;
+  line-height:1.1;
+  text-shadow: 0 3px 10px rgba(0,0,0,0.66);
+}
+
+.li2-userTopRole{
+  font-size:12px;
+  color: rgba(128, 113, 113, 0.85);
+  font-family: 'Lucida Grande', 'Lucida Sans Unicode', arial, sans-serif;
+  line-height:1.1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:360px;
+  text-shadow: 0 3px 10px rgba(0,0,0,0.66);
+}
+
+.li2-avatarWrap{
+  width:150px;
+  height:150px;
+  border-radius:50%;
+  background:#fff;
+  padding:5px;
+  box-shadow:0 10px 24px rgba(0,0,0,0.18);
+  box-sizing:border-box;
+}
+
+.li2-avatar{
+  width:100%;
+  height:100%;
+  border-radius:50%;
+  object-fit:cover;
+  display:block;
+  border:2px dashed #b0122b;
+}
+
+/* ===== CONTENT ===== */
+.li2-content{
+  flex:1;
+  padding:18px 22px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.li2-header--noimg + .li2-content{
+  padding-top: 168px;
+}
+
+.li2-linkTitle{
+  font-size:22px;
+  font-weight:900;
+  font-family: 'Lucida Grande', 'Lucida Sans Unicode', arial, sans-serif;
+  color:#111827;
+  text-shadow: 0 3px 10px rgba(0,0,0,0.66);
+}
+
+.li2-company{
+  margin-top:6px;
+  font-size:14px;
+  color:#6b7280;
+}
+
+.li2-headline{
+  margin-top:10px;
+  font-size:20px;
+  font-weight:900;
+  color:#111827;
+}
+
+.li2-subline{
+  margin-top:8px;
+  font-size:14px;
+  color:#374151;
+}
+
+.li2-body{
+  flex:1;
+  margin-top:10px;
+  font-size:14px;
+  color: #200a0a;
+  line-height:1.45;
+  white-space:pre-wrap;
+  overflow:auto;
+  padding-right:6px;
+}
+
+.li2-linkRow{
+  margin-top:10px;
+  font-size:13px;
+  color:#6b7280;
+}
+
+.li2-link{
+  color:#2563eb;
+  text-decoration:none;
+}
+
+/* ===== BOTTOM ===== */
+.li2-bottom{
+  height:64px;
+  border-top:1px solid #eef2f7;
+  padding:10px 22px;
+  display:flex;
+  align-items:center;
+  background:#fff;
+  box-sizing:border-box;
+}
+
+.li2-bottomLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-width:0;
+}
+
+.li2-profileMini{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  object-fit:cover;
+}
+
+.li2-bottomMeta{
+  min-width:0;
+}
+
+.li2-bottomName{
+  font-size:13px;
+  font-weight:700;
+  color:#111827;
+  line-height:1.1;
+}
+
+.li2-bottomRole{
+  font-size:12px;
+  color:#6b7280;
+  line-height:1.1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:520px;
+}

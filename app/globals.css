@@ -1,0 +1,420 @@
+
+
+
+/* =========================
+   Base layout / Home page
+   ========================= */
+
+body {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+html {
+  height: 100%;
+}
+
+.app-container {
+  width: 100%;
+  min-height: 100%;
+  background: linear-gradient(135deg, #664eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+.content-wrapper {
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+}
+
+.main-heading {
+  font-size: 48px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 24px 0;
+  line-height: 1.2;
+}
+
+.description {
+  font-size: 18px;
+  color: #f0f0f0;
+  margin: 0 0 40px 0;
+  line-height: 1.6;
+}
+
+.button-container {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.social-button {
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 140px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.linkedin-button {
+  background-color: #0077b5;
+  color: #ffffff;
+}
+
+.linkedin-button:hover {
+  background-color: #005885;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.instagram-button {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  color: #ffffff;
+}
+
+.instagram-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .main-heading {
+    font-size: 36px;
+  }
+
+  .description {
+    font-size: 16px;
+  }
+
+  .button-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .social-button {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+/* لینک‌ها مثل متن عادی، بدون زیرخط */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+
+/* =========================
+   LinkedIn / Instagram lists
+   (صفحه انتخاب Template ها)
+   ========================= */
+
+.template-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+/* کارت‌های لیست انتخاب Template */
+.template-grid .template-card {
+  background-color: #ffffff;
+  color: #111827;
+  border-radius: 16px;
+  padding: 20px;
+  width: 260px;
+  text-align: left;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.template-grid .template-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 35px rgba(15, 23, 42, 0.25);
+}
+
+.template-tag {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.template-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.template-desc {
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 14px;
+}
+
+.template-meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+
+/* =========================
+   Editor (سمت چپ Template A/B)
+   ========================= */
+
+.editor-layout {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  margin-top: 32px;
+  align-items: flex-start;
+}
+
+.editor-panel {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+}
+
+.editor-panel h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.editor-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4b5563;
+}
+
+.editor-input,
+.editor-textarea {
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  outline: none;
+}
+
+.editor-input:focus,
+.editor-textarea:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3);
+}
+
+.editor-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.editor-layout > div:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+
+/* =========================
+   TemplateBase (کارت اصلی)
+   ========================= */
+
+/* پایه کارت – بدون رنگ پس‌زمینه (رنگ را variant تعیین می‌کند) */
+.template-card {
+  border-radius: 1px;
+  padding: 34px 14px 38px;
+  box-shadow: 0 22px 45px rgba(15, 23, 42, 0.25);
+  border-top: 6px solid #6d0704;
+  width: 375px;
+  max-width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ردیف بالای کارت: لوگو + eye catcher + کاربر */
+.template-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+/* لوگو + eye catcher در یک ستون */
+.template-top-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.logo-row img {
+  display: block;
+}
+
+/* اسم کاربر چپ، آواتار راست */
+.template-top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Eye-Catcher قرمز–نارنجی جذاب */
+.eye-catcher-pill {
+  padding: 60px 140px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3e1005, #cabfc1);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: 0 8px 18px rgba(248, 113, 113, 0.35);
+}
+
+/* Avatar */
+.user-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 5px dashed #3e1005;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+
+.avatar-fallback {
+  font-size: 24px;
+  font-weight: 700;
+  color: #3e1005;
+}
+
+.user-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.user-role {
+  color: #6b7280;
+}
+
+.template-content {
+  margin-top: 4px;
+}
+
+.template-title-main {
+  font-size: 22px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: #111827;
+  margin: 8px 0 6px 0;
+}
+
+.template-subline {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+.template-body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.template-footer-note {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+  font-size: 13px;
+  color: #6b7280;
+  text-align: left;
+}
+
+
+/* =========================
+   Variants (template-style-1..4)
+   ========================= */
+
+/* Style 1: Clean White (Protos default) */
+.template-style-1 {
+  background: #ffffff;
+  color: #111827;
+}
+
+/* Style 2: Dark Bold */
+.template-style-2{
+    background: #111827;
+  color: #f9fafb;}
+
+
+
+
+.template-style-2 .template-subline,
+.template-style-2 .template-body,
+.template-style-2 .user-role,
+.template-style-2 .template-title-main,
+.template-style-2 .user-name{
+  color: #bca3a3;
+}
+
+
+
+
+/* Style 3: Gradient */
+.template-style-3 {
+  background: linear-gradient(135deg, #7577d3, #030d53);
+  color: #dfeaf4;
+}
+
+.template-style-3 .template-subline,
+.template-style-3 .template-body,
+.template-style-3 .user-role {
+  color: #80a5ff;
+}
+
+/* Style 4: Corporate Blue */
+.template-style-4 {
+  background: #55051b;
+  color: #2a4698;
+}
+
+.template-style-4 .template-subline,
+.template-style-4 .template-body {
+  color: #d8779b;
+}

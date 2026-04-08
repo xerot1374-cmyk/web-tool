@@ -1,0 +1,79 @@
+.li2-stage { position: relative; }
+
+.li2-template { position: absolute; inset: 0; z-index: 1; }
+
+.li2-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: rgba(43, 34, 34, 0.18);
+  pointer-events: none;
+}
+
+/* اگر جایی استفاده می‌کنی نگه دار، وگرنه بی‌اثر می‌مونه */
+.li2-overlay .li2-edit-control { pointer-events: auto; }
+
+.li2-edit-input{
+  position:absolute;
+  left:22px;
+  top:60px;   /* فعلاً نزدیک badge */
+  width:260px;
+  height:38px;
+  padding:8px 10px;
+  border:1px solid rgba(0,0,0,0.2);
+  border-radius:8px;
+  background:#fff;
+}
+
+.li2-edit-badge { pointer-events: auto; }
+
+.li2-edit-badgeInput{
+  position: absolute;
+  left: 22px;
+  top: calc(40px + 20mm);
+
+  /* ظاهر مثل خود badge */
+  padding: 8px 14px;
+  border-radius: 5px;
+  background: #a4072f;
+  color: #fff;
+  font-family: 'Lucida Grande','Lucida Sans Unicode',arial,sans-serif;
+  font-weight: 800;
+  font-size: 22px;
+  white-space: nowrap;
+
+  /* input reset */
+  border: 0;
+  outline: 0;
+  margin: 0;
+  box-sizing: border-box;
+
+  /* width مثل badge */
+  min-width: auto;
+  width: fit-content;
+
+  pointer-events: auto;
+}
+
+.li2-edit-titleInput{
+  position:absolute;
+  left:22px;
+  top:170px;
+  width:520px;
+  height:38px;
+
+  font-size:22px;
+  font-weight:900;
+  font-family:'Lucida Grande','Lucida Sans Unicode',arial,sans-serif;
+  color:#111827;
+  text-shadow:0 3px 10px rgba(0,0,0,0.66);
+
+  background:transparent;
+  border:0;
+  outline:0;
+  padding:0;
+  margin:0;
+
+  pointer-events:auto;
+  z-index:101;
+}
