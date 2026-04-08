@@ -1871,9 +1871,8 @@ export default function TemplateAClient({
           <div
               style={{
                 width: currentCanvas.w,
-                height: currentCanvas.h,
                 background: "#ffffff",
-                overflow: "hidden",
+                overflow: "visible",
               }}
           >
             <LinkedInTemplate2

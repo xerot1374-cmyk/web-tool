@@ -159,6 +159,13 @@ export async function POST(req: Request) {
     const data = (await req.json()) as Payload;
 
     const canvas = getCanvasFrame(data.canvasPreset);
+    const presetClass =
+      data.canvasPreset === "instagramStory"
+        ? "story"
+        : data.canvasPreset === "instagram"
+        ? "instagram"
+        : "linkedin";
+    const exportPresetClass = data.canvasPreset ?? "linkedin";
     const frame = {
       w: canvas.w,
       h: canvas.h,
@@ -303,22 +310,20 @@ export async function POST(req: Request) {
 </head>
 <body>
   <div
-    class="li2-viewport"
+    class="li2-viewport li2-viewport--${presetClass} li2-viewport--autoHeight preset-${exportPresetClass}"
     style="
       --li2-scale:1;
       width:${frame.w}px;
-      height:${frame.h}px;
-      overflow:hidden;
+      overflow:visible;
       background:#fff;
     "
   >
     <div
-      class="li2-root li2-theme-cream"
+      class="li2-root li2-root--${presetClass} li2-root--autoHeight li2-theme-cream preset-${exportPresetClass}"
       style="
         width:${frame.w}px;
-        height:${frame.h}px;
         border-radius:${frame.radius}px;
-        overflow:hidden;
+        overflow:visible;
         position:relative;
       "
     >
@@ -457,10 +462,15 @@ export async function POST(req: Request) {
         await page.waitForSelector("img.li2-productImg");
       }
 
+      const exportHeight = await page.$eval(".li2-root", (node) => {
+        const el = node as HTMLElement;
+        return Math.max(1, Math.ceil(el.getBoundingClientRect().height));
+      });
+
       const pdf = await page.pdf({
         printBackground: true,
         width: `${frame.w}px`,
-        height: `${frame.h}px`,
+        height: `${exportHeight}px`,
         pageRanges: "1",
         preferCSSPageSize: false,
       });

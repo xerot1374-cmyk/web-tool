@@ -27,19 +27,14 @@ video {
 .li2-viewport--autoHeight.preset-linkedin {
   --li2-scale: 1;
   width: 800px !important;
-  height: 3000px !important;
-  min-height: 3000px !important;
   background: #ffffff !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 .li2-root.preset-linkedin,
 .li2-root--autoHeight.preset-linkedin {
   width: 800px !important;
-  height: 3000px !important;
-  min-height: 3000px !important;
   background: #ffffff !important;
-  overflow: hidden !important;
   border-radius: 26px !important;
 }
 
@@ -60,19 +55,14 @@ video {
 .li2-viewport--autoHeight.preset-instagram {
   --li2-scale: 1;
   width: 1080px !important;
-  height: 1080px !important;
-  min-height: 1080px !important;
   background: #ffffff !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 .li2-root.preset-instagram,
 .li2-root--autoHeight.preset-instagram {
   width: 1080px !important;
-  height: 1080px !important;
-  min-height: 1080px !important;
   background: #ffffff !important;
-  overflow: hidden !important;
   border-radius: 32px !important;
 }
 
@@ -93,19 +83,14 @@ video {
 .li2-viewport--autoHeight.preset-instagramStory {
   --li2-scale: 1;
   width: 1080px !important;
-  height: 1920px !important;
-  min-height: 1920px !important;
   background: #ffffff !important;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 .li2-root.preset-instagramStory,
 .li2-root--autoHeight.preset-instagramStory {
   width: 1080px !important;
-  height: 1920px !important;
-  min-height: 1920px !important;
   background: #ffffff !important;
-  overflow: hidden !important;
   border-radius: 36px !important;
 }
 
@@ -145,14 +130,14 @@ video {
 
 .li2-content,
 .li2-content--autoHeight {
-  overflow: hidden !important;
-  flex: 1 1 auto !important;
+  overflow: visible !important;
+  flex: 0 0 auto !important;
 }
 
 .li2-body {
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 .li2-bottom {
-  overflow: hidden !important;
+  overflow: visible !important;
 }

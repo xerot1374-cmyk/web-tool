@@ -120,7 +120,7 @@ async function screenshotCoverPng(
 
     await page.setViewport({
       width: frame.w,
-      height: frame.h,
+      height: Math.min(frame.h, 2000),
       deviceScaleFactor: 1,
     });
 
@@ -144,7 +144,21 @@ async function screenshotCoverPng(
       return imgs.every((img) => img.complete);
     }, { timeout: 60000 });
 
-    const buffer = await page.screenshot({ type: "png" });
+    const clip = await page.$eval(".li2-root", (node, frameWidth) => {
+      const el = node as HTMLElement;
+      const rect = el.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.floor(rect.left)),
+        y: Math.max(0, Math.floor(rect.top)),
+        width: Math.ceil(frameWidth as number),
+        height: Math.max(1, Math.ceil(rect.height)),
+      };
+    }, frame.w);
+
+    const buffer = await page.screenshot({
+      type: "png",
+      clip,
+    });
     await fs.writeFile(outPngPath, buffer);
 
     return box;

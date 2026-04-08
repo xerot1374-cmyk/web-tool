@@ -28,18 +28,14 @@ video {
 .li2-viewport--autoHeight.preset-linkedin {
   --li2-scale: 1;
   width: 800px !important;
-  height: 3000px !important;
-  min-height: 3000px !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #fff !important;
 }
 
 .li2-root.preset-linkedin,
 .li2-root--autoHeight.preset-linkedin {
   width: 800px !important;
-  height: 3000px !important;
-  min-height: 3000px !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #ffffff !important;
   border-radius: 26px !important;
 }
@@ -61,18 +57,14 @@ video {
 .li2-viewport--autoHeight.preset-instagram {
   --li2-scale: 1;
   width: 1080px !important;
-  height: 1080px !important;
-  min-height: 1080px !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #fff !important;
 }
 
 .li2-root.preset-instagram,
 .li2-root--autoHeight.preset-instagram {
   width: 1080px !important;
-  height: 1080px !important;
-  min-height: 1080px !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #ffffff !important;
   border-radius: 32px !important;
 }
@@ -94,18 +86,14 @@ video {
 .li2-viewport--autoHeight.preset-instagramStory {
   --li2-scale: 1;
   width: 1080px !important;
-  height: 1920px !important;
-  min-height: 1920px !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #fff !important;
 }
 
 .li2-root.preset-instagramStory,
 .li2-root--autoHeight.preset-instagramStory {
   width: 1080px !important;
-  height: 1920px !important;
-  min-height: 1920px !important;
-  overflow: hidden !important;
+  overflow: visible !important;
   background: #ffffff !important;
   border-radius: 36px !important;
 }
@@ -192,10 +180,10 @@ video {
 
 .li2-content,
 .li2-content--autoHeight {
-  flex: 1 1 auto !important;
+  flex: 0 0 auto !important;
   display: flex;
   flex-direction: column;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
 
 .li2-bottom {
@@ -205,5 +193,5 @@ video {
   padding: 12px 26px;
   display: flex;
   align-items: center;
-  overflow: hidden !important;
+  overflow: visible !important;
 }
