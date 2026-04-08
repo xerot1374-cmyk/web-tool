@@ -6,7 +6,7 @@ import fs from "fs/promises";
 import ffmpeg from "fluent-ffmpeg";
 
 import { configureFfmpegPaths } from "@/app/lib/ffmpeg";
-import { absUrl, escapeHtml, LINKEDIN_CANVASS } from "@/app/lib/renderUtils";
+import { absUrl, escapeHtml, LINKEDIN_CANVAS } from "@/app/lib/renderUtils";
 
 type Payload = {
   profileImage: string;
@@ -64,8 +64,8 @@ function renderCoverHtml(req: Request, data: Payload) {
     html, body { margin:0; padding:0; background:#fff; }
 
     .stage {
-      width:${LINKEDIN_CANVASS.w}px;
-      height:${LINKEDIN_CANVASS.h}px;
+      width:${LINKEDIN_CANVAS.w}px;
+      height:${LINKEDIN_CANVAS.h}px;
       overflow:hidden;
       background:#fff;
       position:relative;
@@ -158,8 +158,8 @@ async function screenshotCoverPng(req: Request, data: Payload, outPngPath: strin
     page.setDefaultTimeout(60000);
 
     await page.setViewport({
-      width: LINKEDIN_CANVASS.w,
-      height: LINKEDIN_CANVASS.h,
+      width: LINKEDIN_CANVAS.w,
+      height: LINKEDIN_CANVAS.h,
       deviceScaleFactor: 1,
     });
 
