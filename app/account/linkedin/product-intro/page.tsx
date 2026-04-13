@@ -4,23 +4,23 @@ import { useState } from "react";
 
 export default function ProductIntroTemplatePage() {
   const [headline, setHeadline] = useState("Neues Produkt-Highlight");
-  const [subline, setSubline] = useState("Kurz das wichtigste Feature erklären.");
+  const [subline, setSubline] = useState("Kurz das wichtigste Feature erklÃ¤ren.");
   const [cta, setCta] = useState("Mehr erfahren");
 
   return (
     <main className="app-container">
       <div className="content-wrapper">
-        <h1 className="main-heading">LinkedIn – Produktvorstellung</h1>
+        <h1 className="main-heading">LinkedIn â€“ Produktvorstellung</h1>
         <p className="description">
           Bearbeiten Sie die Texte und sehen Sie rechts die Vorschau des Templates.
         </p>
 
         <div className="editor-layout">
-          {/* Panel چپ – فرم */}
-          <div className="editor-panel">{/* دکمه‌ها */}
+          {/* Left panel - form */}
+          <div className="editor-panel">{/* Buttons */}
 <div style={{ marginTop: "20px", display: "flex", gap: "12px" }}>
 
-  {/* دکمه برگشت */}
+  {/* Back button */}
   <a
     href="/linkedin"
     style={{
@@ -35,12 +35,12 @@ export default function ProductIntroTemplatePage() {
       cursor: "pointer"
     }}
   >
-    ← Zurück
+    â† ZurÃ¼ck
   </a>
 
-  {/* دکمه Fake-Download */}
+  {/* Fake download button */}
   <button
-    onClick={() => alert("Download kommt später 😉")}
+    onClick={() => alert("Download kommt spÃ¤ter ðŸ˜‰")}
     style={{
       padding: "10px 18px",
       backgroundColor: "#4f46e5",
@@ -74,7 +74,7 @@ export default function ProductIntroTemplatePage() {
                 className="editor-textarea"
                 value={subline}
                 onChange={(e) => setSubline(e.target.value)}
-                placeholder="Kurz erklären, was das Produkt besonders macht."
+                placeholder="Kurz erklÃ¤ren, was das Produkt besonders macht."
               />
             </div>
 

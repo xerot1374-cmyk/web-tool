@@ -12,7 +12,7 @@ export default function TemplateAStageClient(props: any) {
       <div className="li2-overlay">
         {/* Edit UI */}
         <div className="li2-edit-control">
-          {/* مثلاً یک input/handle */}
+          {/* For example, an input or drag handle */}
         </div>
       </div>
     </div>

@@ -16,7 +16,7 @@ const nextConfig = {
     return config;
   },
 
-  // این خط فقط برای اینکه Next دیگه داد نزنه که webpack داری
+  // Keeps Next from warning about the custom webpack config.
   turbopack: {},
 };
 

@@ -7,7 +7,12 @@ import { IncomingForm } from "formidable";
 import { Readable } from "stream";
 
 import { configureFfmpegPaths } from "@/app/lib/ffmpeg";
-import { absUrl, getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
+import {
+  absUrl,
+  escapeHtml,
+  getCanvasFrame,
+  type CanvasPreset,
+} from "@/app/lib/renderUtils";
 
 type Payload = {
   profileImage: string;
@@ -49,6 +54,334 @@ export const dynamic = "force-dynamic";
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn7n6QAAAAASUVORK5CYII=";
 
+function normalizeHttpUrl(raw?: string): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return `https://${value}`;
+}
+
+function linkLabel(linkUrl: string) {
+  try {
+    const url = new URL(linkUrl);
+    return url.host.replace(/^www\./, "");
+  } catch {
+    return linkUrl;
+  }
+}
+
+function renderMarkedHtml(text: string, marks?: Array<{
+  start: number;
+  end: number;
+  style?: {
+    fontFamily?: string;
+    fontSize?: number;
+    color?: string;
+    highlight?: boolean;
+  };
+}>) {
+  const value = String(text ?? "");
+  if (!marks?.length) return escapeHtml(value).replace(/\n/g, "<br/>");
+
+  const safeMarks = marks
+    .map((mark) => ({
+      start: Math.max(0, Math.min(mark.start, value.length)),
+      end: Math.max(0, Math.min(mark.end, value.length)),
+      style: mark.style ?? {},
+    }))
+    .filter((mark) => mark.end > mark.start)
+    .sort((a, b) => a.start - b.start);
+
+  let out = "";
+  let pos = 0;
+
+  for (const mark of safeMarks) {
+    if (mark.start > pos) {
+      out += escapeHtml(value.slice(pos, mark.start)).replace(/\n/g, "<br/>");
+    }
+
+    const style = [
+      mark.style.fontFamily ? `font-family:${mark.style.fontFamily};` : "",
+      mark.style.fontSize ? `font-size:${mark.style.fontSize}px;` : "",
+      mark.style.color ? `color:${mark.style.color};` : "",
+      mark.style.highlight ? "background:rgba(250,204,21,0.18);" : "",
+    ].join("");
+
+    out += `<span style="${style}">${escapeHtml(value.slice(mark.start, mark.end)).replace(/\n/g, "<br/>")}</span>`;
+    pos = mark.end;
+  }
+
+  if (pos < value.length) {
+    out += escapeHtml(value.slice(pos)).replace(/\n/g, "<br/>");
+  }
+
+  return out;
+}
+
+function styleToInline(style?: {
+  fontFamily?: string;
+  fontSize?: number;
+  color?: string;
+  textAlign?: "left" | "center" | "right";
+}) {
+  if (!style) return "";
+  return [
+    style.fontFamily ? `font-family:${style.fontFamily};` : "",
+    style.fontSize ? `font-size:${style.fontSize}px;` : "",
+    style.color ? `color:${style.color};` : "",
+    style.textAlign ? `text-align:${style.textAlign};` : "",
+  ].join("");
+}
+
+function getPresetClass(preset?: CanvasPreset) {
+  if (preset === "instagramStory") return "story";
+  if (preset === "instagram") return "instagram";
+  return "linkedin";
+}
+
+function resolveSrc(req: Request, raw?: string) {
+  const value = raw?.trim();
+  if (!value) return "";
+  return value.startsWith("data:") ? value : absUrl(req, value);
+}
+
+function getHeaderHeight(preset?: CanvasPreset) {
+  if (preset === "instagram") return 420;
+  if (preset === "instagramStory") return 760;
+  return 850;
+}
+
+function getFinalVideoBox(
+  preset: CanvasPreset | undefined,
+  mediaBox?: { x: number; y: number; w: number; h: number }
+) {
+  const canvas = getCanvasFrame(preset);
+  const headerHeight = getHeaderHeight(preset);
+  const base = mediaBox ?? { x: 420, y: 240, w: 240, h: 240 };
+  const aspectRatio = base.w > 0 && base.h > 0 ? base.w / base.h : 1;
+
+  let width = Math.round(base.w * 1.35);
+  let height = Math.round(width / aspectRatio);
+
+  const maxWidth = Math.round(canvas.w * 0.72);
+  const maxHeight = Math.round(headerHeight * 0.68);
+
+  if (width > maxWidth) {
+    width = maxWidth;
+    height = Math.round(width / aspectRatio);
+  }
+
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = Math.round(height * aspectRatio);
+  }
+
+  width = Math.max(220, width);
+  height = Math.max(220, height);
+
+  return {
+    x: Math.round((canvas.w - width) / 2),
+    y: Math.round((headerHeight - height) / 2),
+    w: width,
+    h: height,
+  };
+}
+
+function renderVideoTemplateHtml(
+  req: Request,
+  data: Payload,
+  box: { x: number; y: number; w: number; h: number }
+) {
+  const canvas = getCanvasFrame(data.canvasPreset);
+  const presetClass = getPresetClass(data.canvasPreset);
+  const cssUrl = absUrl(req, "/li2.css");
+  const profileImage = resolveSrc(req, data.profileImage);
+  const companyLogo = resolveSrc(req, "/logo.png");
+
+  const images = [
+    {
+      id: "video-slot",
+      src: TRANSPARENT_PIXEL,
+      orientation: "landscape" as const,
+      x: box.x,
+      y: box.y,
+      w: box.w,
+      h: box.h,
+      rotation: 0,
+      cropX: 50,
+      cropY: 50,
+      cropScale: 1,
+    },
+  ];
+
+  const links = (data.link ?? "")
+    .split("\n")
+    .map((item) => normalizeHttpUrl(item))
+    .filter((item): item is string => Boolean(item));
+
+  const imagesHtml = images
+    .map(
+      (img) => `
+        <div
+          class="li2-productSlot"
+          style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:2;pointer-events:none;transform:none;right:auto;bottom:auto;margin:0;"
+        >
+          <div
+            class="li2-productFrame li2-productFrame--landscape"
+            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(0deg);transform-origin:center center;border-radius:20px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
+          >
+            <img
+              class="li2-productImg li2-productImg--cropped"
+              src="${escapeHtml(img.src)}"
+              alt="video-slot"
+              style="position:absolute;left:50%;top:50%;width:100%;height:100%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;opacity:0;"
+            />
+          </div>
+        </div>
+      `
+    )
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="${cssUrl}" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #ffffff;
+      width: 100%;
+      height: 100%;
+    }
+    * { box-sizing: border-box; }
+    .video-stage {
+      width: ${canvas.w}px;
+      background: #ffffff;
+      overflow: visible;
+    }
+    .li2-viewport {
+      --li2-scale: 1;
+      width: ${canvas.w}px !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+    }
+    .li2-root {
+      width: ${canvas.w}px !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      position: relative;
+    }
+    .li2-content {
+      overflow: visible !important;
+      flex: 0 0 auto !important;
+    }
+    .li2-body,
+    .li2-bottom {
+      overflow: visible !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="video-stage">
+    <div class="li2-viewport li2-viewport--${presetClass} li2-viewport--autoHeight">
+      <div class="li2-root li2-root--${presetClass} li2-theme-cream li2-root--autoHeight">
+        <div class="li2-header li2-header--hasimg">
+          ${imagesHtml}
+          ${
+            companyLogo
+              ? `<img src="${escapeHtml(companyLogo)}" alt="Company logo" class="li2-companyLogo" />`
+              : ""
+          }
+          <div class="li2-badge" style="min-width:120px;${styleToInline(data.badgeStyle)}">
+            ${data.badgeText?.trim() ? escapeHtml(data.badgeText.trim()) : "&nbsp;"}
+          </div>
+          <div class="li2-userTop">
+            <div class="li2-userTopMeta">
+              <div class="li2-userTopName" title="${escapeHtml(data.name ?? "")}">
+                ${escapeHtml(data.name ?? "")}
+              </div>
+              <div class="li2-userTopRole" title="${escapeHtml(data.role ?? "")}">
+                ${escapeHtml(data.role ?? "")}
+              </div>
+            </div>
+            <div class="li2-avatarWrap">
+              <img class="li2-avatar" src="${escapeHtml(profileImage)}" alt="profile" />
+            </div>
+          </div>
+        </div>
+        <div class="li2-content li2-content--autoHeight">
+          ${
+            data.linkTitle?.trim()
+              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${escapeHtml(data.linkTitle.trim())}</div>`
+              : ""
+          }
+          ${
+            data.company?.trim()
+              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${escapeHtml(data.company.trim())}</div>`
+              : ""
+          }
+          ${
+            data.headline?.trim()
+              ? `<div class="li2-headline" style="${styleToInline(data.headlineStyle)}">${escapeHtml(data.headline.trim())}</div>`
+              : ""
+          }
+          ${
+            data.subline?.trim()
+              ? `<div class="li2-subline" style="${styleToInline(data.sublineStyle)}">${escapeHtml(data.subline.trim())}</div>`
+              : ""
+          }
+          ${
+            data.bodyText?.trim()
+              ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">${renderMarkedHtml(data.bodyText, data.bodyMarks)}</div>`
+              : ""
+          }
+          ${
+            links.length
+              ? `<div class="li2-linkRow">
+                  ${
+                    links.length === 1
+                      ? `<a class="li2-link" href="${escapeHtml(links[0])}" target="_blank" rel="noreferrer">
+                          ${escapeHtml(linkLabel(links[0]))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
+                        </a>`
+                      : `<div class="li2-linksList">
+                          ${links
+                            .map(
+                              (href) =>
+                                `<a class="li2-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">
+                                  ${escapeHtml(linkLabel(href))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
+                                </a>`
+                            )
+                            .join("")}
+                        </div>`
+                  }
+                </div>`
+              : ""
+          }
+        </div>
+        <div class="li2-bottom">
+          <div class="li2-bottomLeft">
+            <img class="li2-profileMini" src="${escapeHtml(profileImage)}" alt="profile-small" />
+            <div class="li2-bottomMeta">
+              <div class="li2-bottomName" title="${escapeHtml(data.name ?? "")}">
+                ${escapeHtml(data.name ?? "")}
+              </div>
+              <div class="li2-bottomRole" title="${escapeHtml(data.role ?? "")}">
+                ${escapeHtml(data.role ?? "")}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 
 function requestToNodeStream(req: Request) {
   const reader = req.body?.getReader();
@@ -84,31 +417,8 @@ async function screenshotCoverPng(
   const puppeteer = (await import("puppeteer")).default;
 
   const frame = getCanvasFrame(data.canvasPreset);
-  const box = data.mediaBox ?? { x: 160, y: 320, w: 480, h: 320 };
-
-  const coverPayload = {
-    ...data,
-    productImage: undefined,
-    productImageBase64: undefined,
-    productOrientation: "landscape",
-    productAlign: "center",
-    images: [
-      {
-        id: "video-slot",
-        src: TRANSPARENT_PIXEL,
-        base64: TRANSPARENT_PIXEL,
-        orientation: "landscape",
-        x: box.x,
-        y: box.y,
-        w: box.w,
-        h: box.h,
-        rotation: 0,
-        cropX: 50,
-        cropY: 50,
-        cropScale: 1,
-      },
-    ],
-  };
+  const box = getFinalVideoBox(data.canvasPreset, data.mediaBox);
+  const html = renderVideoTemplateHtml(req, data, box);
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -124,20 +434,16 @@ async function screenshotCoverPng(
       deviceScaleFactor: 1,
     });
 
-    await page.evaluateOnNewDocument((payload) => {
-      (window as any).__PDF_PAYLOAD__ = payload;
-    }, coverPayload);
-
-    const pageUrl = absUrl(req, "/account/linkedin/template-a?__pdf=1");
-    await page.goto(pageUrl, { waitUntil: "networkidle0", timeout: 60000 });
-
-    await page.addStyleTag({ url: absUrl(req, "/video.css") });
+    await page.emulateMediaType("screen");
+    await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
 
     await page.waitForSelector(".li2-root", { timeout: 60000 });
 
-    await page.waitForFunction(async () => {
+      await page.waitForFunction(async () => {
       const fontsReady =
-        "fonts" in document ? (document as any).fonts.ready : Promise.resolve();
+        "fonts" in document
+          ? (document as Document & { fonts: FontFaceSet }).fonts.ready
+          : Promise.resolve();
       await fontsReady;
 
       const imgs = Array.from(document.images);
@@ -147,11 +453,13 @@ async function screenshotCoverPng(
     const clip = await page.$eval(".li2-root", (node, frameWidth) => {
       const el = node as HTMLElement;
       const rect = el.getBoundingClientRect();
+      const rawHeight = Math.max(1, Math.ceil(rect.height));
+      const evenHeight = rawHeight % 2 === 0 ? rawHeight : rawHeight + 1;
       return {
         x: Math.max(0, Math.floor(rect.left)),
         y: Math.max(0, Math.floor(rect.top)),
         width: Math.ceil(frameWidth as number),
-        height: Math.max(1, Math.ceil(rect.height)),
+        height: evenHeight,
       };
     }, frame.w);
 
@@ -181,7 +489,7 @@ async function buildVideoInsideTemplateWithAudio(
       .inputOptions(["-loop 1"])
       .input(userMp4Path)
       .complexFilter([
-        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=decrease,pad=${box.w}:${box.h}:(ow-iw)/2:(oh-ih)/2,format=yuv420p[vid]`,
+        `[1:v]scale=w='if(gt(a,${box.w}/${box.h}),${box.w},-2)':h='if(gt(a,${box.w}/${box.h}),-2,${box.h})',pad=${box.w}:${box.h}:(ow-iw)/2:(oh-ih)/2,format=yuv420p[vid]`,
         `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[v]`,
       ])
       .outputOptions([

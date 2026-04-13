@@ -5,7 +5,7 @@ export function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
   const session = req.cookies.get("session")?.value;
 
-  // فقط اینا public هستن
+  // Only these paths are public.
   const publicPaths = [
     "/",
     "/login",
@@ -15,15 +15,15 @@ export function middleware(req: NextRequest) {
 
   const isPublic = publicPaths.some((p) => pathname.startsWith(p));
 
-  // اگر session نداره و public نیست → بره login
+  // If there is no session and the path is not public, redirect to login.
   // if (!session && !isPublic) {
-   //  return NextResponse.redirect(new URL("/login", req.url));
+  //   return NextResponse.redirect(new URL("/login", req.url));
   // }
 
-  // اگر session داره و رفت login → بره account
+  // If there is a session and the user visits login, redirect to account.
   // if (session && pathname === "/login") {
   //   return NextResponse.redirect(new URL("/account", req.url));
- // }
+  // }
 
   return NextResponse.next();
 }

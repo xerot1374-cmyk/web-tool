@@ -35,10 +35,10 @@ function normalizeHttpUrl(raw?: string): string | undefined {
 }
 
 /**
- * ✅ فقط تغییر مربوط به همین مسئله:
- * - CSS ویدئو جدا (video.css)
- * - کوچیک‌تر کردن template با --li2-scale
- * - دادن height ثابت به productFrame تا placeholder ویدئو ارتفاع صفر نگیرد
+ * Changes specific to this cover-video flow:
+ * - Use separate video CSS (`video.css`)
+ * - Scale down the template with `--li2-scale`
+ * - Give `productFrame` a fixed height so the video placeholder does not collapse
  */
 const VIDEO_SCALE = 0.85;
 const VIDEO_BOX_H = 255;
@@ -46,7 +46,7 @@ const VIDEO_BOX_H = 255;
 function renderCoverHtml(req: Request, data: Payload) {
   const profileImage = absUrl(req, data.profileImage);
 
-  // ✅ فقط همین: به جای pdf.css از video.css استفاده کن
+  // Use `video.css` here instead of `pdf.css`.
   const cssHref = absUrl(req, "/video.css");
 
   const rawLink = data.link?.trim();
@@ -71,7 +71,7 @@ function renderCoverHtml(req: Request, data: Payload) {
       position:relative;
     }
 
-    /* ✅ فقط برای cover: productFrame باید ارتفاع داشته باشد */
+    /* Cover-only: `productFrame` needs an explicit height. */
     .li2-productFrame { height: ${VIDEO_BOX_H}px !important; }
 
     #videoBox {
@@ -172,7 +172,7 @@ async function screenshotCoverPng(req: Request, data: Payload, outPngPath: strin
     await page.waitForSelector("img.li2-avatar", { timeout: 60000 });
     await page.waitForSelector("#videoBox", { timeout: 60000 });
 
-    // مطمئن شو تصاویر کامل لود شدن
+    // Ensure all images are fully loaded.
     await page.waitForFunction(() => {
       const imgs = Array.from(document.images);
       return imgs.every((img) => img.complete);

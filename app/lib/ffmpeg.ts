@@ -3,7 +3,7 @@ import ffmpeg from "fluent-ffmpeg";
 let configured = false;
 
 export async function configureFfmpegPaths() {
-  // جلوگیری از set کردن چندباره در یک runtime
+  // Prevent configuring the paths multiple times in the same runtime.
   if (configured) return;
 
   const ffmpegInstaller = await import("@ffmpeg-installer/ffmpeg");

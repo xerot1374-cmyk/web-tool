@@ -23,7 +23,7 @@ export default function FinalTestPage() {
     try {
       const form = new FormData();
       form.append("data", JSON.stringify(data));
-      form.append("video", file); // ✅ اسم فیلد باید video باشد
+      form.append("video", file); // The field name must be `video`.
 
       const res = await fetch("/api/video/final", {
         method: "POST",

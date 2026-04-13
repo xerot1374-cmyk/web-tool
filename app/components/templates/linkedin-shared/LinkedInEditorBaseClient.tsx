@@ -8,7 +8,7 @@ type Props = {
   onLogout: () => void;
   successMsg?: string;
   errorMsg?: string;
-  children: React.ReactNode; // داخلش layout preview+toolbox میاد
+  children: React.ReactNode; // Contains the preview + toolbox layout.
 };
 
 export default function LinkedInEditorBaseClient({

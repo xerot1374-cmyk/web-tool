@@ -18,28 +18,28 @@ export default function TemplateB() {
   );
   const [subline, setSubline] = useState("Kurzer Insight oder starkes Zitat.");
   const [body, setBody] = useState(
-    "Hier steht ein kurzer, prägnanter Text – z.B. ein Learning oder eine These."
+    "Hier steht ein kurzer, prÃ¤gnanter Text â€“ z.B. ein Learning oder eine These."
   );
   const [cta, setCta] = useState("Diskussion starten");
 
   const [caption, setCaption] = useState(
-    "💡 Starkes Statement von Protos 3D.\nMehr dazu: https://protos3d.de\n#protos3d #3dprinting #innovation"
+    "ðŸ’¡ Starkes Statement von Protos 3D.\nMehr dazu: https://protos3d.de\n#protos3d #3dprinting #innovation"
   );
 
   return (
     <main className="app-container">
       <div className="content-wrapper">
-        <h1 className="main-heading">Template B – Statement Layout</h1>
+        <h1 className="main-heading">Template B â€“ Statement Layout</h1>
         <p className="description">
-          Links: Inhalte & Style – Rechts: Statement-Design
+          Links: Inhalte & Style â€“ Rechts: Statement-Design
         </p>
 
         <div className="editor-layout">
-          {/* چپ: فرم + Style + Caption */}
+          {/* Left: form + style + caption */}
           <div className="editor-panel">
             <h2>Inhalte & Style</h2>
 
-            {/* Style انتخاب */}
+            {/* Style selection */}
             <div className="editor-field">
               <label className="editor-label">Design-Stil</label>
               <select
@@ -97,7 +97,7 @@ export default function TemplateB() {
 
             {/* Caption */}
             <div className="editor-field">
-              <label className="editor-label">Caption (für LinkedIn)</label>
+              <label className="editor-label">Caption (fÃ¼r LinkedIn)</label>
               <textarea
                 className="editor-textarea"
                 style={{ minHeight: "120px", whiteSpace: "pre-wrap" }}
@@ -111,7 +111,7 @@ export default function TemplateB() {
             </p>
           </div>
 
-          {/* راست: Preview با TemplateBase */}
+          {/* Right: preview with TemplateBase */}
           <div>
             <TemplateBase
               headline={headline}

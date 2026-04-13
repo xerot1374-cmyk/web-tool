@@ -1,6 +1,6 @@
 /* public/dsfad.css */
 /* =========================
-   LinkedInTemplate2 — SHARED (li2-*)
+   LinkedInTemplate2 - SHARED (li2-*)
    Source of truth for Preview + PDF + Video
    ========================= */
 
@@ -37,12 +37,12 @@
     linear-gradient(135deg, #ffffff 0%, #ffffff 45%, #ffffff 100%);
 }
 
-/* وقتی عکس محصول هست */
+/* When a product image exists */
 .li2-header--hasimg{
   height: 750px;
 }
 
-/* وقتی عکس محصول نیست → هدر حذف میشه ولی user باقی می‌مونه */
+/* When there is no product image, hide the header but keep the user section visible */
 .li2-header--noimg{
   height: 0;
   background: transparent;

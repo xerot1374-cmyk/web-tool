@@ -6,7 +6,7 @@ export default function LinkedInPage() {
       <div className="content-wrapper">
         <h1 className="main-heading">LinkedIn Templates</h1>
         <p className="description">
-          Wählen Sie ein Template für Ihren LinkedIn-Post.
+          WÃ¤hlen Sie ein Template fÃ¼r Ihren LinkedIn-Post.
         </p>
 
         <div className="template-grid">
@@ -14,10 +14,10 @@ export default function LinkedInPage() {
           <Link href="/linkedin/template-a" className="template-card">
             <div>
               <div className="template-title">
-                Template A – Clean Product Highlight
+                Template A â€“ Clean Product Highlight
               </div>
               <div className="template-desc">
-                Minimal, weiß, modern. Perfekt für Produktvorstellung.
+                Minimal, weiÃŸ, modern. Perfekt fÃ¼r Produktvorstellung.
               </div>
             </div>
           </Link>
@@ -26,15 +26,15 @@ export default function LinkedInPage() {
           <Link href="/linkedin/template-b" className="template-card">
             <div>
               <div className="template-title">
-                Template B – Dark Bold Layout
+                Template B â€“ Dark Bold Layout
               </div>
               <div className="template-desc">
-                Dunkler Hintergrund, starke Headline für Statements.
+                Dunkler Hintergrund, starke Headline fÃ¼r Statements.
               </div>
             </div>
           </Link>
 
-          {/* Produktvorstellung (قدیمی) */}
+          {/* Product introduction (legacy) */}
           <Link href="/linkedin/product-intro" className="template-card">
             <div>
               <div className="template-tag">Awareness</div>
@@ -59,9 +59,9 @@ export default function LinkedInPage() {
           {/* Event */}
           <div className="template-card">
             <div className="template-tag">Event</div>
-            <div className="template-title">Event-Ankündigung</div>
+            <div className="template-title">Event-AnkÃ¼ndigung</div>
             <div className="template-desc">
-              Datum, Ort und Key-Facts zu einem Event übersichtlich darstellen.
+              Datum, Ort und Key-Facts zu einem Event Ã¼bersichtlich darstellen.
             </div>
             <div className="template-meta">Format: Header + Details</div>
           </div>

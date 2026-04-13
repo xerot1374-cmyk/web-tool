@@ -1,6 +1,6 @@
-// app/api/pdf/route.ts
 import { NextResponse } from "next/server";
 import puppeteer from "puppeteer";
+
 import {
   absUrl,
   escapeHtml,
@@ -36,47 +36,41 @@ type ImagePayloadItem = {
   w: number;
   h: number;
   rotation: number;
+  cropX?: number;
+  cropY?: number;
+  cropScale?: number;
 };
 
 type Payload = {
   profileImage: string;
   name: string;
   role: string;
-
   productImage?: string;
   productImageBase64?: string;
   productOrientation?: "landscape" | "portrait";
   productAlign?: "left" | "center" | "right";
-
   mediaBox?: {
     x: number;
     y: number;
     w: number;
     h: number;
   };
-
   images?: ImagePayloadItem[];
-
   badgeText?: string;
   badgeStyle?: BoxTextStyle;
-
   linkTitle?: string;
   company?: string;
-
   headline?: string;
   subline?: string;
   bodyText?: string;
   bodyMarks?: TextMark[];
-
   titleStyle?: BoxTextStyle;
   bodyStyle?: BoxTextStyle;
   companyStyle?: BoxTextStyle;
   headlineStyle?: BoxTextStyle;
   sublineStyle?: BoxTextStyle;
-
   companyLogo?: string;
   companyLogoBase64?: string;
-
   link?: string;
   canvasPreset?: CanvasPreset;
 };
@@ -85,60 +79,57 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 function normalizeHttpUrl(raw?: string): string | undefined {
-  const v = raw?.trim();
-  if (!v) return undefined;
-  if (v.startsWith("http://") || v.startsWith("https://")) return v;
-  return `https://${v}`;
+  const value = raw?.trim();
+  if (!value) return undefined;
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return `https://${value}`;
 }
 
 function linkLabel(linkUrl: string) {
   try {
-    const u = new URL(linkUrl);
-    return u.host.replace(/^www\./, "");
+    const url = new URL(linkUrl);
+    return url.host.replace(/^www\./, "");
   } catch {
     return linkUrl;
   }
 }
 
-
-
 function renderMarkedHtml(text: string, marks?: TextMark[]) {
-  const t = String(text ?? "");
-  if (!marks || marks.length === 0) {
-    return escapeHtml(t).replace(/\n/g, "<br/>");
+  const value = String(text ?? "");
+  if (!marks?.length) {
+    return escapeHtml(value).replace(/\n/g, "<br/>");
   }
 
   const safeMarks = marks
-    .map((m) => ({
-      start: Math.max(0, Math.min(m.start, t.length)),
-      end: Math.max(0, Math.min(m.end, t.length)),
-      style: m.style ?? {},
+    .map((mark) => ({
+      start: Math.max(0, Math.min(mark.start, value.length)),
+      end: Math.max(0, Math.min(mark.end, value.length)),
+      style: mark.style ?? {},
     }))
-    .filter((m) => m.end > m.start)
+    .filter((mark) => mark.end > mark.start)
     .sort((a, b) => a.start - b.start);
 
   let out = "";
   let pos = 0;
 
-  for (const m of safeMarks) {
-    if (m.start > pos) {
-      out += escapeHtml(t.slice(pos, m.start)).replace(/\n/g, "<br/>");
+  for (const mark of safeMarks) {
+    if (mark.start > pos) {
+      out += escapeHtml(value.slice(pos, mark.start)).replace(/\n/g, "<br/>");
     }
 
-    const chunk = escapeHtml(t.slice(m.start, m.end)).replace(/\n/g, "<br/>");
     const style = [
-      m.style.fontFamily ? `font-family:${m.style.fontFamily};` : "",
-      m.style.fontSize ? `font-size:${m.style.fontSize}px;` : "",
-      m.style.color ? `color:${m.style.color};` : "",
-      m.style.highlight ? `background:rgba(250,204,21,0.18);` : "",
+      mark.style.fontFamily ? `font-family:${mark.style.fontFamily};` : "",
+      mark.style.fontSize ? `font-size:${mark.style.fontSize}px;` : "",
+      mark.style.color ? `color:${mark.style.color};` : "",
+      mark.style.highlight ? "background:rgba(250,204,21,0.18);" : "",
     ].join("");
 
-    out += `<span style="${style}">${chunk}</span>`;
-    pos = m.end;
+    out += `<span style="${style}">${escapeHtml(value.slice(mark.start, mark.end)).replace(/\n/g, "<br/>")}</span>`;
+    pos = mark.end;
   }
 
-  if (pos < t.length) {
-    out += escapeHtml(t.slice(pos)).replace(/\n/g, "<br/>");
+  if (pos < value.length) {
+    out += escapeHtml(value.slice(pos)).replace(/\n/g, "<br/>");
   }
 
   return out;
@@ -154,143 +145,90 @@ function styleToInline(style?: BoxTextStyle) {
   ].join("");
 }
 
-export async function POST(req: Request) {
-  try {
-    const data = (await req.json()) as Payload;
+function getPresetClass(preset?: CanvasPreset) {
+  if (preset === "instagramStory") return "story";
+  if (preset === "instagram") return "instagram";
+  return "linkedin";
+}
 
-    const canvas = getCanvasFrame(data.canvasPreset);
-    const presetClass =
-      data.canvasPreset === "instagramStory"
-        ? "story"
-        : data.canvasPreset === "instagram"
-        ? "instagram"
-        : "linkedin";
-    const exportPresetClass = data.canvasPreset ?? "linkedin";
-    const frame = {
-      w: canvas.w,
-      h: canvas.h,
-      radius:
-        data.canvasPreset === "instagram"
-          ? 32
-          : data.canvasPreset === "instagramStory"
-          ? 36
-          : 26,
-    };
-    const profileImage = absUrl(req, data.profileImage);
-    const cssUrl = absUrl(req, "/pdf.css");
+function resolveSrc(req: Request, raw?: string) {
+  const value = raw?.trim();
+  if (!value) return "";
+  return value.startsWith("data:") ? value : absUrl(req, value);
+}
 
-    const companyLogoSrc = data.companyLogoBase64?.trim()
-      ? data.companyLogoBase64.trim()
-      : data.companyLogo?.trim()
-      ? absUrl(req, data.companyLogo.trim())
-      : absUrl(req, "/logo.png");
+function renderHtml(req: Request, data: Payload) {
+  const canvas = getCanvasFrame(data.canvasPreset);
+  const presetClass = getPresetClass(data.canvasPreset);
+  const cssUrl = absUrl(req, "/li2.css");
+  const profileImage = resolveSrc(req, data.profileImage);
+  const companyLogo = resolveSrc(
+    req,
+    data.companyLogoBase64?.trim() ? data.companyLogoBase64 : data.companyLogo || "/logo.png"
+  );
 
-    const legacyProductImgSrc = data.productImageBase64?.trim()
-      ? data.productImageBase64.trim()
-      : data.productImage?.trim()
-      ? absUrl(req, data.productImage.trim())
-      : "";
+  const images: ImagePayloadItem[] = data.images?.length
+    ? data.images.map((img) => ({
+        ...img,
+        src: img.base64?.trim() ? img.base64 : resolveSrc(req, img.src),
+      }))
+    : data.productImageBase64?.trim() || data.productImage?.trim()
+    ? [
+        {
+          id: "legacy-single-image",
+          src: data.productImageBase64?.trim()
+            ? data.productImageBase64
+            : resolveSrc(req, data.productImage),
+          orientation: data.productOrientation ?? "landscape",
+          x: data.mediaBox?.x ?? 420,
+          y: data.mediaBox?.y ?? 240,
+          w: data.mediaBox?.w ?? 240,
+          h: data.mediaBox?.h ?? 240,
+          rotation: 0,
+          cropX: 50,
+          cropY: 50,
+          cropScale: 1,
+        },
+      ]
+    : [];
 
-    const images: ImagePayloadItem[] = data.images?.length
-      ? data.images.map((img) => ({
-          ...img,
-          src: img.base64?.trim()
-            ? img.base64.trim()
-            : img.src?.trim()
-            ? absUrl(req, img.src.trim())
-            : "",
-        }))
-      : legacyProductImgSrc
-      ? [
-          {
-            id: "legacy-single-image",
-            src: legacyProductImgSrc,
-            orientation: data.productOrientation ?? "landscape",
-            x: data.mediaBox?.x ?? 420,
-            y: data.mediaBox?.y ?? 240,
-            w: data.mediaBox?.w ?? 240,
-            h: data.mediaBox?.h ?? 240,
-            rotation: 0,
-          },
-        ]
-      : [];
+  const links = (data.link ?? "")
+    .split("\n")
+    .map((item) => normalizeHttpUrl(item))
+    .filter((item): item is string => Boolean(item));
 
-    const hasImg = images.length > 0;
+  const imagesHtml = images
+    .map((img) => {
+      const cropX = Number.isFinite(img.cropX) ? Number(img.cropX) : 50;
+      const cropY = Number.isFinite(img.cropY) ? Number(img.cropY) : 50;
+      const cropScale = Number.isFinite(img.cropScale) ? Number(img.cropScale) : 1;
+      const orientationClass =
+        img.orientation === "portrait"
+          ? "li2-productFrame--portrait"
+          : "li2-productFrame--landscape";
 
-    const hrefs = (data.link ?? "")
-      .split("\n")
-      .map((s) => normalizeHttpUrl(s))
-      .filter((v): v is string => Boolean(v));
-
-    const headerHeight = !hasImg
-      ? 0
-      : data.canvasPreset === "instagram"
-      ? 420
-      : data.canvasPreset === "instagramStory"
-      ? 760
-      : 850;
-
-    const contentPadding =
-      data.canvasPreset === "instagram"
-        ? "32px 32px 28px"
-        : data.canvasPreset === "instagramStory"
-        ? "40px 40px 34px"
-        : "20px 28px 22px";
-
-    const imagesHtml = images
-      .map(
-        (img) => `
+      return `
+        <div
+          class="li2-productSlot"
+          style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:2;pointer-events:auto;transform:none;right:auto;bottom:auto;margin:0;"
+        >
           <div
-            class="li2-productSlot"
-            style="
-              position:absolute;
-              left:${img.x}px;
-              top:${img.y}px;
-              width:${img.w}px;
-              height:${img.h}px;
-              z-index:2;
-            "
+            class="li2-productFrame ${orientationClass}"
+            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:20px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
           >
-            <div
-              class="li2-productFrame ${
-                img.orientation === "portrait"
-                  ? "li2-productFrame--portrait"
-                  : "li2-productFrame--landscape"
-              }"
-              style="
-                width:100%;
-                height:100%;
-                transform:rotate(${img.rotation ?? 0}deg);
-                transform-origin:center center;
-                border:none;
-                box-shadow:none;
-                border-radius:20px;
-                background:transparent;
-                overflow:visible;
-              "
-            >
-              <img
-                class="li2-productImg"
-                src="${escapeHtml(img.src ?? "")}"
-                alt="product"
-                style="
-                  width:100%;
-                  height:100%;
-                  object-fit:contain;
-                  display:block;
-                  border:none;
-                  outline:none;
-                  box-shadow:none;
-                  background:transparent;
-                "
-              />
-            </div>
+            <img
+              class="li2-productImg li2-productImg--cropped"
+              src="${escapeHtml(img.src ?? "")}"
+              alt="product"
+              style="position:absolute;left:${cropX}%;top:${cropY}%;width:${cropScale * 100}%;height:${cropScale * 100}%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
+            />
           </div>
-        `
-      )
-      .join("");
+        </div>
+      `;
+    })
+    .join("");
 
-    const html = `<!doctype html>
+  return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -300,136 +238,146 @@ export async function POST(req: Request) {
       margin: 0;
       padding: 0;
       background: #ffffff;
+      width: 100%;
+      height: 100%;
     }
-    img {
-      border: none;
-      outline: none;
-      box-shadow: none;
+
+    * {
+      box-sizing: border-box;
+    }
+
+    .pdf-stage {
+      width: ${canvas.w}px;
+      background: #ffffff;
+      overflow: visible;
+    }
+
+    .li2-viewport {
+      --li2-scale: 1;
+      width: ${canvas.w}px !important;
+      height: auto !important;
+      overflow: visible !important;
+      background: #ffffff !important;
+    }
+
+    .li2-root {
+      width: ${canvas.w}px !important;
+      height: auto !important;
+      min-height: 0 !important;
+      overflow: visible !important;
+      position: relative;
+    }
+
+    .li2-content {
+      overflow: visible !important;
+      flex: 0 0 auto !important;
+    }
+
+    .li2-body,
+    .li2-bottom {
+      overflow: visible !important;
     }
   </style>
 </head>
 <body>
-  <div
-    class="li2-viewport li2-viewport--${presetClass} li2-viewport--autoHeight preset-${exportPresetClass}"
-    style="
-      --li2-scale:1;
-      width:${frame.w}px;
-      overflow:visible;
-      background:#fff;
-    "
-  >
-    <div
-      class="li2-root li2-root--${presetClass} li2-root--autoHeight li2-theme-cream preset-${exportPresetClass}"
-      style="
-        width:${frame.w}px;
-        border-radius:${frame.radius}px;
-        overflow:visible;
-        position:relative;
-      "
-    >
-      <div
-        class="li2-header ${hasImg ? "li2-header--hasimg" : "li2-header--noimg"}"
-        style="height:${headerHeight}px;min-height:${headerHeight}px;"
-      >
-        ${imagesHtml}
+  <div class="pdf-stage">
+    <div class="li2-viewport li2-viewport--${presetClass} li2-viewport--autoHeight">
+      <div class="li2-root li2-root--${presetClass} li2-theme-cream li2-root--autoHeight">
+        <div class="li2-header ${images.length ? "li2-header--hasimg" : "li2-header--noimg"}">
+          ${imagesHtml}
 
-        ${
-          data.badgeText?.trim()
-            ? `<div class="li2-badge" style="${styleToInline(data.badgeStyle)}">
-                 ${escapeHtml(data.badgeText.trim())}
-               </div>`
-            : `<div class="li2-badge" style="${styleToInline(data.badgeStyle)}">&nbsp;</div>`
-        }
+          ${
+            companyLogo
+              ? `<img src="${escapeHtml(companyLogo)}" alt="Company logo" class="li2-companyLogo" />`
+              : ""
+          }
 
-        <div class="li2-userTop">
-          <div class="li2-userTopMeta">
-            <div class="li2-userTopName">${escapeHtml(data.name)}</div>
-            <div class="li2-userTopRole">${escapeHtml(data.role)}</div>
+          <div class="li2-badge" style="min-width:120px;${styleToInline(data.badgeStyle)}">
+            ${data.badgeText?.trim() ? escapeHtml(data.badgeText.trim()) : "&nbsp;"}
           </div>
 
-          <div class="li2-avatarWrap">
-            <img class="li2-avatar" src="${escapeHtml(profileImage)}" alt="profile" />
+          <div class="li2-userTop">
+            <div class="li2-userTopMeta">
+              <div class="li2-userTopName" title="${escapeHtml(data.name ?? "")}">
+                ${escapeHtml(data.name ?? "")}
+              </div>
+              <div class="li2-userTopRole" title="${escapeHtml(data.role ?? "")}">
+                ${escapeHtml(data.role ?? "")}
+              </div>
+            </div>
+
+            <div class="li2-avatarWrap">
+              <img class="li2-avatar" src="${escapeHtml(profileImage)}" alt="profile" />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="li2-content" style="padding:${contentPadding};">
-        ${
-          data.linkTitle?.trim()
-            ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">
-                 ${escapeHtml(data.linkTitle.trim())}
-               </div>`
-            : ``
-        }
+        <div class="li2-content li2-content--autoHeight">
+          ${
+            data.linkTitle?.trim()
+              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${escapeHtml(data.linkTitle.trim())}</div>`
+              : ""
+          }
 
-        ${
-          data.company?.trim()
-            ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">
-                 ${escapeHtml(data.company.trim())}
-               </div>`
-            : ``
-        }
+          ${
+            data.company?.trim()
+              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${escapeHtml(data.company.trim())}</div>`
+              : ""
+          }
 
-        <img src="${escapeHtml(companyLogoSrc)}" alt="Company logo" class="li2-companyLogo" />
+          ${
+            data.headline?.trim()
+              ? `<div class="li2-headline" style="${styleToInline(data.headlineStyle)}">${escapeHtml(data.headline.trim())}</div>`
+              : ""
+          }
 
-        ${
-          data.headline?.trim()
-            ? `<div class="li2-headline" style="${styleToInline(data.headlineStyle)}">
-                 ${escapeHtml(data.headline.trim())}
-               </div>`
-            : ``
-        }
+          ${
+            data.subline?.trim()
+              ? `<div class="li2-subline" style="${styleToInline(data.sublineStyle)}">${escapeHtml(data.subline.trim())}</div>`
+              : ""
+          }
 
-        ${
-          data.subline?.trim()
-            ? `<div class="li2-subline" style="${styleToInline(data.sublineStyle)}">
-                 ${escapeHtml(data.subline.trim())}
-               </div>`
-            : ``
-        }
+          ${
+            data.bodyText?.trim()
+              ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">${renderMarkedHtml(data.bodyText, data.bodyMarks)}</div>`
+              : ""
+          }
 
-        ${
-          data.bodyText?.trim()
-            ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">
-                 ${renderMarkedHtml(data.bodyText.trim(), data.bodyMarks)}
-               </div>`
-            : ``
-        }
-
-        ${
-          hrefs.length
-            ? `<div class="li2-linkRow">
-                 ${
-                   hrefs.length === 1
-                     ? `<a class="li2-link" href="${escapeHtml(
-                         hrefs[0]
-                       )}" target="_blank" rel="noreferrer">
-                          ${escapeHtml(linkLabel(hrefs[0]))}<span class="li2-linkArrow" aria-hidden="true"> →</span>
+          ${
+            links.length
+              ? `<div class="li2-linkRow">
+                  ${
+                    links.length === 1
+                      ? `<a class="li2-link" href="${escapeHtml(links[0])}" target="_blank" rel="noreferrer">
+                          ${escapeHtml(linkLabel(links[0]))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
                         </a>`
-                     : `<div class="li2-linksList">
-                          ${hrefs
+                      : `<div class="li2-linksList">
+                          ${links
                             .map(
-                              (href) => `
-                            <a class="li2-link" href="${escapeHtml(
-                              href
-                            )}" target="_blank" rel="noreferrer">
-                              ${escapeHtml(linkLabel(href))}<span class="li2-linkArrow" aria-hidden="true"> →</span>
-                            </a>`
+                              (href) =>
+                                `<a class="li2-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">
+                                  ${escapeHtml(linkLabel(href))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
+                                </a>`
                             )
                             .join("")}
                         </div>`
-                 }
-               </div>`
-            : ``
-        }
-      </div>
+                  }
+                </div>`
+              : ""
+          }
+        </div>
 
-      <div class="li2-bottom">
-        <div class="li2-bottomLeft">
-          <img class="li2-profileMini" src="${escapeHtml(profileImage)}" alt="profile-mini" />
-          <div class="li2-bottomMeta">
-            <div class="li2-bottomName">${escapeHtml(data.name)}</div>
-            <div class="li2-bottomRole">${escapeHtml(data.role)}</div>
+        <div class="li2-bottom">
+          <div class="li2-bottomLeft">
+            <img class="li2-profileMini" src="${escapeHtml(profileImage)}" alt="profile-small" />
+            <div class="li2-bottomMeta">
+              <div class="li2-bottomName" title="${escapeHtml(data.name ?? "")}">
+                ${escapeHtml(data.name ?? "")}
+              </div>
+              <div class="li2-bottomRole" title="${escapeHtml(data.role ?? "")}">
+                ${escapeHtml(data.role ?? "")}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -437,10 +385,17 @@ export async function POST(req: Request) {
   </div>
 </body>
 </html>`;
+}
+
+export async function POST(req: Request) {
+  try {
+    const data = (await req.json()) as Payload;
+    const frame = getCanvasFrame(data.canvasPreset);
+    const html = renderHtml(req, data);
 
     const browser = await puppeteer.launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
     });
 
     try {
@@ -452,15 +407,20 @@ export async function POST(req: Request) {
         deviceScaleFactor: 1,
       });
 
-      await page.setContent(html, { waitUntil: "networkidle0" });
+      await page.emulateMediaType("screen");
+      await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
 
-      await page.waitForSelector(".li2-root");
-      await page.waitForSelector("img.li2-avatar");
-      await page.waitForSelector("img.li2-companyLogo");
+      await page.waitForSelector(".li2-root", { timeout: 60000 });
+      await page.waitForFunction(async () => {
+        const fontsReady =
+          "fonts" in document
+            ? (document as Document & { fonts: FontFaceSet }).fonts.ready
+            : Promise.resolve();
+        await fontsReady;
 
-      if (hasImg) {
-        await page.waitForSelector("img.li2-productImg");
-      }
+        const imgs = Array.from(document.images);
+        return imgs.every((img) => img.complete);
+      }, { timeout: 60000 });
 
       const exportHeight = await page.$eval(".li2-root", (node) => {
         const el = node as HTMLElement;
@@ -471,6 +431,12 @@ export async function POST(req: Request) {
         printBackground: true,
         width: `${frame.w}px`,
         height: `${exportHeight}px`,
+        margin: {
+          top: "0px",
+          right: "0px",
+          bottom: "0px",
+          left: "0px",
+        },
         pageRanges: "1",
         preferCSSPageSize: false,
       });
@@ -484,10 +450,8 @@ export async function POST(req: Request) {
     } finally {
       await browser.close();
     }
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message ?? "PDF generation failed" },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "PDF generation failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

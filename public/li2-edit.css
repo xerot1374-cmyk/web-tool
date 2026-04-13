@@ -10,13 +10,13 @@
   pointer-events: none;
 }
 
-/* اگر جایی استفاده می‌کنی نگه دار، وگرنه بی‌اثر می‌مونه */
+/* Keep this if it is used anywhere; otherwise it remains harmless */
 .li2-overlay .li2-edit-control { pointer-events: auto; }
 
 .li2-edit-input{
   position:absolute;
   left:22px;
-  top:60px;   /* فعلاً نزدیک badge */
+  top:60px;   /* Currently positioned near the badge */
   width:260px;
   height:38px;
   padding:8px 10px;
@@ -32,7 +32,7 @@
   left: 22px;
   top: calc(40px + 20mm);
 
-  /* ظاهر مثل خود badge */
+  /* Match the badge appearance */
   padding: 8px 14px;
   border-radius: 5px;
   background: #a4072f;
@@ -48,7 +48,7 @@
   margin: 0;
   box-sizing: border-box;
 
-  /* width مثل badge */
+  /* Match the badge width */
   min-width: auto;
   width: fit-content;
 

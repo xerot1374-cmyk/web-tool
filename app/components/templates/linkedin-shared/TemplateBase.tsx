@@ -25,9 +25,9 @@ export default function TemplateBase({
 }: TemplateBaseProps) {
   return (
     <div className={`template-card ${variant}`}>
-      {/* بالا: لوگو + Eye-Catcher + کاربر */}
+      {/* Top: logo + eye catcher + user */}
       <div className="template-top-row">
-        {/* چپ: لوگو + Eye-Catcher */}
+        {/* Left: logo + eye catcher */}
         <div className="template-top-left">
           <div className="logo-row">
             <Image
@@ -42,7 +42,7 @@ export default function TemplateBase({
           </div>
         </div>
 
-        {/* راست: اسم + رول + آواتار */}
+        {/* Right: name + role + avatar */}
         {userName && (
           <div className="template-top-right">
             <div className="user-meta">
@@ -69,14 +69,14 @@ export default function TemplateBase({
         )}
       </div>
 
-      {/* متن اصلی کارت */}
+      {/* Main card content */}
       <div className="template-content">
         <h2 className="template-title-main">{headline}</h2>
         <p className="template-subline">{subline}</p>
         <p className="template-body">{body}</p>
 
         <div className="template-footer-note">
-          <span>🔗 Weitere Infos bei Protos 3D</span>
+          <span>ðŸ”— Weitere Infos bei Protos 3D</span>
         </div>
       </div>
     </div>

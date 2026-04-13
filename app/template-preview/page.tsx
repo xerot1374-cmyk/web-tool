@@ -22,7 +22,7 @@ export default function TemplatePreviewPage() {
       const res = await fetch("/api/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data), // ✅ فقط دیتا رو می‌فرستیم
+        body: JSON.stringify(data), // Send only the data payload.
       });
 
       if (!res.ok) {
@@ -59,7 +59,7 @@ export default function TemplatePreviewPage() {
         {loading ? "Generating PDF..." : "Download PDF"}
       </button>
 
-      {/* ✅ این فقط Preview ـه */}
+      {/* This is only the preview. */}
       <LinkedInTemplate2 {...data} />
     </div>
   );

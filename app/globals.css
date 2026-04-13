@@ -110,7 +110,7 @@ html {
   }
 }
 
-/* لینک‌ها مثل متن عادی، بدون زیرخط */
+/* Links should look like regular text, without underlines */
 a {
   text-decoration: none;
   color: inherit;
@@ -119,7 +119,7 @@ a {
 
 /* =========================
    LinkedIn / Instagram lists
-   (صفحه انتخاب Template ها)
+   (template selection page)
    ========================= */
 
 .template-grid {
@@ -130,7 +130,7 @@ a {
   margin-top: 32px;
 }
 
-/* کارت‌های لیست انتخاب Template */
+/* Cards in the template selection list */
 .template-grid .template-card {
   background-color: #ffffff;
   color: #111827;
@@ -176,7 +176,7 @@ a {
 
 
 /* =========================
-   Editor (سمت چپ Template A/B)
+   Editor (left side for Template A/B)
    ========================= */
 
 .editor-layout {
@@ -241,10 +241,10 @@ a {
 
 
 /* =========================
-   TemplateBase (کارت اصلی)
+   TemplateBase (main card)
    ========================= */
 
-/* پایه کارت – بدون رنگ پس‌زمینه (رنگ را variant تعیین می‌کند) */
+/* Base card without a background color; the variant sets the color */
 .template-card {
   border-radius: 1px;
   padding: 34px 14px 38px;
@@ -258,7 +258,7 @@ a {
   gap: 18px;
 }
 
-/* ردیف بالای کارت: لوگو + eye catcher + کاربر */
+/* Top row of the card: logo + eye catcher + user */
 .template-top-row {
   display: flex;
   justify-content: space-between;
@@ -266,7 +266,7 @@ a {
   gap: 16px;
 }
 
-/* لوگو + eye catcher در یک ستون */
+/* Logo and eye catcher in one column */
 .template-top-left {
   display: flex;
   flex-direction: column;
@@ -278,14 +278,14 @@ a {
   display: block;
 }
 
-/* اسم کاربر چپ، آواتار راست */
+/* User name on the left, avatar on the right */
 .template-top-right {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-/* Eye-Catcher قرمز–نارنجی جذاب */
+/* Bold red-orange eye catcher */
 .eye-catcher-pill {
   padding: 60px 140px;
   border-radius: 999px;
