@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
-import { demoUsers } from "@/app/demoUsers";
+import { getProfileImage, setSessionCookie, verifyPassword } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
-  const username = body?.username?.trim();
+  const email = body?.email?.trim()?.toLowerCase();
   const password = body?.password;
 
-  const user = demoUsers.find(
-    (u) => u.username === username && u.password === password
-  );
+  if (!email || !password) {
+    return NextResponse.json(
+      { ok: false, message: "Email and password are required" },
+      { status: 400 }
+    );
+  }
 
-  if (!user) {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return NextResponse.json({ ok: false, message: "Invalid credentials" }, { status: 401 });
   }
 
   const res = NextResponse.json({ ok: true });
-res.cookies.set(
-  "session_user",
-  JSON.stringify({
+  setSessionCookie(res, {
     name: user.name,
     role: user.role,
-    profileImage: user.avatar && user.avatar.length > 0 ? user.avatar : "/profile.jpg",
-  }),
-  { httpOnly: true, path: "/" }
-);
-
+    profileImage: getProfileImage(user.profileImage),
+  });
 
   return res;
 }

@@ -11,9 +11,9 @@ export default function Home() {
             Login
           </Link>
 
-          <button className="social-button instagram-button" disabled>
-            Register (soon)
-          </button>
+          <Link href="/register" className="social-button instagram-button">
+            Register
+          </Link>
         </div>
       </div>
     </main>
