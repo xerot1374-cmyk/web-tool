@@ -46,7 +46,7 @@ const VIDEO_BOX_H = 255;
 function renderCoverHtml(req: Request, data: Payload) {
   const profileImage = absUrl(req, data.profileImage);
 
-  // Use `video.css` here instead of `pdf.css`.
+  // Use video.css here instead of pdf.css.
   const cssHref = absUrl(req, "/video.css");
 
   const rawLink = data.link?.trim();
@@ -71,7 +71,7 @@ function renderCoverHtml(req: Request, data: Payload) {
       position:relative;
     }
 
-    /* Cover-only: `productFrame` needs an explicit height. */
+    /* Cover-only: productFrame needs an explicit height. */
     .li2-productFrame { height: ${VIDEO_BOX_H}px !important; }
 
     #videoBox {
@@ -222,8 +222,9 @@ export async function POST(req: Request) {
         "Content-Disposition": 'attachment; filename="cover.mp4"',
       },
     });
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "cover video failed" }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "cover video failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
