@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 
 export type SessionUser = {
+  email: string;
   name: string;
   role: string;
   profileImage: string;

@@ -1794,9 +1794,23 @@ export default function TemplateAClient({
       }
     }
 
-    function logout() {
-      document.cookie = "session_user=; Max-Age=0; path=/";
-      router.replace("/login");
+    async function logout() {
+      try {
+        const res = await fetch("/api/auth/logout", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+        });
+
+        if (!res.ok) {
+          throw new Error("Logout failed");
+        }
+
+        router.replace("/login");
+        router.refresh();
+      } catch (err: unknown) {
+        setErrorMsg(err instanceof Error ? err.message : "Logout failed.");
+      }
     }
 
     const selectedImage = getSelectedImage();

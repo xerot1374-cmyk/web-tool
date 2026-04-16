@@ -7,6 +7,7 @@ import { useState } from "react";
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -20,6 +21,7 @@ export default function RegisterPage() {
 
     const formData = new FormData();
     formData.append("name", name);
+    formData.append("role", role);
     formData.append("email", email);
     formData.append("password", password);
 
@@ -69,6 +71,15 @@ export default function RegisterPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            style={{ width: "100%", padding: 10 }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <input
+            placeholder="Role"
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
             style={{ width: "100%", padding: 10 }}
           />
         </div>

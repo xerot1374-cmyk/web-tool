@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
+import { clearSessionCookie } from "@/lib/auth";
 
-export async function GET(req: Request) {
-  const res = NextResponse.redirect(new URL("/login", req.url));
-  res.cookies.set("session_user", "", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
+function buildLogoutResponse() {
+  const res = NextResponse.json({ ok: true });
+  clearSessionCookie(res);
   return res;
+}
+
+export async function POST() {
+  return buildLogoutResponse();
+}
+
+export async function GET() {
+  return buildLogoutResponse();
 }

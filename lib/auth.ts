@@ -6,10 +6,21 @@ const scrypt = promisify(scryptCallback);
 const DEFAULT_PROFILE_IMAGE = "/profile.jpg";
 
 export type SessionUser = {
+  email: string;
   name: string;
   role: string;
   profileImage: string;
 };
+
+function getSessionCookieOptions(maxAge?: number) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    ...(typeof maxAge === "number" ? { maxAge } : {}),
+  };
+}
 
 export function getProfileImage(profileImage?: string | null) {
   return profileImage && profileImage.length > 0 ? profileImage : DEFAULT_PROFILE_IMAGE;
@@ -43,14 +54,15 @@ export function setSessionCookie(res: NextResponse, user: SessionUser) {
   res.cookies.set(
     "session_user",
     JSON.stringify({
+      email: user.email,
       name: user.name,
       role: user.role,
       profileImage: getProfileImage(user.profileImage),
     }),
-    {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-    }
+    getSessionCookieOptions(60 * 60 * 24 * 7)
   );
+}
+
+export function clearSessionCookie(res: NextResponse) {
+  res.cookies.set("session_user", "", getSessionCookieOptions(0));
 }

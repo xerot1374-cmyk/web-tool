@@ -22,6 +22,7 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({ ok: true });
   setSessionCookie(res, {
+    email: user.email,
     name: user.name,
     role: user.role,
     profileImage: getProfileImage(user.profileImage),

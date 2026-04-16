@@ -21,13 +21,14 @@ export async function POST(req: Request) {
   }
 
   const name = formData.get("name")?.toString().trim() ?? "";
+  const role = formData.get("role")?.toString().trim() ?? "";
   const email = formData.get("email")?.toString().trim().toLowerCase() ?? "";
   const password = formData.get("password")?.toString() ?? "";
   const image = formData.get("profileImage");
 
-  if (!name || !email || !password) {
+  if (!name || !role || !email || !password) {
     return NextResponse.json(
-      { message: "Name, email, and password are required" },
+      { message: "Name, role, email, and password are required" },
       { status: 400 }
     );
   }
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
   const user = await prisma.user.create({
     data: {
       name,
+      role,
       email,
       passwordHash: await hashPassword(password),
       profileImage,
@@ -71,6 +73,7 @@ export async function POST(req: Request) {
 
   const res = NextResponse.json({ ok: true });
   setSessionCookie(res, {
+    email: user.email,
     name: user.name,
     role: user.role,
     profileImage: getProfileImage(user.profileImage),
