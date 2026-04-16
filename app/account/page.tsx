@@ -1,9 +1,11 @@
 import Link from "next/link";
+import PortalNav from "./PortalNav";
 
 export default function AccountPage() {
   return (
     <main className="app-container portal-shell">
       <div className="portal-wrapper">
+        <PortalNav isAuthenticated />
         <div className="portal-hero">
           <div>
             <p className="portal-eyebrow">User Portal</p>
@@ -50,25 +52,6 @@ export default function AccountPage() {
             </p>
             <div className="portal-card-link">Open editor</div>
           </Link>
-        </section>
-
-        <section className="portal-strip">
-          <div className="portal-strip-card">
-            <div className="portal-strip-label">All activities</div>
-            <div className="portal-strip-value">LinkedIn Posts</div>
-          </div>
-          <div className="portal-strip-card">
-            <div className="portal-strip-label">Instagram</div>
-            <div className="portal-strip-value">Posts</div>
-          </div>
-          <div className="portal-strip-card">
-            <div className="portal-strip-label">Instagram</div>
-            <div className="portal-strip-value">Stories</div>
-          </div>
-          <div className="portal-strip-card">
-            <div className="portal-strip-label">Next step</div>
-            <div className="portal-strip-value">See insights</div>
-          </div>
         </section>
       </div>
     </main>

@@ -1794,25 +1794,6 @@ export default function TemplateAClient({
       }
     }
 
-    async function logout() {
-      try {
-        const res = await fetch("/api/auth/logout", {
-          method: "POST",
-          credentials: "same-origin",
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error("Logout failed");
-        }
-
-        router.replace("/login");
-        router.refresh();
-      } catch (err: unknown) {
-        setErrorMsg(err instanceof Error ? err.message : "Logout failed.");
-      }
-    }
-
     const selectedImage = getSelectedImage();
 
     const selectionHandles = selectedRect
@@ -1925,7 +1906,6 @@ export default function TemplateAClient({
     return (
         <LinkedInEditorBaseClient
             title="LinkedIn - Template A"
-            onLogout={logout}
             successMsg={successMsg}
             errorMsg={errorMsg}
         >

@@ -74,89 +74,103 @@ export default function ProfileForm({ initialUser }: ProfileFormProps) {
   }
 
   return (
-    <div style={{ maxWidth: 520, margin: "48px auto", padding: 16 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Edit profile</h1>
+    <section className="portal-profile">
+      <div className="portal-profile__header">
+        <div>
+          <p className="portal-eyebrow">Profile</p>
+          <h1 className="portal-profile__title">Edit your account details</h1>
+          <p className="portal-profile__text">
+            Keep your public role, contact details, and profile image up to date across the
+            workspace.
+          </p>
+        </div>
+      </div>
 
-      <div style={{ marginBottom: 20, display: "flex", alignItems: "center", gap: 16 }}>
+      <div className="portal-profile__card">
+        <div className="portal-profile__identity">
         <Image
           src={previewUrl}
           alt="Profile"
           width={88}
           height={88}
-          style={{ borderRadius: "50%", objectFit: "cover" }}
+          className="portal-profile__avatar"
         />
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{name || "Your name"}</div>
-          <div style={{ color: "#666" }}>{role || "Your role"}</div>
+          <div>
+            <div className="portal-profile__name">{name || "Your name"}</div>
+            <div className="portal-profile__role">{role || "Your role"}</div>
+          </div>
         </div>
+
+        {error ? <div className="portal-alert portal-alert--error">{error}</div> : null}
+
+        {success ? <div className="portal-alert portal-alert--success">{success}</div> : null}
+
+        <form onSubmit={onSubmit} className="portal-form">
+          <div className="portal-form__grid">
+            <label className="portal-form__field">
+              <span className="portal-form__label">Name and family</span>
+              <input
+                className="portal-form__input"
+                placeholder="Name and family"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+
+            <label className="portal-form__field">
+              <span className="portal-form__label">Role</span>
+              <input
+                className="portal-form__input"
+                placeholder="Role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              />
+            </label>
+
+            <label className="portal-form__field">
+              <span className="portal-form__label">Email</span>
+              <input
+                className="portal-form__input"
+                placeholder="Email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </label>
+
+            <label className="portal-form__field">
+              <span className="portal-form__label">New password</span>
+              <input
+                className="portal-form__input"
+                placeholder="New password (optional)"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </label>
+
+            <label className="portal-form__field portal-form__field--full">
+              <span className="portal-form__label">Profile image</span>
+              <input
+                className="portal-form__input portal-form__input--file"
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] ?? null;
+                  setProfileImage(file);
+                  if (file) {
+                    setPreviewUrl(URL.createObjectURL(file));
+                  }
+                }}
+              />
+            </label>
+          </div>
+
+          <button type="submit" disabled={loading} className="portal-form__submit">
+            {loading ? "Saving..." : "Save profile"}
+          </button>
+        </form>
       </div>
-
-      {error ? (
-        <div style={{ padding: 10, border: "1px solid #f99", marginBottom: 12 }}>{error}</div>
-      ) : null}
-
-      {success ? (
-        <div style={{ padding: 10, border: "1px solid #9f9", marginBottom: 12 }}>{success}</div>
-      ) : null}
-
-      <form onSubmit={onSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <input
-            placeholder="Name and family"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ width: "100%", padding: 10 }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <input
-            placeholder="Role"
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            style={{ width: "100%", padding: 10 }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <input
-            placeholder="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ width: "100%", padding: 10 }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <input
-            placeholder="New password (optional)"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ width: "100%", padding: 10 }}
-          />
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0] ?? null;
-              setProfileImage(file);
-              if (file) {
-                setPreviewUrl(URL.createObjectURL(file));
-              }
-            }}
-            style={{ width: "100%", padding: 10 }}
-          />
-        </div>
-
-        <button type="submit" disabled={loading} style={{ width: "100%", padding: 10 }}>
-          {loading ? "..." : "Save profile"}
-        </button>
-      </form>
-    </div>
+    </section>
   );
 }

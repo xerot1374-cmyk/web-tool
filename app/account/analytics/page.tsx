@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PortalNav from "../PortalNav";
 
 const activityGroups = [
   {
@@ -30,6 +31,7 @@ export default function AnalyticsPage() {
   return (
     <main className="app-container portal-shell">
       <div className="portal-wrapper">
+        <PortalNav isAuthenticated />
         <div className="portal-header-row">
           <div>
             <p className="portal-eyebrow">Data Analysis</p>
@@ -75,15 +77,6 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
-        </section>
-
-        <section className="portal-actions">
-          <Link href="/account/profile" className="social-button linkedin-button">
-            Profile
-          </Link>
-          <Link href="/account/linkedin/template-a" className="social-button instagram-button">
-            Template Editor
-          </Link>
         </section>
       </div>
     </main>
