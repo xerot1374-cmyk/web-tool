@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 type BoxTextStyle = {
   fontFamily: string;
   fontSize: number;
@@ -68,8 +70,50 @@ const FONT_OPTIONS = [
   { label: "Times New Roman", value: '"Times New Roman"' },
 ];
 
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="properties-panel__section">
+      <div className="properties-panel__sectionHeader">
+        <h3>{title}</h3>
+        {subtitle ? <p>{subtitle}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ToggleRow({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange?: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label className="properties-panel__toggle">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange?.(e.target.checked)}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 function TextControls({
   title,
+  subtitle,
   text,
   setText,
   style,
@@ -77,6 +121,7 @@ function TextControls({
   showTextInput = true,
 }: {
   title: string;
+  subtitle?: string;
   text: string;
   setText?: (v: string) => void;
   style: BoxTextStyle;
@@ -85,84 +130,99 @@ function TextControls({
 }) {
   return (
     <div className="properties-panel">
-      <h3>{title}</h3>
+      <Section title={title} subtitle={subtitle}>
+        {showTextInput && setText ? (
+          <div className="properties-panel__field">
+            <label>Text</label>
+            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} />
+          </div>
+        ) : null}
 
-      {showTextInput && setText ? (
-        <>
-          <label>Text</label>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} />
-        </>
-      ) : null}
+        <div className="properties-panel__field">
+          <label>Font</label>
+          <select
+            value={style.fontFamily}
+            onChange={(e) =>
+              setStyle((prev) => ({ ...prev, fontFamily: e.target.value }))
+            }
+          >
+            {FONT_OPTIONS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <label>Font</label>
-      <select
-        value={style.fontFamily}
-        onChange={(e) =>
-          setStyle((prev) => ({ ...prev, fontFamily: e.target.value }))
-        }
-      >
-        {FONT_OPTIONS.map((f) => (
-          <option key={f.value} value={f.value}>
-            {f.label}
-          </option>
-        ))}
-      </select>
+        <div className="properties-panel__grid">
+          <div className="properties-panel__field">
+            <label>Font Size</label>
+            <input
+              type="number"
+              min={10}
+              max={120}
+              value={style.fontSize}
+              onChange={(e) =>
+                setStyle((prev) => ({
+                  ...prev,
+                  fontSize: Number(e.target.value) || prev.fontSize,
+                }))
+              }
+            />
+          </div>
 
-      <label>Font Size</label>
-      <input
-        type="number"
-        min={10}
-        max={120}
-        value={style.fontSize}
-        onChange={(e) =>
-          setStyle((prev) => ({
-            ...prev,
-            fontSize: Number(e.target.value) || prev.fontSize,
-          }))
-        }
-      />
+          <div className="properties-panel__field">
+            <label>Color</label>
+            <input
+              type="color"
+              value={style.color}
+              onChange={(e) =>
+                setStyle((prev) => ({ ...prev, color: e.target.value }))
+              }
+            />
+          </div>
+        </div>
 
-      <label>Color</label>
-      <input
-        type="color"
-        value={style.color}
-        onChange={(e) =>
-          setStyle((prev) => ({ ...prev, color: e.target.value }))
-        }
-      />
-
-      <label>Align</label>
-      <select
-        value={style.textAlign}
-        onChange={(e) =>
-          setStyle((prev) => ({
-            ...prev,
-            textAlign: e.target.value as "left" | "center" | "right",
-          }))
-        }
-      >
-        <option value="left">Left</option>
-        <option value="center">Center</option>
-        <option value="right">Right</option>
-      </select>
+        <div className="properties-panel__field">
+          <label>Align</label>
+          <select
+            value={style.textAlign}
+            onChange={(e) =>
+              setStyle((prev) => ({
+                ...prev,
+                textAlign: e.target.value as "left" | "center" | "right",
+              }))
+            }
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+      </Section>
     </div>
   );
 }
 
-function RowButtons({
-  children,
+function EmptyState({
+  showRaster,
+  setShowRaster,
 }: {
-  children: React.ReactNode;
+  showRaster: boolean;
+  setShowRaster?: (v: boolean) => void;
 }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: 8,
-      }}
-    >
-      {children}
+    <div className="properties-panel">
+      <Section
+        title="Properties"
+        subtitle="Select any text block or image on the canvas to edit its settings."
+      >
+        <ToggleRow
+          checked={showRaster}
+          onChange={setShowRaster}
+          label="Show raster in preview"
+        />
+      </Section>
     </div>
   );
 }
@@ -220,38 +280,14 @@ export default function PropertiesPanel({
   onDuplicateSelectedImage,
 }: Props) {
   if (!selectedId) {
-    return (
-      <div className="properties-panel">
-        <h3>Properties</h3>
-
-        <label>Raster / Grid</label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={showRaster}
-            onChange={(e) => setShowRaster?.(e.target.checked)}
-            style={{ width: 16, height: 16 }}
-          />
-          <span style={{ fontSize: 13, color: "#374151" }}>
-            Show raster in preview
-          </span>
-        </div>
-
-        <p style={{ opacity: 0.6, margin: 0 }}>Select an element</p>
-      </div>
-    );
+    return <EmptyState showRaster={showRaster} setShowRaster={setShowRaster} />;
   }
 
   if (selectedId === "title") {
     return (
       <TextControls
         title="Title"
+        subtitle="Refine the primary headline styling and copy."
         text={title}
         setText={setTitle}
         style={titleStyle}
@@ -264,6 +300,7 @@ export default function PropertiesPanel({
     return (
       <TextControls
         title="Body"
+        subtitle="Adjust the supporting paragraph block."
         text={body}
         setText={setBody}
         style={bodyStyle}
@@ -276,6 +313,7 @@ export default function PropertiesPanel({
     return (
       <TextControls
         title="Badge"
+        subtitle="Control the eye-catcher label."
         text={badgeText}
         setText={setBadgeText}
         style={badgeStyle}
@@ -288,6 +326,7 @@ export default function PropertiesPanel({
     return (
       <TextControls
         title="Company"
+        subtitle="Tune the company line styling."
         text={company}
         setText={setCompany}
         style={companyStyle}
@@ -300,6 +339,7 @@ export default function PropertiesPanel({
     return (
       <TextControls
         title="Headline"
+        subtitle="Control the larger supporting headline."
         text={headline}
         setText={setHeadline}
         style={headlineStyle}
@@ -312,6 +352,7 @@ export default function PropertiesPanel({
     return (
       <TextControls
         title="Subline"
+        subtitle="Adjust the secondary descriptive line."
         text={subline}
         setText={setSubline}
         style={sublineStyle}
@@ -323,130 +364,110 @@ export default function PropertiesPanel({
   if (selectedId === "productImage") {
     return (
       <div className="properties-panel">
-        <h3>Image</h3>
-
-        <label>Raster / Grid</label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
+        <Section
+          title="Image"
+          subtitle="Refine placement, crop, and transformations for the selected image."
         >
-          <input
-            type="checkbox"
+          <ToggleRow
             checked={showRaster}
-            onChange={(e) => setShowRaster?.(e.target.checked)}
-            style={{ width: 16, height: 16 }}
+            onChange={setShowRaster}
+            label="Show raster in preview"
           />
-          <span style={{ fontSize: 13, color: "#374151" }}>
-            Show raster in preview
-          </span>
-        </div>
 
-        <label>Align</label>
-        <select
-          value={productAlign}
-          onChange={(e) =>
-            setProductAlign(e.target.value as "left" | "center" | "right")
-          }
-        >
-          <option value="left">Left</option>
-          <option value="center">Center</option>
-          <option value="right">Right</option>
-        </select>
+          <div className="properties-panel__field">
+            <label>Align</label>
+            <select
+              value={productAlign}
+              onChange={(e) =>
+                setProductAlign(e.target.value as "left" | "center" | "right")
+              }
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </div>
 
-        <label>Rotation</label>
-        <input
-          type="range"
-          min={0}
-          max={360}
-          step={1}
-          value={selectedImageRotation}
-          onChange={(e) => setSelectedImageRotation?.(Number(e.target.value))}
-        />
-        <input
-          type="number"
-          min={0}
-          max={360}
-          step={1}
-          value={selectedImageRotation}
-          onChange={(e) => setSelectedImageRotation?.(Number(e.target.value) || 0)}
-        />
+          <div className="properties-panel__field">
+            <label>Rotation</label>
+            <input
+              type="range"
+              min={0}
+              max={360}
+              step={1}
+              value={selectedImageRotation}
+              onChange={(e) => setSelectedImageRotation?.(Number(e.target.value))}
+            />
+            <input
+              type="number"
+              min={0}
+              max={360}
+              step={1}
+              value={selectedImageRotation}
+              onChange={(e) => setSelectedImageRotation?.(Number(e.target.value) || 0)}
+            />
+          </div>
 
-        <label>Crop X</label>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={selectedImageCropX}
-          onChange={(e) => setSelectedImageCropX?.(Number(e.target.value))}
-        />
+          <div className="properties-panel__field">
+            <label>Crop X</label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={selectedImageCropX}
+              onChange={(e) => setSelectedImageCropX?.(Number(e.target.value))}
+            />
+          </div>
 
-        <label>Crop Y</label>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={selectedImageCropY}
-          onChange={(e) => setSelectedImageCropY?.(Number(e.target.value))}
-        />
+          <div className="properties-panel__field">
+            <label>Crop Y</label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={selectedImageCropY}
+              onChange={(e) => setSelectedImageCropY?.(Number(e.target.value))}
+            />
+          </div>
 
-        <label>Crop Zoom</label>
-        <input
-          type="range"
-          min={1}
-          max={3}
-          step={0.01}
-          value={selectedImageCropScale}
-          onChange={(e) => setSelectedImageCropScale?.(Number(e.target.value))}
-        />
+          <div className="properties-panel__field">
+            <label>Crop Zoom</label>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.01}
+              value={selectedImageCropScale}
+              onChange={(e) => setSelectedImageCropScale?.(Number(e.target.value))}
+            />
+            <input
+              type="number"
+              min={1}
+              max={3}
+              step={0.01}
+              value={selectedImageCropScale}
+              onChange={(e) =>
+                setSelectedImageCropScale?.(Number(e.target.value) || 1)
+              }
+            />
+          </div>
 
-        <input
-          type="number"
-          min={1}
-          max={3}
-          step={0.01}
-          value={selectedImageCropScale}
-          onChange={(e) =>
-            setSelectedImageCropScale?.(Number(e.target.value) || 1)
-          }
-        />
+          <div className="properties-panel__actions">
+            <button type="button" onClick={onDuplicateSelectedImage}>
+              Duplicate
+            </button>
 
-        <RowButtons>
-          <button
-            type="button"
-            onClick={onDuplicateSelectedImage}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #d1d5db",
-              background: "#fff",
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
-          >
-            Duplicate
-          </button>
-
-          <button
-            type="button"
-            onClick={onDeleteSelectedImage}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid #fecaca",
-              background: "#fef2f2",
-              color: "#991b1b",
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
-          >
-            Delete
-          </button>
-        </RowButtons>
+            <button
+              type="button"
+              className="properties-panel__danger"
+              onClick={onDeleteSelectedImage}
+            >
+              Delete
+            </button>
+          </div>
+        </Section>
       </div>
     );
   }
@@ -454,58 +475,32 @@ export default function PropertiesPanel({
   if (selectedId === "links") {
     return (
       <div className="properties-panel">
-        <h3>Links</h3>
-
-        <label>Raster / Grid</label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-          }}
+        <Section
+          title="Links"
+          subtitle="Link management currently lives in the main toolbox column."
         >
-          <input
-            type="checkbox"
+          <ToggleRow
             checked={showRaster}
-            onChange={(e) => setShowRaster?.(e.target.checked)}
-            style={{ width: 16, height: 16 }}
+            onChange={setShowRaster}
+            label="Show raster in preview"
           />
-          <span style={{ fontSize: 13, color: "#374151" }}>
-            Show raster in preview
-          </span>
-        </div>
-
-        <p style={{ opacity: 0.6, margin: 0 }}>
-          Links are managed in the toolbox for now.
-        </p>
+        </Section>
       </div>
     );
   }
 
   return (
     <div className="properties-panel">
-      <h3>{selectedId}</h3>
-
-      <label>Raster / Grid</label>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-        }}
+      <Section
+        title={selectedId}
+        subtitle="More granular controls can be added here when this element supports them."
       >
-        <input
-          type="checkbox"
+        <ToggleRow
           checked={showRaster}
-          onChange={(e) => setShowRaster?.(e.target.checked)}
-          style={{ width: 16, height: 16 }}
+          onChange={setShowRaster}
+          label="Show raster in preview"
         />
-        <span style={{ fontSize: 13, color: "#374151" }}>
-          Show raster in preview
-        </span>
-      </div>
-
-      <p style={{ opacity: 0.6, margin: 0 }}>No settings yet.</p>
+      </Section>
     </div>
   );
 }

@@ -288,12 +288,16 @@ type PdfPayload = {
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
 };
 
+declare global {
+  interface Window {
+    __PDF_PAYLOAD__?: PdfPayload;
+  }
+}
+
 function getPdfModeAndPayload(): { isPdf: boolean; payload: PdfPayload | null } {
   if (typeof window === "undefined") return { isPdf: false, payload: null };
   const isPdf = new URLSearchParams(window.location.search).get("__pdf") === "1";
-  const payload = isPdf
-    ? ((window as any).__PDF_PAYLOAD__ as PdfPayload | undefined) ?? null
-    : null;
+  const payload = isPdf ? window.__PDF_PAYLOAD__ ?? null : null;
   return { isPdf, payload };
 }
 
@@ -336,6 +340,17 @@ type DragMode =
   | "resize-se"
   | "resize-sw"
   | "rotate";
+
+type SelectionHandle = {
+  key: string;
+  cursor: string;
+  mode: DragMode;
+  left?: number | string;
+  right?: number | string;
+  top?: number | string;
+  bottom?: number | string;
+  transform?: string;
+};
 
 type ImageClipboardPayload = {
   type: "image";
@@ -603,10 +618,10 @@ export default function TemplateAClient({
     const minW = 60;
     const minH = 60;
 
-    let w = clamp(item.w, minW, canvasW);
-    let h = clamp(item.h, minH, canvasH);
-    let x = clamp(item.x, 0, Math.max(0, canvasW - w));
-    let y = clamp(item.y, 0, Math.max(0, canvasH - h));
+    const w = clamp(item.w, minW, canvasW);
+    const h = clamp(item.h, minH, canvasH);
+    const x = clamp(item.x, 0, Math.max(0, canvasW - w));
+    const y = clamp(item.y, 0, Math.max(0, canvasH - h));
 
     return {x, y, w, h};
   }
@@ -1703,8 +1718,9 @@ export default function TemplateAClient({
 
         URL.revokeObjectURL(url);
         setSuccessMsg("PDF is created successfully.");
-      } catch (err: any) {
-        setErrorMsg(err?.message || "PDF is not created");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "PDF is not created";
+        setErrorMsg(message);
       } finally {
         setLoadingPdf(false);
       }
@@ -1787,8 +1803,9 @@ export default function TemplateAClient({
         });
 
         setSuccessMsg("final.mp4 is created!");
-      } catch (err: any) {
-        setErrorMsg(err?.message || "the creation failed.");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "the creation failed.";
+        setErrorMsg(message);
       } finally {
         setFinalLoading(false);
       }
@@ -1796,7 +1813,7 @@ export default function TemplateAClient({
 
     const selectedImage = getSelectedImage();
 
-    const selectionHandles = selectedRect
+    const selectionHandles: SelectionHandle[] = selectedRect
         ? [
           {
             key: "nw",
@@ -1912,19 +1929,18 @@ export default function TemplateAClient({
           <LinkedInEditorLayout
               preview={
                 <>
-                  <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                  >
-                    <h2 style={{margin: 0}}>Preview</h2>
+                  <div className="editor-previewShell">
+                    <div className="editor-previewHeader">
+                      <div>
+                        <div className="editor-previewEyebrow">Live canvas</div>
+                        <h2 className="editor-previewTitle">Preview</h2>
+                        <p className="editor-previewText">
+                          Edit directly on canvas, then fine-tune details from the side panels.
+                        </p>
+                      </div>
 
-                    <label
-                        style={{display: "flex", alignItems: "center", gap: 8}}
-                    >
-                      <span style={{fontSize: 12, opacity: 0.75}}>Canvas</span>
+                      <label className="editor-previewControl">
+                        <span>Canvas</span>
                       <select
                           value={canvasPreset}
                           onChange={(e) => {
@@ -1932,7 +1948,7 @@ export default function TemplateAClient({
                             setCanvasPreset(v);
                             clearSelection();
                           }}
-                          style={{padding: "6px 8px", borderRadius: 8}}
+                          className="editor-previewSelect"
                       >
                         <option value="linkedin">{CANVAS_LABELS.linkedin}</option>
                         <option value="instagram">{CANVAS_LABELS.instagram}</option>
@@ -1940,36 +1956,36 @@ export default function TemplateAClient({
                           {CANVAS_LABELS.instagramStory}
                         </option>
                       </select>
-                    </label>
-                  </div>
+                      </label>
+                    </div>
 
-                  <div className="preview-stage">
-                    <div
-                      ref={canvasWrapRef}
-                      className="preview-canvasWrap"
-                      style={{
-                        width: previewViewportW,
-                        height: previewViewportH,
-                        position: "relative",
-                        overflow: "hidden",
-                        userSelect: editField ? "text" : "none",
-                      }}
-                      onClick={onCanvasClick}
-                      onDoubleClick={onCanvasDoubleClick}
-                    >
+                    <div className="preview-stage">
                       <div
-                        ref={stageRef}
-                        className="li2-stage"
+                        ref={canvasWrapRef}
+                        className="preview-canvasWrap"
                         style={{
-                          width: currentCanvas.w,
-                          height: previewContentHeight,
-                          transform: `scale(${previewScale})`,
-                          transformOrigin: "top left",
-                          position: "absolute",
-                          left: 0,
-                          top: 0,
+                          width: previewViewportW,
+                          height: previewViewportH,
+                          position: "relative",
+                          overflow: "hidden",
+                          userSelect: editField ? "text" : "none",
                         }}
+                        onClick={onCanvasClick}
+                        onDoubleClick={onCanvasDoubleClick}
                       >
+                        <div
+                          ref={stageRef}
+                          className="li2-stage"
+                          style={{
+                            width: currentCanvas.w,
+                            height: previewContentHeight,
+                            transform: `scale(${previewScale})`,
+                            transformOrigin: "top left",
+                            position: "absolute",
+                            left: 0,
+                            top: 0,
+                          }}
+                        >
                         <div className="li2-template">
                           <LinkedInTemplate2
                             scale={1}
@@ -2040,11 +2056,11 @@ export default function TemplateAClient({
                                       border: "2px solid #fff",
                                       boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
                                       cursor: h.cursor,
-                                      left: (h as any).left,
-                                      right: (h as any).right,
-                                      top: (h as any).top,
-                                      bottom: (h as any).bottom,
-                                      transform: (h as any).transform,
+                                      left: h.left,
+                                      right: h.right,
+                                      top: h.top,
+                                      bottom: h.bottom,
+                                      transform: h.transform,
                                     }}
                                     onMouseDown={(e) => startMediaInteraction(e, h.mode)}
                                   />
@@ -2135,14 +2151,15 @@ export default function TemplateAClient({
                             }}
                           />
                         ) : null}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {finalUrl ? (
-                      <div className="preview-videoWrap" style={{marginTop: 12}}>
-                        <video className="preview-video" src={finalUrl} controls playsInline/>
-                      </div>
+                    <div className="preview-videoWrap">
+                      <video className="preview-video" src={finalUrl} controls playsInline />
+                    </div>
                   ) : null}
                 </>
               }

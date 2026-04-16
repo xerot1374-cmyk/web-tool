@@ -70,9 +70,12 @@ export default function TextToolbar({
 }: Props) {
   return (
     <div className="tt">
-      <div className="tt__title">Text Toolbar</div>
-      <div className="tt__sub">
-        Active: {activeField === "body" ? "Body" : "Caption"}
+      <div className="tt__header">
+        <div className="tt__eyebrow">Text tools</div>
+        <div className="tt__title">Formatting</div>
+        <div className="tt__sub">
+          Applying changes to {activeField === "body" ? "body copy" : "caption"}
+        </div>
       </div>
 
       <div className="tt__group">
@@ -114,18 +117,12 @@ export default function TextToolbar({
 
       <div className="tt__group">
         <div className="tt__label">Color</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 8,
-          }}
-        >
+        <div className="tt__swatches">
           {COLOR_OPTIONS.map((color) => (
             <button
               key={color}
               type="button"
-              className="tt__emojiBtn"
+              className="tt__swatch"
               onClick={() => {
                 setActiveTextStyle({ color });
                 applyColorSelection(color);
@@ -133,57 +130,55 @@ export default function TextToolbar({
               title={color}
               style={{
                 background: color,
-                height: 34,
                 border:
                   activeTextStyle.color === color
                     ? "2px solid #111827"
-                    : "1px solid rgba(0,0,0,.12)",
+                    : "1px solid rgba(15,23,42,0.14)",
               }}
             />
           ))}
         </div>
       </div>
 
-      <button
-        className="tt__btn"
-        type="button"
-        onClick={() => applyUnicodeStyle("bold")}
-      >
-        Bold
+      <div className="tt__buttonGrid">
+        <button
+          className="tt__btn tt__btn--strong"
+          type="button"
+          onClick={() => applyUnicodeStyle("bold")}
+        >
+          Bold
+        </button>
+
+        <button
+          className="tt__btn tt__btn--strong"
+          type="button"
+          onClick={() => applyUnicodeStyle("italic")}
+        >
+          Italic
+        </button>
+
+        <button className="tt__btn" type="button" onClick={applyBullet}>
+          Bullet
+        </button>
+
+        <button className="tt__btn" type="button" onClick={applyNumbered}>
+          Numbered
+        </button>
+
+        <button className="tt__btn" type="button" onClick={applyHashtag}>
+          Hashtag
+        </button>
+
+        <button className="tt__btn" type="button" onClick={applyHighlightSelection}>
+          Highlight
+        </button>
+      </div>
+
+      <button className="tt__btn tt__btn--primary" type="button" onClick={copyActive}>
+        {copied ? "Copied" : "Copy text"}
       </button>
 
-      <button
-        className="tt__btn"
-        type="button"
-        onClick={() => applyUnicodeStyle("italic")}
-      >
-        Italic
-      </button>
-
-      <button className="tt__btn" type="button" onClick={applyBullet}>
-        • Bullet
-      </button>
-
-      <button className="tt__btn" type="button" onClick={applyNumbered}>
-        1. List
-      </button>
-
-      <button className="tt__btn" type="button" onClick={applyHashtag}>
-        # Hashtag
-      </button>
-
-      <button className="tt__btn" type="button" onClick={copyActive}>
-        {copied ? "Copied ✓" : "Copy"}
-      </button>
-
-      <button
-        className="tt__btn"
-        type="button"
-        onClick={applyHighlightSelection}
-      >
-        Highlight
-      </button>
-
+      <div className="tt__label">Emoji</div>
       <div className="tt__emoji">
         {EMOJIS.map((em) => (
           <button

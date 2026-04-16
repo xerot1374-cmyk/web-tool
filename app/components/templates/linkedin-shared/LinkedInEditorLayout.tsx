@@ -17,10 +17,12 @@ export default function LinkedInEditorLayout({
 }: Props) {
   return (
     <div className="editor-layout-4col">
-      <aside className="editor-toolbar">{toolbar}</aside>
-      <aside className="editor-panel editor-panel--sticky">{toolbox}</aside>
+      <aside className="editor-toolbar editor-shell-card">{toolbar}</aside>
+      <aside className="editor-panel editor-panel--sticky editor-shell-card">
+        {toolbox}
+      </aside>
       <main className="editor-preview">{preview}</main>
-      <aside className="editor-properties">{properties}</aside>
+      <aside className="editor-properties editor-shell-card">{properties}</aside>
     </div>
   );
 }

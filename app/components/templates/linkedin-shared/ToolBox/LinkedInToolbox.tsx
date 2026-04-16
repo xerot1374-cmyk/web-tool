@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-import "./Toolbox.css";
 
 type TextStyle = {
   fontFamily: string;
@@ -123,27 +122,23 @@ export default function LinkedInToolbox({
   showRaster = false,
   setShowRaster,
 }: Props) {
-  const bodyTextareaStyle: React.CSSProperties = {
-    fontFamily: "system-ui",
-    fontSize: 14,
-    color: "#111827",
-  };
-
-  const captionTextareaStyle: React.CSSProperties = {
-    fontFamily: "system-ui",
-    fontSize: 14,
-    color: "#111827",
-  };
-
   return (
     <aside className="tb">
       <div className="tb__header">
-        <h2 className="tb__title">Toolbox</h2>
+        <div className="tb__eyebrow">Workspace</div>
+        <h2 className="tb__title">Content editor</h2>
+        <p className="tb__subtitle">
+          Manage message structure, assets, export, and social copy from one
+          control surface.
+        </p>
       </div>
 
       <div className="tb__scroll">
         <section className="tb__section">
-          <div className="tb__sectionTitle">Content</div>
+          <div className="tb__sectionTitle">
+            <span>Content</span>
+            <span className="tb__sectionMeta">Core message</span>
+          </div>
 
           <div className="editor-field">
             <label className="editor-label">Eye-Catcher</label>
@@ -180,15 +175,17 @@ export default function LinkedInToolbox({
               ref={bodyRef}
               onFocus={() => setActiveField("body")}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Body"
+              placeholder="Write the main body copy here"
               rows={6}
-              style={bodyTextareaStyle}
             />
           </div>
         </section>
 
         <section className="tb__section">
-          <div className="tb__sectionTitle">Product</div>
+          <div className="tb__sectionTitle">
+            <span>Product</span>
+            <span className="tb__sectionMeta">Assets</span>
+          </div>
 
           <div className="editor-field">
             <label className="editor-label">Add Image</label>
@@ -199,8 +196,9 @@ export default function LinkedInToolbox({
             />
           </div>
 
-          <div className="tb__hint" style={{ textAlign: "left", marginBottom: 10 }}>
-            {imageCount} image(s) on template
+          <div className="tb__stat">
+            <span className="tb__statValue">{imageCount}</span>
+            <span className="tb__statLabel">image(s) on canvas</span>
           </div>
 
           <div className="editor-field">
@@ -221,14 +219,14 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Rotation</label>
 
-            <div className="tb__row">
+            <div className="tb__row tb__row--split">
               <button
                 type="button"
                 className="editor-btn"
                 onClick={() => onRotateSelectedImage?.(-15)}
                 disabled={!selectedImageId}
               >
-                -15°
+                -15 deg
               </button>
 
               <button
@@ -237,7 +235,7 @@ export default function LinkedInToolbox({
                 onClick={() => onRotateSelectedImage?.(15)}
                 disabled={!selectedImageId}
               >
-                +15°
+                +15 deg
               </button>
             </div>
 
@@ -251,9 +249,9 @@ export default function LinkedInToolbox({
               disabled={!selectedImageId}
             />
 
-            <div className="tb__hint" style={{ textAlign: "left" }}>
+            <div className="tb__hint tb__hint--left">
               {selectedImageId
-                ? `Selected image: ${selectedImageRotation}°`
+                ? `Selected image: ${selectedImageRotation} degrees`
                 : "No image selected"}
             </div>
           </div>
@@ -261,7 +259,7 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Image Actions</label>
 
-            <div className="tb__row">
+            <div className="tb__row tb__row--split">
               <button
                 type="button"
                 className="editor-btn"
@@ -281,28 +279,17 @@ export default function LinkedInToolbox({
               </button>
             </div>
 
-            <div className="tb__hint" style={{ textAlign: "left" }}>
-              Copy: Ctrl/Cmd + C
-              <br />
-              Cut: Ctrl/Cmd + X
-              <br />
-              Paste: Ctrl/Cmd + V
-              <br />
-              Delete: Del / Backspace
+            <div className="tb__shortcutCard">
+              <div>Copy: Ctrl/Cmd + C</div>
+              <div>Cut: Ctrl/Cmd + X</div>
+              <div>Paste: Ctrl/Cmd + V</div>
+              <div>Delete: Del / Backspace</div>
             </div>
           </div>
 
           <div className="editor-field">
             <label className="editor-label">Raster / Grid</label>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                fontSize: 13,
-                color: "#374151",
-              }}
-            >
+            <label className="tb__toggle">
               <input
                 type="checkbox"
                 checked={showRaster}
@@ -312,13 +299,16 @@ export default function LinkedInToolbox({
             </label>
           </div>
 
-          <div className="tb__hint" style={{ textAlign: "left" }}>
+          <div className="tb__hint tb__hint--left">
             Crop is controlled in the Properties panel when an image is selected.
           </div>
         </section>
 
         <section className="tb__section">
-          <div className="tb__sectionTitle">Link</div>
+          <div className="tb__sectionTitle">
+            <span>Link</span>
+            <span className="tb__sectionMeta">CTA</span>
+          </div>
 
           <div className="editor-field">
             <label className="editor-label">Add Link (press Enter)</label>
@@ -347,7 +337,7 @@ export default function LinkedInToolbox({
                           setLink((prev: string[]) => prev.filter((_, idx) => idx !== i))
                         }
                       >
-                        ×
+                        x
                       </button>
                     </div>
                   ))}
@@ -357,7 +347,10 @@ export default function LinkedInToolbox({
         </section>
 
         <section className="tb__section">
-          <div className="tb__sectionTitle">Media</div>
+          <div className="tb__sectionTitle">
+            <span>Media</span>
+            <span className="tb__sectionMeta">Video</span>
+          </div>
 
           <div className="editor-field">
             <label className="editor-label">Video</label>
@@ -370,7 +363,12 @@ export default function LinkedInToolbox({
         </section>
 
         <section className="tb__section">
-          <div className="tb__sectionTitle">Caption</div>
+          <div className="tb__sectionTitle">
+            <span>Caption</span>
+            <span className="tb__sectionMeta">
+              {activeField === "caption" ? "Active" : "Social copy"}
+            </span>
+          </div>
 
           <textarea
             ref={captionRef}
@@ -378,9 +376,8 @@ export default function LinkedInToolbox({
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             onFocus={() => setActiveField("caption")}
-            placeholder="Caption"
+            placeholder="Draft the supporting post caption"
             rows={6}
-            style={captionTextareaStyle}
           />
 
           <div className="tb__hint">{caption.length} characters</div>
@@ -390,7 +387,7 @@ export default function LinkedInToolbox({
               <div className="tb__captionPreviewHeader">
                 <div className="tb__captionPreviewTitle">Preview</div>
                 <button type="button" onClick={copyCaption} className="tb__copyBtn">
-                  {copied ? "Copied ✓" : "Copy Caption"}
+                  {copied ? "Copied" : "Copy Caption"}
                 </button>
               </div>
 
@@ -421,7 +418,7 @@ export default function LinkedInToolbox({
 
         {finalUrl ? (
           <a href={finalUrl} download="final.mp4" className="tb__download">
-            Download
+            Download generated video
           </a>
         ) : null}
       </div>

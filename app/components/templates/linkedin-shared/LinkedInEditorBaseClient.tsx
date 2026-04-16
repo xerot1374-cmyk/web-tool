@@ -19,7 +19,14 @@ export default function LinkedInEditorBaseClient({
   return (
     <main className="editor-page">
       <div className="editor-page-topbar">
-        <h1 className="editor-page-title">{title}</h1>
+        <div className="editor-page-intro">
+          <span className="editor-page-kicker">Creative Studio</span>
+          <h1 className="editor-page-title">{title}</h1>
+          <p className="editor-page-description">
+            Shape layout, spacing, typography, and export-ready content from one
+            professional workspace.
+          </p>
+        </div>
       </div>
 
       {successMsg ? <div className="editor-msg editor-msg--success">{successMsg}</div> : null}

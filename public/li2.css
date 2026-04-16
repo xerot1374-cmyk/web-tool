@@ -48,8 +48,8 @@
   height: calc(var(--li2-frame-h) * var(--li2-scale));
   overflow: hidden;
   background:
-    radial-gradient(900px 420px at 20% 10%, rgba(0, 0, 0, 0.06), transparent 60%),
-    linear-gradient(135deg, #f5f6f8 0%, #ffffff 45%, #ffffff 100%);
+    radial-gradient(900px 420px at 20% 10%, rgba(164, 7, 47, 0.05), transparent 60%),
+    linear-gradient(135deg, #f7f7f8 0%, #ffffff 45%, #ffffff 100%);
 }
 
 .li2-viewport--autoHeight {
@@ -59,9 +59,9 @@
 
 .li2-root {
   --li2-red: #a4072f;
-  --li2-text: #0f172a;
-  --li2-muted: rgba(15, 23, 42, 0.62);
-  --li2-border: rgba(15, 23, 42, 0.1);
+  --li2-text: #3f4349;
+  --li2-muted: rgba(111, 115, 120, 0.9);
+  --li2-border: rgba(155, 157, 161, 0.32);
   --li2-card-bg: #ffffff;
 
   width: var(--li2-frame-w);
@@ -74,7 +74,7 @@
   overflow: visible;
 
   border-radius: var(--li2-radius);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(155, 157, 161, 0.32);
   background-color: var(--li2-card-bg);
 
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
