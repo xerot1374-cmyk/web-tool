@@ -35,9 +35,12 @@ export type LinkedInTemplate2Data = {
   productImages?: ImageItem[];
 
   badgeText?: string;
+  badgeMarks?: TextMark[];
 
   linkTitle?: string;
+  titleMarks?: TextMark[];
   company?: string;
+  companyMarks?: TextMark[];
   companyLogo?: string;
 
   headline?: string;
@@ -514,7 +517,7 @@ export default function LinkedInTemplate2Renderer({
               pointerEvents: "auto",
             }}
           >
-            {vBadge || "\u00A0"}
+            {vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0"}
           </div>
 
           <div className="li2-userTop">
@@ -550,7 +553,7 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.titleStyle?.textAlign,
               }}
             >
-              {vTitle || "\u00A0"}
+              {vTitle ? renderMarkedText(vTitle, data.titleMarks) : "\u00A0"}
             </div>
           ) : null}
 
@@ -583,7 +586,7 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.companyStyle?.textAlign,
               }}
             >
-              {vCompany}
+              {renderMarkedText(vCompany, data.companyMarks)}
             </div>
           ) : null}
 

@@ -20,8 +20,11 @@ type Payload = {
   role: string;
 
   badgeText?: string;
+  badgeMarks?: any[];
   linkTitle?: string;
+  titleMarks?: any[];
   company?: string;
+  companyMarks?: any[];
 
   headline?: string;
   subline?: string;
@@ -297,7 +300,7 @@ function renderVideoTemplateHtml(
               : ""
           }
           <div class="li2-badge" style="min-width:120px;${styleToInline(data.badgeStyle)}">
-            ${data.badgeText?.trim() ? escapeHtml(data.badgeText.trim()) : "&nbsp;"}
+            ${data.badgeText?.trim() ? renderMarkedHtml(data.badgeText.trim(), data.badgeMarks) : "&nbsp;"}
           </div>
           <div class="li2-userTop">
             <div class="li2-userTopMeta">
@@ -316,12 +319,12 @@ function renderVideoTemplateHtml(
         <div class="li2-content li2-content--autoHeight">
           ${
             data.linkTitle?.trim()
-              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${escapeHtml(data.linkTitle.trim())}</div>`
+              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${renderMarkedHtml(data.linkTitle.trim(), data.titleMarks)}</div>`
               : ""
           }
           ${
             data.company?.trim()
-              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${escapeHtml(data.company.trim())}</div>`
+              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${renderMarkedHtml(data.company.trim(), data.companyMarks)}</div>`
               : ""
           }
           ${
@@ -395,6 +398,16 @@ function requestToNodeStream(req: Request) {
   });
 }
 
+function getPuppeteerLaunchOptions() {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+
+  return {
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    ...(executablePath ? { executablePath } : {}),
+  };
+}
+
 async function parseMultipart(req: Request): Promise<{ fields: any; files: any }> {
   const form = new IncomingForm({ multiples: false, keepExtensions: true });
 
@@ -420,10 +433,7 @@ async function screenshotCoverPng(
   const box = getFinalVideoBox(data.canvasPreset, data.mediaBox);
   const html = renderVideoTemplateHtml(req, data, box);
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  });
+  const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
   try {
     const page = await browser.newPage();

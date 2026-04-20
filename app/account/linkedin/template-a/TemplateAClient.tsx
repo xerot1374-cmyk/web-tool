@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
   type CSSProperties,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -212,7 +213,7 @@ function toHashtag(s: string) {
 
 async function copyTextToClipboard(
   text: string,
-  fallbackEl?: HTMLTextAreaElement | null
+  fallbackEl?: HTMLTextAreaElement | HTMLInputElement | null
 ) {
   try {
     await navigator.clipboard.writeText(text);
@@ -275,6 +276,10 @@ type PdfPayload = {
 
   bodyText?: string;
   bodyMarks?: TextMark[];
+  titleMarks?: TextMark[];
+  badgeMarks?: TextMark[];
+  companyMarks?: TextMark[];
+  captionMarks?: TextMark[];
 
   titleStyle?: BoxTextStyle;
   bodyStyle?: BoxTextStyle;
@@ -327,7 +332,9 @@ type SelectableId =
   | "headline"
   | "subline";
 
-type EditField = "title" | "body" | "badge" | null;
+type EditorTextField = "title" | "body" | "badge" | "company" | "caption";
+
+type EditField = Exclude<EditorTextField, "caption"> | null;
 
 type DragMode =
   | "move"
@@ -483,6 +490,9 @@ export default function TemplateAClient({
   const [body, _setBody] = useState("");
   const [caption, _setCaption] = useState("");
 
+  const [titleMarks, setTitleMarks] = useState<TextMark[]>([]);
+  const [badgeMarks, setBadgeMarks] = useState<TextMark[]>([]);
+  const [companyMarks, setCompanyMarks] = useState<TextMark[]>([]);
   const [bodyMarks, setBodyMarks] = useState<TextMark[]>([]);
   const [captionMarks, setCaptionMarks] = useState<TextMark[]>([]);
 
@@ -490,20 +500,23 @@ export default function TemplateAClient({
   const [linkInput, setLinkInput] = useState("");
   const [company, setCompany] = useState("PROTOS-3D Metrology GmbH");
 
-  const [activeField, setActiveField] = useState<"caption" | "body">("caption");
+  const [activeField, setActiveField] = useState<EditorTextField>("caption");
   const [copied, setCopied] = useState(false);
 
+  const badgeRef = useRef<HTMLInputElement | null>(null);
+  const titleRef = useRef<HTMLInputElement | null>(null);
+  const companyRef = useRef<HTMLInputElement | null>(null);
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
 
-  const [bodyStyle, setBodyStyle] = useState<TextStyle>({
+  const [bodyStyle] = useState<TextStyle>({
     fontFamily: "system-ui",
     fontSize: 14,
     color: "#111827",
     highlight: false,
   });
 
-  const [captionStyle, setCaptionStyle] = useState<TextStyle>({
+  const [captionStyle] = useState<TextStyle>({
     fontFamily: "system-ui",
     fontSize: 14,
     color: "#111827",
@@ -552,6 +565,39 @@ export default function TemplateAClient({
     textAlign: "left",
   });
 
+  const [toolbarStyles, setToolbarStyles] = useState<Record<EditorTextField, TextStyle>>({
+    badge: {
+      fontFamily: "system-ui",
+      fontSize: 20,
+      color: "#ffffff",
+      highlight: false,
+    },
+    title: {
+      fontFamily: "system-ui",
+      fontSize: 34,
+      color: "#111827",
+      highlight: false,
+    },
+    company: {
+      fontFamily: "system-ui",
+      fontSize: 18,
+      color: "#111827",
+      highlight: false,
+    },
+    body: {
+      fontFamily: "system-ui",
+      fontSize: 14,
+      color: "#111827",
+      highlight: false,
+    },
+    caption: {
+      fontFamily: "system-ui",
+      fontSize: 14,
+      color: "#111827",
+      highlight: false,
+    },
+  });
+
   const [productImage, setProductImage] = useState<string>("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
   const [productOrientation, setProductOrientation] =
@@ -563,6 +609,21 @@ export default function TemplateAClient({
   const [images, setImages] = useState<ImageItem[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const hasVideo = !!videoFile;
+
+  function setBadgeTextValue(v: string) {
+    setBadgeText(v);
+    setBadgeMarks([]);
+  }
+
+  function setTitleValue(v: string) {
+    setTitle(v);
+    setTitleMarks([]);
+  }
+
+  function setCompanyValue(v: string) {
+    setCompany(v);
+    setCompanyMarks([]);
+  }
 
   function setBody(v: string) {
     _setBody(v);
@@ -910,7 +971,7 @@ export default function TemplateAClient({
     if (editField && id !== editField) setEditField(null);
   }
 
-  function startEdit(field: "title" | "body" | "badge", targetEl: HTMLElement) {
+  function startEdit(field: Exclude<EditField, null>, targetEl: HTMLElement) {
     setEditField(field);
     setSelectedId(field);
 
@@ -920,7 +981,7 @@ export default function TemplateAClient({
     const cs = window.getComputedStyle(targetEl);
     const fontSize = safePx(
         cs.fontSize,
-        field === "title" ? 34 : field === "badge" ? 20 : 16
+        field === "title" ? 34 : field === "badge" ? 20 : field === "company" ? 18 : 16
     );
     const lineHeight =
         cs.lineHeight === "normal"
@@ -949,7 +1010,7 @@ export default function TemplateAClient({
     if (!t) return;
 
     const id = (t.getAttribute("data-select") || "") as SelectableId;
-    if (id !== "title" && id !== "body" && id !== "badge") return;
+    if (id !== "title" && id !== "body" && id !== "badge" && id !== "company") return;
 
     startEdit(id, t);
   }
@@ -1201,6 +1262,28 @@ export default function TemplateAClient({
       }
     }
 
+    function getEditorFieldControl(
+        field: EditorTextField = activeField
+    ): {
+      text: string;
+      setText: (value: string) => void;
+      ref: RefObject<HTMLInputElement | null> | RefObject<HTMLTextAreaElement | null>;
+    } {
+      switch (field) {
+        case "badge":
+          return {text: badgeText, setText: setBadgeTextValue, ref: badgeRef};
+        case "title":
+          return {text: title, setText: setTitleValue, ref: titleRef};
+        case "company":
+          return {text: company, setText: setCompanyValue, ref: companyRef};
+        case "body":
+          return {text: body, setText: setBody, ref: bodyRef};
+        case "caption":
+        default:
+          return {text: caption, setText: setCaption, ref: captionRef};
+      }
+    }
+
     function withActiveSelection(
         fn: (
             text: string,
@@ -1212,12 +1295,9 @@ export default function TemplateAClient({
           nextSelEnd: number;
         }
     ) {
-      const isBody = activeField === "body";
-      const el = isBody ? bodyRef.current : captionRef.current;
+      const {text, setText, ref} = getEditorFieldControl();
+      const el = ref.current;
       if (!el) return;
-
-      const text = isBody ? body : caption;
-      const setText = isBody ? setBody : setCaption;
 
       const s = el.selectionStart ?? 0;
       const e = el.selectionEnd ?? 0;
@@ -1226,17 +1306,27 @@ export default function TemplateAClient({
       setText(next);
 
       requestAnimationFrame(() => {
-        const node = isBody ? bodyRef.current : captionRef.current;
+        const node = ref.current;
         if (!node) return;
         node.focus();
         node.setSelectionRange(nextSelStart, nextSelEnd);
       });
     }
 
-    function getActiveMarksState() {
-      return activeField === "body"
-          ? {marks: bodyMarks, setMarks: setBodyMarks}
-          : {marks: captionMarks, setMarks: setCaptionMarks};
+    function getActiveMarksState(field: EditorTextField = activeField) {
+      switch (field) {
+        case "badge":
+          return {marks: badgeMarks, setMarks: setBadgeMarks};
+        case "title":
+          return {marks: titleMarks, setMarks: setTitleMarks};
+        case "company":
+          return {marks: companyMarks, setMarks: setCompanyMarks};
+        case "body":
+          return {marks: bodyMarks, setMarks: setBodyMarks};
+        case "caption":
+        default:
+          return {marks: captionMarks, setMarks: setCaptionMarks};
+      }
     }
 
     function clampRange(start: number, end: number, max: number) {
@@ -1363,6 +1453,35 @@ export default function TemplateAClient({
       });
     }
 
+    function applySelectionStyleForField(
+        field: "title" | "body" | "badge" | "company",
+        patch: RichStyle,
+        mode: "set" | "toggleHighlight" = "set"
+    ) {
+      const {text, ref} = getEditorFieldControl(field);
+      const el = ref.current;
+      if (!el) return false;
+
+      const {s, e} = clampRange(el.selectionStart ?? 0, el.selectionEnd ?? 0, text.length);
+      if (s === e) return false;
+
+      const {setMarks, marks} = getActiveMarksState(field);
+
+      if (mode === "toggleHighlight") {
+        setMarks(toggleHighlightMarks(marks, {start: s, end: e}));
+      } else {
+        setMarks(applyStyleToMarks(marks, {start: s, end: e}, patch));
+      }
+
+      setActiveField(field);
+      setToolbarStyles((prev) => ({
+        ...prev,
+        [field]: {...prev[field], ...patch},
+      }));
+
+      return true;
+    }
+
     function applyUnicodeStyle(style: UnicodeStyle) {
       withActiveSelection((text, s, e) =>
           applyOnSelection(text, s, e, (selected) => {
@@ -1433,9 +1552,8 @@ export default function TemplateAClient({
     }
 
     async function copyCaption() {
-      const isBody = activeField === "body";
-      const text = isBody ? body : caption;
-      const el = isBody ? bodyRef.current : captionRef.current;
+      const {text, ref} = getEditorFieldControl();
+      const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
       const ok = await copyTextToClipboard(text, el);
       if (!ok) return;
       setCopied(true);
@@ -1443,14 +1561,13 @@ export default function TemplateAClient({
     }
 
     function setActiveTextStyle(patch: Partial<TextStyle>) {
-      if (activeField === "body") {
-        setBodyStyle((prev) => ({...prev, ...patch}));
-      } else {
-        setCaptionStyle((prev) => ({...prev, ...patch}));
-      }
+      setToolbarStyles((prev) => ({
+        ...prev,
+        [activeField]: {...prev[activeField], ...patch},
+      }));
     }
 
-    const activeTextStyle = activeField === "body" ? bodyStyle : captionStyle;
+    const activeTextStyle = toolbarStyles[activeField];
 
     useEffect(() => {
       if (!isPdf || !payload) return;
@@ -1462,7 +1579,11 @@ export default function TemplateAClient({
       setBadgeText(payload.badgeText ?? "");
       setTitle(payload.linkTitle ?? "");
       _setBody(payload.bodyText ?? "");
+      setBadgeMarks(payload.badgeMarks ?? []);
+      setTitleMarks(payload.titleMarks ?? []);
       setBodyMarks(payload.bodyMarks ?? []);
+      setCompanyMarks(payload.companyMarks ?? []);
+      setCaptionMarks(payload.captionMarks ?? []);
       setLink(
           payload.link
               ? payload.link
@@ -1534,8 +1655,11 @@ export default function TemplateAClient({
           productAlign: payload.productAlign ?? "center",
           mediaBox: payload.mediaBox ?? mediaBox,
           badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
+          badgeMarks: payload.badgeMarks ?? [],
           linkTitle: payload.linkTitle ?? "",
+          titleMarks: payload.titleMarks ?? [],
           company: payload.company ?? "",
+          companyMarks: payload.companyMarks ?? [],
           bodyText: payload.bodyText ?? "",
           bodyMarks: payload.bodyMarks ?? [],
           linkUrl: raw.trim() ? raw : undefined,
@@ -1564,8 +1688,11 @@ export default function TemplateAClient({
         productAlign,
         mediaBox,
         badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+        badgeMarks,
         linkTitle: title || "",
+        titleMarks,
         company: company || "",
+        companyMarks,
         bodyText: body || "",
         bodyMarks,
         linkUrl: normalizedLink,
@@ -1594,8 +1721,11 @@ export default function TemplateAClient({
       productAlign,
       mediaBox,
       badgeText,
+      badgeMarks,
       title,
+      titleMarks,
       company,
+      companyMarks,
       body,
       bodyMarks,
       normalizedLink,
@@ -1676,11 +1806,15 @@ export default function TemplateAClient({
           images: imagePayload,
 
           badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+          badgeMarks,
           badgeStyle,
           linkTitle: title?.trim() ? title.trim() : "",
+          titleMarks,
           company: company?.trim() ? company.trim() : "",
+          companyMarks,
           bodyText: body ?? "",
           bodyMarks,
+          captionMarks,
 
           titleStyle,
           bodyStyle: bodyBoxStyle,
@@ -1766,13 +1900,16 @@ export default function TemplateAClient({
               name: sessionName,
               role: sessionRole,
               linkTitle: title,
+              titleMarks,
               bodyText: body,
               bodyMarks,
               headline,
               subline,
               badgeText,
+              badgeMarks,
               badgeStyle,
               company,
+              companyMarks,
               link: link.length ? link.join("\n") : "",
               mediaBox,
               images: imagePayload,
@@ -1901,8 +2038,11 @@ export default function TemplateAClient({
                 name={effective.name}
                 role={effective.role}
                 badgeText={effective.badgeText}
+                badgeMarks={effective.badgeMarks}
                 linkTitle={effective.linkTitle}
+                titleMarks={effective.titleMarks}
                 company={effective.company}
+                companyMarks={effective.companyMarks}
                 bodyText={effective.bodyText}
                 bodyMarks={effective.bodyMarks}
                 linkUrl={effective.linkUrl}
@@ -2001,8 +2141,11 @@ export default function TemplateAClient({
                             name={effective.name}
                             role={effective.role}
                             badgeText={effective.badgeText}
+                            badgeMarks={effective.badgeMarks}
                             linkTitle={effective.linkTitle}
+                            titleMarks={effective.titleMarks}
                             company={effective.company}
+                            companyMarks={effective.companyMarks}
                             bodyText={effective.bodyText}
                             bodyMarks={effective.bodyMarks}
                             companyLogo="/logo.png"
@@ -2118,12 +2261,15 @@ export default function TemplateAClient({
                                 ? title
                                 : editField === "badge"
                                 ? badgeText
+                                : editField === "company"
+                                ? company
                                 : body
                             }
                             onChange={(e) => {
                               const v = e.target.value;
-                              if (editField === "title") setTitle(v);
-                              else if (editField === "badge") setBadgeText(v);
+                              if (editField === "title") setTitleValue(v);
+                              else if (editField === "badge") setBadgeTextValue(v);
+                              else if (editField === "company") setCompanyValue(v);
                               else setBody(v);
                             }}
                             onBlur={onEditBlur}
@@ -2136,7 +2282,13 @@ export default function TemplateAClient({
                               width: selectedRect.width,
                               height: Math.max(
                                 selectedRect.height,
-                                editField === "body" ? 140 : editField === "badge" ? 48 : 60
+                                editField === "body"
+                                  ? 140
+                                  : editField === "badge"
+                                  ? 48
+                                  : editField === "company"
+                                  ? 40
+                                  : 60
                               ),
                               border: "1px dashed rgba(59,130,246,0.85)",
                               outline: "none",
@@ -2185,9 +2337,11 @@ export default function TemplateAClient({
               toolbox={
                 <LinkedInToolbox
                     badgeText={badgeText}
-                    setBadgeText={setBadgeText}
+                    setBadgeText={setBadgeTextValue}
+                    badgeRef={badgeRef}
                     title={title}
-                    setTitle={setTitle}
+                    setTitle={setTitleValue}
+                    titleRef={titleRef}
                     body={body}
                     setBody={setBody}
                     bodyRef={bodyRef}
@@ -2214,7 +2368,8 @@ export default function TemplateAClient({
                     setLinkInput={setLinkInput}
                     handleAddLink={handleAddLink}
                     company={company}
-                    setCompany={setCompany}
+                    setCompany={setCompanyValue}
+                    companyRef={companyRef}
                     onPickProductImage={onPickProductImage}
                     productAlign={productAlign}
                     setProductAlign={setProductAlign}
@@ -2239,8 +2394,9 @@ export default function TemplateAClient({
               properties={
                 <PropertiesPanel
                     selectedId={selectedId}
+                    applySelectionStylePatch={applySelectionStyleForField}
                     title={title}
-                    setTitle={setTitle}
+                    setTitle={setTitleValue}
                     titleStyle={titleStyle}
                     setTitleStyle={setTitleStyle}
                     body={body}
@@ -2248,11 +2404,11 @@ export default function TemplateAClient({
                     bodyStyle={bodyBoxStyle}
                     setBodyStyle={setBodyBoxStyle}
                     badgeText={badgeText}
-                    setBadgeText={setBadgeText}
+                    setBadgeText={setBadgeTextValue}
                     badgeStyle={badgeStyle}
                     setBadgeStyle={setBadgeStyle}
                     company={company}
-                    setCompany={setCompany}
+                    setCompany={setCompanyValue}
                     companyStyle={companyStyle}
                     setCompanyStyle={setCompanyStyle}
                     headline={headline}

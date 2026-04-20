@@ -9,12 +9,16 @@ type TextStyle = {
   highlight: boolean;
 };
 
+type EditorTextField = "badge" | "title" | "company" | "caption" | "body";
+
 type Props = {
   badgeText: string;
   setBadgeText: (v: string) => void;
+  badgeRef: React.RefObject<HTMLInputElement | null>;
 
   title: string;
   setTitle: (v: string) => void;
+  titleRef: React.RefObject<HTMLInputElement | null>;
 
   body: string;
   setBody: (v: string) => void;
@@ -26,8 +30,8 @@ type Props = {
   captionRef: React.RefObject<HTMLTextAreaElement | null>;
   captionStyle: TextStyle;
 
-  activeField: "caption" | "body";
-  setActiveField: React.Dispatch<React.SetStateAction<"caption" | "body">>;
+  activeField: EditorTextField;
+  setActiveField: React.Dispatch<React.SetStateAction<EditorTextField>>;
 
   activeTextStyle: TextStyle;
   setActiveTextStyle: (patch: Partial<TextStyle>) => void;
@@ -52,6 +56,7 @@ type Props = {
 
   company: string;
   setCompany: (v: string) => void;
+  companyRef: React.RefObject<HTMLInputElement | null>;
 
   onPickProductImage: (file: File | null) => void;
   productAlign: "left" | "center" | "right";
@@ -83,8 +88,10 @@ type Props = {
 export default function LinkedInToolbox({
   badgeText,
   setBadgeText,
+  badgeRef,
   title,
   setTitle,
+  titleRef,
   body,
   setBody,
   bodyRef,
@@ -101,6 +108,7 @@ export default function LinkedInToolbox({
   handleAddLink,
   company,
   setCompany,
+  companyRef,
   onPickProductImage,
   productAlign,
   setProductAlign,
@@ -143,8 +151,12 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Eye-Catcher</label>
             <input
+              ref={badgeRef}
               className="editor-input"
               value={badgeText}
+              onFocus={() => setActiveField("badge")}
+              onSelect={() => setActiveField("badge")}
+              onDoubleClick={() => setActiveField("badge")}
               onChange={(e) => setBadgeText(e.target.value)}
             />
           </div>
@@ -152,8 +164,12 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Title</label>
             <input
+              ref={titleRef}
               className="editor-input"
               value={title}
+              onFocus={() => setActiveField("title")}
+              onSelect={() => setActiveField("title")}
+              onDoubleClick={() => setActiveField("title")}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
@@ -161,8 +177,12 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Company</label>
             <input
+              ref={companyRef}
               className="editor-input"
               value={company}
+              onFocus={() => setActiveField("company")}
+              onSelect={() => setActiveField("company")}
+              onDoubleClick={() => setActiveField("company")}
               onChange={(e) => setCompany(e.target.value)}
             />
           </div>
@@ -174,6 +194,8 @@ export default function LinkedInToolbox({
               value={body}
               ref={bodyRef}
               onFocus={() => setActiveField("body")}
+              onSelect={() => setActiveField("body")}
+              onDoubleClick={() => setActiveField("body")}
               onChange={(e) => setBody(e.target.value)}
               placeholder="Write the main body copy here"
               rows={6}
@@ -376,6 +398,8 @@ export default function LinkedInToolbox({
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
             onFocus={() => setActiveField("caption")}
+            onSelect={() => setActiveField("caption")}
+            onDoubleClick={() => setActiveField("caption")}
             placeholder="Draft the supporting post caption"
             rows={6}
           />

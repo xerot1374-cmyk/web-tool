@@ -10,7 +10,7 @@ type TextStyle = {
 };
 
 type Props = {
-  activeField: "caption" | "body";
+  activeField: "badge" | "title" | "company" | "caption" | "body";
   copied: boolean;
 
   applyUnicodeStyle: (style: "bold" | "italic") => void;
@@ -74,7 +74,16 @@ export default function TextToolbar({
         <div className="tt__eyebrow">Text tools</div>
         <div className="tt__title">Formatting</div>
         <div className="tt__sub">
-          Applying changes to {activeField === "body" ? "body copy" : "caption"}
+          Applying changes to{" "}
+          {activeField === "body"
+            ? "body copy"
+            : activeField === "caption"
+            ? "caption"
+            : activeField === "badge"
+            ? "eye-catcher"
+            : activeField === "title"
+            ? "title"
+            : "company"}
         </div>
       </div>
 

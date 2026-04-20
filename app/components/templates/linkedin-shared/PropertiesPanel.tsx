@@ -11,6 +11,15 @@ type BoxTextStyle = {
 
 type Props = {
   selectedId: string | null;
+  applySelectionStylePatch?: (
+    field: "title" | "body" | "badge" | "company",
+    patch: {
+      fontFamily?: string;
+      fontSize?: number;
+      color?: string;
+      highlight?: boolean;
+    }
+  ) => boolean;
 
   title: string;
   setTitle: (v: string) => void;
@@ -114,20 +123,27 @@ function ToggleRow({
 function TextControls({
   title,
   subtitle,
+  field,
   text,
   setText,
   style,
   setStyle,
   showTextInput = true,
+  applySelectionStylePatch,
 }: {
   title: string;
   subtitle?: string;
+  field: "title" | "body" | "badge" | "company" | "headline" | "subline";
   text: string;
   setText?: (v: string) => void;
   style: BoxTextStyle;
   setStyle: (updater: (prev: BoxTextStyle) => BoxTextStyle) => void;
   showTextInput?: boolean;
+  applySelectionStylePatch?: Props["applySelectionStylePatch"];
 }) {
+  const supportsSelectionPatch =
+    field === "title" || field === "body" || field === "badge" || field === "company";
+
   return (
     <div className="properties-panel">
       <Section title={title} subtitle={subtitle}>
@@ -142,9 +158,16 @@ function TextControls({
           <label>Font</label>
           <select
             value={style.fontFamily}
-            onChange={(e) =>
-              setStyle((prev) => ({ ...prev, fontFamily: e.target.value }))
-            }
+            onChange={(e) => {
+              const next = e.target.value;
+              const applied =
+                supportsSelectionPatch && applySelectionStylePatch
+                  ? applySelectionStylePatch(field, { fontFamily: next })
+                  : false;
+              if (!applied) {
+                setStyle((prev) => ({ ...prev, fontFamily: next }));
+              }
+            }}
           >
             {FONT_OPTIONS.map((f) => (
               <option key={f.value} value={f.value}>
@@ -162,12 +185,19 @@ function TextControls({
               min={10}
               max={120}
               value={style.fontSize}
-              onChange={(e) =>
-                setStyle((prev) => ({
-                  ...prev,
-                  fontSize: Number(e.target.value) || prev.fontSize,
-                }))
-              }
+              onChange={(e) => {
+                const next = Number(e.target.value) || style.fontSize;
+                const applied =
+                  supportsSelectionPatch && applySelectionStylePatch
+                    ? applySelectionStylePatch(field, { fontSize: next })
+                    : false;
+                if (!applied) {
+                  setStyle((prev) => ({
+                    ...prev,
+                    fontSize: next,
+                  }));
+                }
+              }}
             />
           </div>
 
@@ -176,9 +206,16 @@ function TextControls({
             <input
               type="color"
               value={style.color}
-              onChange={(e) =>
-                setStyle((prev) => ({ ...prev, color: e.target.value }))
-              }
+              onChange={(e) => {
+                const next = e.target.value;
+                const applied =
+                  supportsSelectionPatch && applySelectionStylePatch
+                    ? applySelectionStylePatch(field, { color: next })
+                    : false;
+                if (!applied) {
+                  setStyle((prev) => ({ ...prev, color: next }));
+                }
+              }}
             />
           </div>
         </div>
@@ -229,6 +266,7 @@ function EmptyState({
 
 export default function PropertiesPanel({
   selectedId,
+  applySelectionStylePatch,
 
   title,
   setTitle,
@@ -288,10 +326,12 @@ export default function PropertiesPanel({
       <TextControls
         title="Title"
         subtitle="Refine the primary headline styling and copy."
+        field="title"
         text={title}
         setText={setTitle}
         style={titleStyle}
         setStyle={setTitleStyle}
+        applySelectionStylePatch={applySelectionStylePatch}
       />
     );
   }
@@ -301,10 +341,12 @@ export default function PropertiesPanel({
       <TextControls
         title="Body"
         subtitle="Adjust the supporting paragraph block."
+        field="body"
         text={body}
         setText={setBody}
         style={bodyStyle}
         setStyle={setBodyStyle}
+        applySelectionStylePatch={applySelectionStylePatch}
       />
     );
   }
@@ -314,10 +356,12 @@ export default function PropertiesPanel({
       <TextControls
         title="Badge"
         subtitle="Control the eye-catcher label."
+        field="badge"
         text={badgeText}
         setText={setBadgeText}
         style={badgeStyle}
         setStyle={setBadgeStyle}
+        applySelectionStylePatch={applySelectionStylePatch}
       />
     );
   }
@@ -327,10 +371,12 @@ export default function PropertiesPanel({
       <TextControls
         title="Company"
         subtitle="Tune the company line styling."
+        field="company"
         text={company}
         setText={setCompany}
         style={companyStyle}
         setStyle={setCompanyStyle}
+        applySelectionStylePatch={applySelectionStylePatch}
       />
     );
   }
@@ -340,6 +386,7 @@ export default function PropertiesPanel({
       <TextControls
         title="Headline"
         subtitle="Control the larger supporting headline."
+        field="headline"
         text={headline}
         setText={setHeadline}
         style={headlineStyle}
@@ -353,6 +400,7 @@ export default function PropertiesPanel({
       <TextControls
         title="Subline"
         subtitle="Adjust the secondary descriptive line."
+        field="subline"
         text={subline}
         setText={setSubline}
         style={sublineStyle}

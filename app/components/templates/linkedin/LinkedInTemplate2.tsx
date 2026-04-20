@@ -51,6 +51,9 @@ type Props = LinkedInTemplate2Data & {
 
   bodyStyle?: BoxTextStyle;
   bodyMarks?: TextMark[];
+  titleMarks?: TextMark[];
+  badgeMarks?: TextMark[];
+  companyMarks?: TextMark[];
 
   titleStyle?: BoxTextStyle;
   badgeStyle?: BoxTextStyle;
@@ -72,6 +75,9 @@ export default function LinkedInTemplate2(props: Props) {
     mode = "preview",
     bodyStyle,
     bodyMarks,
+    titleMarks,
+    badgeMarks,
+    companyMarks,
     titleStyle,
     badgeStyle,
     companyStyle,
@@ -91,6 +97,9 @@ export default function LinkedInTemplate2(props: Props) {
         ...rest,
         bodyStyle,
         bodyMarks,
+        titleMarks,
+        badgeMarks,
+        companyMarks,
         titleStyle,
         badgeStyle,
         companyStyle,
