@@ -3,8 +3,6 @@ import ffmpeg from "fluent-ffmpeg";
 import os from "os";
 import path from "path";
 import fs from "fs/promises";
-import { IncomingForm } from "formidable";
-import { Readable } from "stream";
 
 import { configureFfmpegPaths } from "@/app/lib/ffmpeg";
 import {
@@ -19,17 +17,19 @@ type Payload = {
   name: string;
   role: string;
 
+  title?: string;
   badgeText?: string;
-  badgeMarks?: any[];
+  badgeMarks?: TextMark[];
   linkTitle?: string;
-  titleMarks?: any[];
+  titleMarks?: TextMark[];
   company?: string;
-  companyMarks?: any[];
+  companyMarks?: TextMark[];
 
   headline?: string;
   subline?: string;
+  body?: string;
   bodyText?: string;
-  bodyMarks?: any[];
+  bodyMarks?: TextMark[];
 
   link?: string;
 
@@ -40,7 +40,7 @@ type Payload = {
     h: number;
   };
 
-  images?: any[];
+  images?: unknown[];
   imageLayout?: "manual" | "collage" | "frame";
   framePresetId?: string;
   frameSlots?: Array<{
@@ -54,14 +54,32 @@ type Payload = {
     clipPath?: string;
     shape?: "rect" | "organic" | "pill" | "arch" | "blob";
   }>;
-  titleStyle?: any;
-  bodyStyle?: any;
-  badgeStyle?: any;
-  companyStyle?: any;
-  headlineStyle?: any;
-  sublineStyle?: any;
+  titleStyle?: BoxTextStyle;
+  bodyStyle?: BoxTextStyle;
+  badgeStyle?: BoxTextStyle;
+  companyStyle?: BoxTextStyle;
+  headlineStyle?: BoxTextStyle;
+  sublineStyle?: BoxTextStyle;
 
   canvasPreset?: CanvasPreset;
+};
+
+type TextMark = {
+  start: number;
+  end: number;
+  style?: {
+    fontFamily?: string;
+    fontSize?: number;
+    color?: string;
+    highlight?: boolean;
+  };
+};
+
+type BoxTextStyle = {
+  fontFamily?: string;
+  fontSize?: number;
+  color?: string;
+  textAlign?: "left" | "center" | "right";
 };
 
 export const runtime = "nodejs";
@@ -69,7 +87,6 @@ export const dynamic = "force-dynamic";
 
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn7n6QAAAAASUVORK5CYII=";
-
 function normalizeHttpUrl(raw?: string): string | undefined {
   const value = raw?.trim();
   if (!value) return undefined;
@@ -86,16 +103,7 @@ function linkLabel(linkUrl: string) {
   }
 }
 
-function renderMarkedHtml(text: string, marks?: Array<{
-  start: number;
-  end: number;
-  style?: {
-    fontFamily?: string;
-    fontSize?: number;
-    color?: string;
-    highlight?: boolean;
-  };
-}>) {
+function renderMarkedHtml(text: string, marks?: TextMark[]) {
   const value = String(text ?? "");
   if (!marks?.length) return escapeHtml(value).replace(/\n/g, "<br/>");
 
@@ -134,12 +142,7 @@ function renderMarkedHtml(text: string, marks?: Array<{
   return out;
 }
 
-function styleToInline(style?: {
-  fontFamily?: string;
-  fontSize?: number;
-  color?: string;
-  textAlign?: "left" | "center" | "right";
-}) {
+function styleToInline(style?: BoxTextStyle) {
   if (!style) return "";
   return [
     style.fontFamily ? `font-family:${style.fontFamily};` : "",
@@ -153,6 +156,14 @@ function getPresetClass(preset?: CanvasPreset) {
   if (preset === "instagramStory") return "story";
   if (preset === "instagram") return "instagram";
   return "linkedin";
+}
+
+function normalizePayload(data: Payload): Payload {
+  return {
+    ...data,
+    linkTitle: data.linkTitle ?? data.title,
+    bodyText: data.bodyText ?? data.body,
+  };
 }
 
 function resolveSrc(req: Request, raw?: string) {
@@ -173,28 +184,18 @@ function getFinalVideoBox(
 ) {
   const canvas = getCanvasFrame(preset);
   const headerHeight = getHeaderHeight(preset);
-  const base = mediaBox ?? { x: 420, y: 240, w: 240, h: 240 };
-  const aspectRatio = base.w > 0 && base.h > 0 ? base.w / base.h : 1;
+  const targetWidth = Math.max(1, Math.round(canvas.w * 0.97));
+  const targetHeight = Math.max(1, Math.round(headerHeight * 0.97));
 
-  let width = Math.round(base.w * 1.35);
-  let height = Math.round(width / aspectRatio);
+  const base = mediaBox ?? {
+    x: Math.round((canvas.w - targetWidth) / 2),
+    y: Math.round((headerHeight - targetHeight) / 2),
+    w: targetWidth,
+    h: targetHeight,
+  };
 
-  const maxWidth = Math.round(canvas.w * 0.72);
-  const maxHeight = Math.round(headerHeight * 0.68);
-
-  if (width > maxWidth) {
-    width = maxWidth;
-    height = Math.round(width / aspectRatio);
-  }
-
-  if (height > maxHeight) {
-    height = maxHeight;
-    width = Math.round(height * aspectRatio);
-  }
-
-  width = Math.max(220, width);
-  height = Math.max(220, height);
-
+  const width = Math.max(1, Math.min(Math.round(base.w), targetWidth));
+  const height = Math.max(1, Math.min(Math.round(base.h), targetHeight));
   return {
     x: Math.round((canvas.w - width) / 2),
     y: Math.round((headerHeight - height) / 2),
@@ -398,19 +399,6 @@ function renderVideoTemplateHtml(
 </html>`;
 }
 
-
-function requestToNodeStream(req: Request) {
-  const reader = req.body?.getReader();
-  return new Readable({
-    async read() {
-      if (!reader) return this.push(null);
-      const { value, done } = await reader.read();
-      if (done) this.push(null);
-      else this.push(Buffer.from(value));
-    },
-  });
-}
-
 function getPuppeteerLaunchOptions() {
   const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
 
@@ -421,18 +409,14 @@ function getPuppeteerLaunchOptions() {
   };
 }
 
-async function parseMultipart(req: Request): Promise<{ fields: any; files: any }> {
-  const form = new IncomingForm({ multiples: false, keepExtensions: true });
+function getFormString(formData: FormData, key: string) {
+  const value = formData.get(key);
+  return typeof value === "string" ? value : undefined;
+}
 
-  const stream = requestToNodeStream(req) as any;
-  stream.headers = Object.fromEntries(req.headers.entries());
-
-  return await new Promise((resolve, reject) => {
-    form.parse(stream, (err: any, fields: any, files: any) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
-    });
-  });
+async function persistUploadedFile(file: File, outputPath: string) {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  await fs.writeFile(outputPath, buffer);
 }
 
 async function screenshotCoverPng(
@@ -462,7 +446,7 @@ async function screenshotCoverPng(
 
     await page.waitForSelector(".li2-root", { timeout: 60000 });
 
-      await page.waitForFunction(async () => {
+    await page.waitForFunction(async () => {
       const fontsReady =
         "fonts" in document
           ? (document as Document & { fonts: FontFaceSet }).fonts.ready
@@ -512,7 +496,9 @@ async function buildVideoInsideTemplateWithAudio(
       .inputOptions(["-loop 1"])
       .input(userMp4Path)
       .complexFilter([
-        `[1:v]scale=w='if(gt(a,${box.w}/${box.h}),${box.w},-2)':h='if(gt(a,${box.w}/${box.h}),-2,${box.h})',pad=${box.w}:${box.h}:(ow-iw)/2:(oh-ih)/2,format=yuv420p[vid]`,
+        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h},boxblur=24:12[bg]`,
+        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=decrease[fg]`,
+        `[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1[vid]`,
         `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[v]`,
       ])
       .outputOptions([
@@ -538,26 +524,41 @@ async function buildVideoInsideTemplateWithAudio(
 export async function POST(req: Request) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "final-"));
   const coverPng = path.join(tmpDir, "cover.png");
+  const uploadedVideoPath = path.join(tmpDir, "upload.mp4");
   const finalMp4 = path.join(tmpDir, "final.mp4");
 
   try {
     await configureFfmpegPaths();
 
-    const { fields, files } = await parseMultipart(req);
-    const data: Payload = JSON.parse(fields.data as string);
+    const formData = await req.formData();
+    const rawData = getFormString(formData, "data");
 
-    const fileObj = (files as any).video;
-    const userVideoPath = (Array.isArray(fileObj) ? fileObj[0] : fileObj)?.filepath;
+    if (!rawData) {
+      return NextResponse.json(
+        { error: "Missing form field 'data'" },
+        { status: 400 }
+      );
+    }
 
-    if (!userVideoPath) {
+    const data = normalizePayload(JSON.parse(rawData) as Payload);
+    const videoField = formData.get("video");
+
+    if (!(videoField instanceof File) || videoField.size === 0) {
       return NextResponse.json(
         { error: "No video uploaded (field name must be 'video')" },
         { status: 400 }
       );
     }
 
+    await persistUploadedFile(videoField, uploadedVideoPath);
+
     const box = await screenshotCoverPng(req, data, coverPng);
-    await buildVideoInsideTemplateWithAudio(coverPng, userVideoPath, finalMp4, box);
+    await buildVideoInsideTemplateWithAudio(
+      coverPng,
+      uploadedVideoPath,
+      finalMp4,
+      box
+    );
 
     const out = await fs.readFile(finalMp4);
     return new NextResponse(out as unknown as BodyInit, {
@@ -566,9 +567,9 @@ export async function POST(req: Request) {
         "Content-Disposition": 'attachment; filename="final.mp4"',
       },
     });
-  } catch (e: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
-      { error: e?.message ?? "final video failed" },
+      { error: error instanceof Error ? error.message : "final video failed" },
       { status: 500 }
     );
   } finally {

@@ -13,12 +13,14 @@ type Payload = {
   name: string;
   role: string;
 
+  title?: string;
   badgeText?: string;
   linkTitle?: string;
   company?: string;
 
   headline?: string;
   subline?: string;
+  body?: string;
   bodyText?: string;
 
   link?: string;
@@ -32,6 +34,14 @@ function normalizeHttpUrl(raw?: string): string | undefined {
   if (!v) return undefined;
   if (v.startsWith("http://") || v.startsWith("https://")) return v;
   return `https://${v}`;
+}
+
+function normalizePayload(data: Payload): Payload {
+  return {
+    ...data,
+    linkTitle: data.linkTitle ?? data.title,
+    bodyText: data.bodyText ?? data.body,
+  };
 }
 
 /**
@@ -163,8 +173,9 @@ async function screenshotCoverPng(req: Request, data: Payload, outPngPath: strin
       deviceScaleFactor: 1,
     });
 
+    await page.emulateMediaType("screen");
     await page.setContent(renderCoverHtml(req, data), {
-      waitUntil: "load",
+      waitUntil: "networkidle0",
       timeout: 60000,
     });
 
@@ -173,7 +184,13 @@ async function screenshotCoverPng(req: Request, data: Payload, outPngPath: strin
     await page.waitForSelector("#videoBox", { timeout: 60000 });
 
     // Ensure all images are fully loaded.
-    await page.waitForFunction(() => {
+    await page.waitForFunction(async () => {
+      const fontsReady =
+        "fonts" in document
+          ? (document as Document & { fonts: FontFaceSet }).fonts.ready
+          : Promise.resolve();
+      await fontsReady;
+
       const imgs = Array.from(document.images);
       return imgs.every((img) => img.complete);
     }, { timeout: 60000 });
@@ -210,7 +227,7 @@ export async function POST(req: Request) {
 
   try {
     await configureFfmpegPaths();
-    const data = (await req.json()) as Payload;
+    const data = normalizePayload((await req.json()) as Payload);
 
     await screenshotCoverPng(req, data, pngPath);
     await pngToMp4(pngPath, mp4Path, 3);

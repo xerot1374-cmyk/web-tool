@@ -6,7 +6,6 @@ const nextConfig = {
     "@ffmpeg-installer/ffmpeg",
     "@ffprobe-installer/ffprobe",
     "puppeteer",
-    "formidable",
   ],
 
   webpack(config) {
