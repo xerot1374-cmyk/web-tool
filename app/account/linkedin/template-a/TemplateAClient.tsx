@@ -97,8 +97,6 @@ type ImagePayloadItem = {
   cropScale?: number;
 };
 
-type RasterMode = "none" | "grid" | "dots" | "cross" | "blueprint";
-
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -637,8 +635,6 @@ export default function TemplateAClient({
   const imageClipboardRef = useRef<ImageClipboardPayload | null>(null);
 
   const [canvasPreset, setCanvasPreset] = useState<CanvasPresetKey>("linkedin");
-  const [rasterMode, setRasterMode] = useState<RasterMode>("none");
-  const showRaster = rasterMode !== "none";
 
   const [selectedId, setSelectedId] = useState<SelectableId | null>(null);
   const [selectedRect, setSelectedRect] = useState<DOMRect | null>(null);
@@ -2337,8 +2333,6 @@ export default function TemplateAClient({
           headlineStyle: payload.headlineStyle ?? headlineStyle,
           sublineStyle: payload.sublineStyle ?? sublineStyle,
           canvasPreset: payload.canvasPreset ?? canvasPreset,
-          showRaster: false,
-          rasterMode: "none" as RasterMode,
         };
       }
 
@@ -2373,8 +2367,6 @@ export default function TemplateAClient({
         headlineStyle,
         sublineStyle,
         canvasPreset,
-        showRaster,
-        rasterMode,
       };
     }, [
       isPdf,
@@ -2408,8 +2400,6 @@ export default function TemplateAClient({
       headlineStyle,
       sublineStyle,
       canvasPreset,
-      showRaster,
-      rasterMode,
     ]);
 
     useEffect(() => {
@@ -2713,8 +2703,6 @@ export default function TemplateAClient({
             <LinkedInTemplate2
                 scale={1}
                 canvasPreset={effective.canvasPreset}
-                showRaster={false}
-                rasterMode="none"
                 productImage={effective.productImage}
                 productImages={effective.productImages}
                 productOrientation={effective.productOrientation}
@@ -2819,8 +2807,6 @@ export default function TemplateAClient({
                           <LinkedInTemplate2
                             scale={1}
                             canvasPreset={canvasPreset}
-                            showRaster={showRaster}
-                            rasterMode={rasterMode}
                             productImage={effective.productImage}
                             productImages={effective.productImages}
                             productOrientation={effective.productOrientation}
@@ -3162,8 +3148,6 @@ export default function TemplateAClient({
                     imageCount={images.length}
                     onDeleteSelectedImage={removeSelectedImage}
                     onDuplicateSelectedImage={duplicateSelectedImage}
-                    showRaster={showRaster}
-                    setShowRaster={(v) => setRasterMode(v ? "grid" : "none")}
                 />
               }
               properties={
@@ -3206,8 +3190,6 @@ export default function TemplateAClient({
                     setSelectedImageCropX={setSelectedImageCropX}
                     setSelectedImageCropY={setSelectedImageCropY}
                     setSelectedImageCropScale={setSelectedImageCropScale}
-                    showRaster={showRaster}
-                    setShowRaster={(v) => setRasterMode(v ? "grid" : "none")}
                     onDeleteSelectedImage={removeSelectedImage}
                     onDuplicateSelectedImage={duplicateSelectedImage}
                 />

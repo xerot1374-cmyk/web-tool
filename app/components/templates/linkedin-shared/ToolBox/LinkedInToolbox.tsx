@@ -90,8 +90,6 @@ type Props = {
 
   onDeleteSelectedImage?: () => void;
   onDuplicateSelectedImage?: () => void;
-  showRaster?: boolean;
-  setShowRaster?: (v: boolean) => void;
 };
 
 export default function LinkedInToolbox({
@@ -143,8 +141,6 @@ export default function LinkedInToolbox({
   imageCount = 0,
   onDeleteSelectedImage,
   onDuplicateSelectedImage,
-  showRaster = false,
-  setShowRaster,
 }: Props) {
   return (
     <aside className="tb">
@@ -406,18 +402,6 @@ export default function LinkedInToolbox({
               <div>Paste: Ctrl/Cmd + V</div>
               <div>Delete: Del / Backspace</div>
             </div>
-          </div>
-
-          <div className="editor-field">
-            <label className="editor-label">Raster / Grid</label>
-            <label className="tb__toggle">
-              <input
-                type="checkbox"
-                checked={showRaster}
-                onChange={(e) => setShowRaster?.(e.target.checked)}
-              />
-              Show raster in preview
-            </label>
           </div>
 
           <div className="tb__hint tb__hint--left">

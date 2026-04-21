@@ -107,9 +107,6 @@ video {
 }
 
 /* ===== Shared export-safe rules ===== */
-.li2-raster {
-  display: none !important;
-}
 
 .li2-header {
   overflow: hidden !important;

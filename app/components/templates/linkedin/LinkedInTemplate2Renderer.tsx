@@ -25,8 +25,6 @@ export type ImageItem = {
   cropY?: number;
   cropScale?: number;
 };
-
-export type RasterMode = "none" | "grid" | "dots" | "cross" | "blueprint";
 export type ImageLayoutMode = "manual" | "collage" | "frame";
 
 export type LinkedInTemplate2Data = {
@@ -105,9 +103,6 @@ export type LinkedInTemplate2Data = {
   mediaBox?: MediaBox;
 
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
-
-  showRaster?: boolean;
-  rasterMode?: RasterMode;
 };
 
 export type TextMark = {
@@ -270,15 +265,6 @@ function getCropValues(img?: ImageItem) {
   };
 }
 
-function getEffectiveRasterMode(
-  mode?: RasterMode,
-  legacyShowRaster?: boolean
-): RasterMode {
-  if (mode && mode !== "none") return mode;
-  if (legacyShowRaster) return "grid";
-  return "none";
-}
-
 export default function LinkedInTemplate2Renderer({
   data,
   mode,
@@ -390,8 +376,6 @@ export default function LinkedInTemplate2Renderer({
       ? "instagram"
       : "linkedin";
 
-  const rasterMode = getEffectiveRasterMode(data.rasterMode, data.showRaster);
-
   return (
     <div
       className={cx(
@@ -414,13 +398,6 @@ export default function LinkedInTemplate2Renderer({
           position: "relative",
         }}
       >
-        {rasterMode !== "none" ? (
-          <div
-            className={cx("li2-raster", `li2-raster--${rasterMode}`)}
-            aria-hidden="true"
-          />
-        ) : null}
-
         <div
           className={cx(
             "li2-header",

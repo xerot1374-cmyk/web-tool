@@ -68,9 +68,6 @@ type Props = {
   setSelectedImageCropY?: (v: number) => void;
   setSelectedImageCropScale?: (v: number) => void;
 
-  showRaster?: boolean;
-  setShowRaster?: (v: boolean) => void;
-
   onDeleteSelectedImage?: () => void;
   onDuplicateSelectedImage?: () => void;
 };
@@ -90,7 +87,7 @@ function Section({
 }: {
   title: string;
   subtitle?: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }) {
   return (
     <section className="properties-panel__section">
@@ -100,27 +97,6 @@ function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-function ToggleRow({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange?: (checked: boolean) => void;
-  label: string;
-}) {
-  return (
-    <label className="properties-panel__toggle">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange?.(e.target.checked)}
-      />
-      <span>{label}</span>
-    </label>
   );
 }
 
@@ -246,13 +222,9 @@ function TextControls({
 }
 
 function EmptyState({
-  showRaster,
-  setShowRaster,
   imageLayout,
   setImageLayout,
 }: {
-  showRaster: boolean;
-  setShowRaster?: (v: boolean) => void;
   imageLayout: ImageLayoutMode;
   setImageLayout: (v: ImageLayoutMode) => void;
 }) {
@@ -262,12 +234,6 @@ function EmptyState({
         title="Properties"
         subtitle="Select any text block or image on the canvas to edit its settings."
       >
-        <ToggleRow
-          checked={showRaster}
-          onChange={setShowRaster}
-          label="Show raster in preview"
-        />
-
         <div className="properties-panel__field">
           <label>Image Layout</label>
           <select
@@ -333,17 +299,12 @@ export default function PropertiesPanel({
   setSelectedImageCropY,
   setSelectedImageCropScale,
 
-  showRaster = false,
-  setShowRaster,
-
   onDeleteSelectedImage,
   onDuplicateSelectedImage,
 }: Props) {
   if (!selectedId) {
     return (
       <EmptyState
-        showRaster={showRaster}
-        setShowRaster={setShowRaster}
         imageLayout={imageLayout}
         setImageLayout={setImageLayout}
       />
@@ -445,12 +406,6 @@ export default function PropertiesPanel({
           title="Image"
           subtitle="Refine placement, crop, and transformations for the selected image."
         >
-          <ToggleRow
-            checked={showRaster}
-            onChange={setShowRaster}
-            label="Show raster in preview"
-          />
-
           <div className="properties-panel__field">
             <label>Align</label>
             <select
@@ -568,11 +523,7 @@ export default function PropertiesPanel({
           title="Links"
           subtitle="Link management currently lives in the main toolbox column."
         >
-          <ToggleRow
-            checked={showRaster}
-            onChange={setShowRaster}
-            label="Show raster in preview"
-          />
+          <p>Link settings are available in the main toolbox column.</p>
         </Section>
       </div>
     );
@@ -583,13 +534,7 @@ export default function PropertiesPanel({
       <Section
         title={selectedId}
         subtitle="More granular controls can be added here when this element supports them."
-      >
-        <ToggleRow
-          checked={showRaster}
-          onChange={setShowRaster}
-          label="Show raster in preview"
-        />
-      </Section>
+      />
     </div>
   );
 }

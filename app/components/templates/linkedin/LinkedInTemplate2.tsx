@@ -2,7 +2,6 @@ import React from "react";
 import LinkedInTemplate2Renderer, {
   type LinkedInTemplate2Data,
   type MediaBox,
-  type RasterMode,
 } from "./LinkedInTemplate2Renderer";
 import type { FrameSlot } from "@/app/lib/imageLayouts";
 
@@ -72,8 +71,6 @@ type Props = LinkedInTemplate2Data & {
   frameSlots?: FrameSlot[];
 
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
-  showRaster?: boolean;
-  rasterMode?: RasterMode;
   onStartFrameImageDrag?: (
     imageId: string,
     event: React.MouseEvent<HTMLDivElement>
@@ -100,8 +97,6 @@ export default function LinkedInTemplate2(props: Props) {
     framePresetId,
     frameSlots,
     canvasPreset,
-    showRaster,
-    rasterMode,
     onStartFrameImageDrag,
     ...rest
   } = props;
@@ -126,8 +121,6 @@ export default function LinkedInTemplate2(props: Props) {
         framePresetId,
         frameSlots,
         canvasPreset,
-        showRaster,
-        rasterMode,
       }}
       mode={mode}
       scale={scale}

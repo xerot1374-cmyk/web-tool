@@ -142,8 +142,6 @@ export default function PdfRenderClient() {
       headlineStyle: payload.headlineStyle,
       sublineStyle: payload.sublineStyle,
       canvasPreset: payload.canvasPreset ?? "linkedin",
-      showRaster: false,
-      rasterMode: "none" as const,
     };
   }, [payload]);
 

@@ -101,64 +101,6 @@
 }
 
 /* ===== RASTER / GRID ===== */
-.li2-raster {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.li2-raster--grid {
-  background-image:
-    linear-gradient(rgba(37, 99, 235, 0.10) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, 0.10) 1px, transparent 1px),
-    linear-gradient(rgba(37, 99, 235, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, 0.16) 1px, transparent 1px);
-  background-size:
-    20px 20px,
-    20px 20px,
-    100px 100px,
-    100px 100px;
-  background-position: 0 0, 0 0, 0 0, 0 0;
-}
-
-.li2-raster--dots {
-  background-image:
-    radial-gradient(circle, rgba(37, 99, 235, 0.22) 1.2px, transparent 1.2px),
-    radial-gradient(circle, rgba(37, 99, 235, 0.10) 1px, transparent 1px);
-  background-size:
-    24px 24px,
-    96px 96px;
-  background-position: 0 0, 0 0;
-}
-
-.li2-raster--cross {
-  background-image:
-    linear-gradient(rgba(37, 99, 235, 0.14) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(37, 99, 235, 0.14) 1px, transparent 1px),
-    radial-gradient(circle, rgba(37, 99, 235, 0.18) 1.4px, transparent 1.4px);
-  background-size:
-    28px 28px,
-    28px 28px,
-    56px 56px;
-  background-position: 0 0, 0 0, 0 0;
-}
-
-.li2-raster--blueprint {
-  background-color: rgba(59, 130, 246, 0.03);
-  background-image:
-    linear-gradient(rgba(30, 64, 175, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 64, 175, 0.12) 1px, transparent 1px),
-    linear-gradient(rgba(30, 64, 175, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(30, 64, 175, 0.18) 1px, transparent 1px);
-  background-size:
-    16px 16px,
-    16px 16px,
-    80px 80px,
-    80px 80px;
-  background-position: 0 0, 0 0, 0 0, 0 0;
-}
-
 /* ===== HEADER ===== */
 .li2-header {
   position: relative;

@@ -111,9 +111,6 @@ video {
 }
 
 /* ===== Shared ===== */
-.li2-raster {
-  display: none !important;
-}
 
 .li2-header {
   overflow: hidden !important;
