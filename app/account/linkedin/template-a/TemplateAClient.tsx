@@ -352,6 +352,7 @@ type EditField = Exclude<EditorTextField, "caption"> | null;
 
 type DragMode =
   | "frame-swap"
+  | "frame-image-pan"
   | "frame-image-scale"
   | "move"
   | "resize-n"
@@ -1603,6 +1604,29 @@ export default function TemplateAClient({
           return;
         }
 
+        if (imageLayout === "frame" && drag.mode === "frame-image-pan") {
+          const frameSlot = drag.startFrameSlot;
+          if (!frameSlot) return;
+
+          const nextCropX = clamp(
+            (drag.startImage.cropX ?? 50) - (dx / Math.max(frameSlot.w, 1)) * 100,
+            0,
+            100
+          );
+          const nextCropY = clamp(
+            (drag.startImage.cropY ?? 50) - (dy / Math.max(frameSlot.h, 1)) * 100,
+            0,
+            100
+          );
+
+          updateSelectedImage((prev) => ({
+            ...prev,
+            cropX: nextCropX,
+            cropY: nextCropY,
+          }));
+          return;
+        }
+
         if (
           imageLayout === "frame" &&
           drag.startFrameSlot &&
@@ -2849,14 +2873,20 @@ export default function TemplateAClient({
                               boxShadow: "0 0 0 2px rgba(59,130,246,0.12)",
                               cursor:
                                 selectedId === "productImage"
-                                  ? "move"
+                                  ? imageLayout === "frame"
+                                    ? "grab"
+                                    : "move"
                                   : "default",
                               zIndex: 9999,
 
                             }}
                             onMouseDown={
                               selectedId === "productImage"
-                                ? (e) => startMediaInteraction(e, "move")
+                                ? (e) =>
+                                    startMediaInteraction(
+                                      e,
+                                      imageLayout === "frame" ? "frame-image-pan" : "move"
+                                    )
                                 : undefined
                             }
                           >
@@ -2920,6 +2950,29 @@ export default function TemplateAClient({
                                     }}
                                     onMouseDown={(e) => startMediaInteraction(e, "rotate")}
                                   />
+                                ) : null}
+
+                                {imageLayout === "frame" && selectedId === "productImage" ? (
+                                  <div
+                                    title="Drag to move image inside frame"
+                                    style={{
+                                      position: "absolute",
+                                      left: 16,
+                                      bottom: 16,
+                                      height: 28,
+                                      padding: "0 10px",
+                                      borderRadius: 999,
+                                      border: "1px solid rgba(0,0,0,0.12)",
+                                      background: "rgba(255,255,255,0.96)",
+                                      fontSize: 12,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      cursor: "grab",
+                                    }}
+                                    onMouseDown={(e) => startMediaInteraction(e, "frame-image-pan")}
+                                  >
+                                    Move image
+                                  </div>
                                 ) : null}
 
                                 {imageLayout === "frame" && selectedId === "productImage" ? (
