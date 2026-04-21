@@ -184,21 +184,28 @@ function getFinalVideoBox(
 ) {
   const canvas = getCanvasFrame(preset);
   const headerHeight = getHeaderHeight(preset);
-  const targetWidth = Math.max(1, Math.round(canvas.w * 0.97));
-  const targetHeight = Math.max(1, Math.round(headerHeight * 0.97));
+  const verticalOffset =
+    preset === "instagramStory" ? 360 : preset === "instagram" ? 260 : 320;
+  const targetWidth = Math.max(
+    1,
+    Math.round(
+      Math.max(canvas.w * 0.99, mediaBox?.w ? mediaBox.w * 1.8 : 0)
+    )
+  );
+  const targetHeight = Math.max(
+    1,
+    Math.round(
+      Math.max(headerHeight * 0.99, mediaBox?.h ? mediaBox.h * 1.8 : 0)
+    )
+  );
 
-  const base = mediaBox ?? {
-    x: Math.round((canvas.w - targetWidth) / 2),
-    y: Math.round((headerHeight - targetHeight) / 2),
-    w: targetWidth,
-    h: targetHeight,
-  };
-
-  const width = Math.max(1, Math.min(Math.round(base.w), targetWidth));
-  const height = Math.max(1, Math.min(Math.round(base.h), targetHeight));
+  const width = Math.min(targetWidth, canvas.w);
+  const height = Math.min(targetHeight, headerHeight);
+  const centeredY = Math.round((headerHeight - height) / 2);
+  const y = Math.max(0, centeredY + verticalOffset);
   return {
     x: Math.round((canvas.w - width) / 2),
-    y: Math.round((headerHeight - height) / 2),
+    y,
     w: width,
     h: height,
   };
@@ -207,13 +214,15 @@ function getFinalVideoBox(
 function renderVideoTemplateHtml(
   req: Request,
   data: Payload,
-  box: { x: number; y: number; w: number; h: number }
+  box: { x: number; y: number; w: number; h: number },
+  mode: "base" | "foreground" = "base"
 ) {
   const canvas = getCanvasFrame(data.canvasPreset);
   const presetClass = getPresetClass(data.canvasPreset);
   const cssUrl = absUrl(req, "/li2.css");
   const profileImage = resolveSrc(req, data.profileImage);
   const companyLogo = resolveSrc(req, "/logo.png");
+  const foregroundOnly = mode === "foreground";
 
   const images = [
     {
@@ -268,14 +277,14 @@ function renderVideoTemplateHtml(
     html, body {
       margin: 0;
       padding: 0;
-      background: #ffffff;
+      background: ${foregroundOnly ? "transparent" : "#ffffff"};
       width: 100%;
       height: 100%;
     }
     * { box-sizing: border-box; }
     .video-stage {
       width: ${canvas.w}px;
-      background: #ffffff;
+      background: ${foregroundOnly ? "transparent" : "#ffffff"};
       overflow: visible;
     }
     .li2-viewport {
@@ -283,7 +292,7 @@ function renderVideoTemplateHtml(
       width: ${canvas.w}px !important;
       height: auto !important;
       overflow: visible !important;
-      background: #ffffff !important;
+      background: ${foregroundOnly ? "transparent" : "#ffffff"} !important;
     }
     .li2-root {
       width: ${canvas.w}px !important;
@@ -291,6 +300,8 @@ function renderVideoTemplateHtml(
       min-height: 0 !important;
       overflow: visible !important;
       position: relative;
+      background: ${foregroundOnly ? "transparent" : "#ffffff"} !important;
+      border-color: ${foregroundOnly ? "transparent" : "rgba(155, 157, 161, 0.32)"} !important;
     }
     .li2-content {
       overflow: visible !important;
@@ -299,6 +310,19 @@ function renderVideoTemplateHtml(
     .li2-body,
     .li2-bottom {
       overflow: visible !important;
+    }
+    ${
+      foregroundOnly
+        ? `
+    .li2-header {
+      background: transparent !important;
+      background-image: none !important;
+    }
+    .li2-productSlot {
+      display: none !important;
+    }
+    `
+        : ""
     }
   </style>
 </head>
@@ -422,13 +446,14 @@ async function persistUploadedFile(file: File, outputPath: string) {
 async function screenshotCoverPng(
   req: Request,
   data: Payload,
-  outPngPath: string
+  outPngPath: string,
+  mode: "base" | "foreground" = "base"
 ): Promise<{ x: number; y: number; w: number; h: number }> {
   const puppeteer = (await import("puppeteer")).default;
 
   const frame = getCanvasFrame(data.canvasPreset);
   const box = getFinalVideoBox(data.canvasPreset, data.mediaBox);
-  const html = renderVideoTemplateHtml(req, data, box);
+  const html = renderVideoTemplateHtml(req, data, box, mode);
 
   const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
@@ -473,6 +498,7 @@ async function screenshotCoverPng(
     const buffer = await page.screenshot({
       type: "png",
       clip,
+      ...(mode === "foreground" ? { omitBackground: true } : {}),
     });
     await fs.writeFile(outPngPath, buffer);
 
@@ -485,6 +511,7 @@ async function screenshotCoverPng(
 async function buildVideoInsideTemplateWithAudio(
   coverPngPath: string,
   userMp4Path: string,
+  foregroundPngPath: string,
   outputMp4Path: string,
   box: { x: number; y: number; w: number; h: number }
 ) {
@@ -495,11 +522,11 @@ async function buildVideoInsideTemplateWithAudio(
       .input(coverPngPath)
       .inputOptions(["-loop 1"])
       .input(userMp4Path)
+      .input(foregroundPngPath)
       .complexFilter([
-        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h},boxblur=24:12[bg]`,
-        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=decrease[fg]`,
-        `[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1[vid]`,
-        `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[v]`,
+        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=decrease[vid]`,
+        `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[with_video]`,
+        `[with_video][2:v]overlay=0:0:format=auto[v]`,
       ])
       .outputOptions([
         "-map [v]",
@@ -524,6 +551,7 @@ async function buildVideoInsideTemplateWithAudio(
 export async function POST(req: Request) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "final-"));
   const coverPng = path.join(tmpDir, "cover.png");
+  const foregroundPng = path.join(tmpDir, "foreground.png");
   const uploadedVideoPath = path.join(tmpDir, "upload.mp4");
   const finalMp4 = path.join(tmpDir, "final.mp4");
 
@@ -552,10 +580,12 @@ export async function POST(req: Request) {
 
     await persistUploadedFile(videoField, uploadedVideoPath);
 
-    const box = await screenshotCoverPng(req, data, coverPng);
+    const box = await screenshotCoverPng(req, data, coverPng, "base");
+    await screenshotCoverPng(req, data, foregroundPng, "foreground");
     await buildVideoInsideTemplateWithAudio(
       coverPng,
       uploadedVideoPath,
+      foregroundPng,
       finalMp4,
       box
     );
