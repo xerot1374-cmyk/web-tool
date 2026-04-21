@@ -7,6 +7,7 @@ import {
   getCanvasFrame,
   type CanvasPreset,
 } from "@/app/lib/renderUtils";
+import { resolveFrameSlots } from "@/app/lib/imageLayouts";
 
 type TextMark = {
   start: number;
@@ -31,6 +32,7 @@ type ImagePayloadItem = {
   src?: string;
   base64?: string;
   orientation: "landscape" | "portrait";
+  frameSlotId?: string;
   x: number;
   y: number;
   w: number;
@@ -41,6 +43,19 @@ type ImagePayloadItem = {
   cropScale?: number;
 };
 
+type ImageLayoutMode = "manual" | "collage" | "frame";
+type FrameSlot = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  rotation?: number;
+  clipPath?: string;
+  shape?: "rect" | "organic" | "pill" | "arch" | "blob";
+};
+
 type Payload = {
   profileImage: string;
   name: string;
@@ -49,6 +64,9 @@ type Payload = {
   productImageBase64?: string;
   productOrientation?: "landscape" | "portrait";
   productAlign?: "left" | "center" | "right";
+  imageLayout?: ImageLayoutMode;
+  framePresetId?: string;
+  frameSlots?: FrameSlot[];
   mediaBox?: {
     x: number;
     y: number;
@@ -197,36 +215,87 @@ function renderHtml(req: Request, data: Payload) {
     .map((item) => normalizeHttpUrl(item))
     .filter((item): item is string => Boolean(item));
 
-  const imagesHtml = images
-    .map((img) => {
-      const cropX = Number.isFinite(img.cropX) ? Number(img.cropX) : 50;
-      const cropY = Number.isFinite(img.cropY) ? Number(img.cropY) : 50;
-      const cropScale = Number.isFinite(img.cropScale) ? Number(img.cropScale) : 1;
-      const orientationClass =
-        img.orientation === "portrait"
-          ? "li2-productFrame--portrait"
-          : "li2-productFrame--landscape";
+  const imagesHtml =
+    data.imageLayout === "frame"
+      ? (data.frameSlots?.length
+          ? data.frameSlots
+          : resolveFrameSlots(data.framePresetId, data.canvasPreset ?? "linkedin"))
+          .map((slot, index) => {
+            const img = images.find((item) => item.frameSlotId === slot.id);
+            const cropX = Number.isFinite(img?.cropX) ? Number(img?.cropX) : 50;
+            const cropY = Number.isFinite(img?.cropY) ? Number(img?.cropY) : 50;
+            const cropScale = Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1;
+            const orientationClass =
+              img?.orientation === "portrait"
+                ? "li2-productFrame--portrait"
+                : "li2-productFrame--landscape";
 
-      return `
-        <div
-          class="li2-productSlot"
-          style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:2;pointer-events:auto;transform:none;right:auto;bottom:auto;margin:0;"
-        >
-          <div
-            class="li2-productFrame ${orientationClass}"
-            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:20px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
-          >
-            <img
-              class="li2-productImg li2-productImg--cropped"
-              src="${escapeHtml(img.src ?? "")}"
-              alt="product"
-              style="position:absolute;left:${cropX}%;top:${cropY}%;width:${cropScale * 100}%;height:${cropScale * 100}%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
-            />
-          </div>
-        </div>
-      `;
-    })
-    .join("");
+            return `
+              <div
+                class="li2-productSlot li2-productSlot--frame"
+                data-frame-shape="${slot.shape ?? "rect"}"
+                style="position:absolute;left:${slot.x}px;top:${slot.y}px;width:${slot.w}px;height:${slot.h}px;z-index:${12 + index};pointer-events:auto;right:auto;bottom:auto;margin:0;transform:rotate(${slot.rotation ?? 0}deg);transform-origin:center center;"
+              >
+                <div
+                  class="li2-productFrame li2-productFrame--frame ${orientationClass}${img ? "" : " li2-productFrame--empty"}"
+                  style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;border-radius:${slot.radius}px;background:#ffffff;border:1px solid rgba(255,255,255,0.96);${slot.clipPath ? `clip-path:${slot.clipPath};` : ""}"
+                >
+                  ${
+                    img
+                      ? `<div class="li2-productFrameInner--frame">
+                          <img
+                            class="li2-productImg li2-productImg--cropped"
+                            src="${escapeHtml(img.src ?? "")}"
+                            alt="product"
+                            style="position:absolute;left:${cropX}%;top:${cropY}%;width:${cropScale * 100}%;height:${cropScale * 100}%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
+                          />
+                        </div>`
+                      : `<div class="li2-framePlaceholder">Add image</div>`
+                  }
+                </div>
+              </div>
+            `;
+          })
+          .join("")
+      : images
+          .map((img) => {
+            const cropX = Number.isFinite(img.cropX) ? Number(img.cropX) : 50;
+            const cropY = Number.isFinite(img.cropY) ? Number(img.cropY) : 50;
+            const cropScale = Number.isFinite(img.cropScale) ? Number(img.cropScale) : 1;
+            const orientationClass =
+              img.orientation === "portrait"
+                ? "li2-productFrame--portrait"
+                : "li2-productFrame--landscape";
+            const collageClass = data.imageLayout === "collage" ? " li2-productSlot--collage" : "";
+            const frameClass = data.imageLayout === "collage" ? " li2-productFrame--collage" : "";
+            const background = data.imageLayout === "collage" ? "#ffffff" : "transparent";
+            const border =
+              data.imageLayout === "collage"
+                ? "1px solid rgba(255,255,255,0.92)"
+                : "1px solid rgba(15,23,42,0.10)";
+
+            return `
+              <div
+                class="li2-productSlot${collageClass}"
+                style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:2;pointer-events:auto;transform:none;right:auto;bottom:auto;margin:0;"
+              >
+                <div
+                  class="li2-productFrame ${orientationClass}${frameClass}"
+                  style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:20px;background:${background};border:${border};"
+                >
+                  <div class="${data.imageLayout === "collage" ? "li2-productFrameInner--collage" : ""}">
+                    <img
+                      class="li2-productImg li2-productImg--cropped"
+                      src="${escapeHtml(img.src ?? "")}"
+                      alt="product"
+                      style="position:absolute;left:${cropX}%;top:${cropY}%;width:${cropScale * 100}%;height:${cropScale * 100}%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
+                    />
+                  </div>
+                </div>
+              </div>
+            `;
+          })
+          .join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -282,8 +351,8 @@ function renderHtml(req: Request, data: Payload) {
 <body>
   <div class="pdf-stage">
     <div class="li2-viewport li2-viewport--${presetClass} li2-viewport--autoHeight">
-      <div class="li2-root li2-root--${presetClass} li2-theme-cream li2-root--autoHeight">
-        <div class="li2-header ${images.length ? "li2-header--hasimg" : "li2-header--noimg"}">
+      <div class="li2-root li2-root--${presetClass} li2-theme-cream ${data.imageLayout === "collage" ? "li2-root--imageCollage" : ""} li2-root--autoHeight">
+        <div class="li2-header ${images.length || data.imageLayout === "frame" ? "li2-header--hasimg" : "li2-header--noimg"}">
           ${imagesHtml}
 
           ${

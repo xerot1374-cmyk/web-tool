@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { FRAME_PRESETS, type FrameSlot } from "@/app/lib/imageLayouts";
 
 type TextStyle = {
   fontFamily: string;
@@ -10,6 +11,7 @@ type TextStyle = {
 };
 
 type EditorTextField = "badge" | "title" | "company" | "caption" | "body";
+type ImageLayoutMode = "manual" | "collage" | "frame";
 
 type Props = {
   badgeText: string;
@@ -60,7 +62,14 @@ type Props = {
 
   onPickProductImage: (file: File | null) => void;
   productAlign: "left" | "center" | "right";
-  setProductAlign: React.Dispatch<React.SetStateAction<"left" | "center" | "right">>;
+  setProductAlign: (value: "left" | "center" | "right") => void;
+  imageLayout: ImageLayoutMode;
+  setImageLayout: (mode: ImageLayoutMode) => void;
+  framePresetId: string;
+  setFramePresetId: (id: string) => void;
+  frameSlots: Array<FrameSlot & { imageId?: string }>;
+  selectedFrameSlotId?: string | null;
+  onAssignImageToFrameSlot: (slotId: string) => void;
 
   setVideoFile: (file: File | null) => void;
 
@@ -112,6 +121,13 @@ export default function LinkedInToolbox({
   onPickProductImage,
   productAlign,
   setProductAlign,
+  imageLayout,
+  setImageLayout,
+  framePresetId,
+  setFramePresetId,
+  frameSlots,
+  selectedFrameSlotId,
+  onAssignImageToFrameSlot,
   setVideoFile,
   loadingPdf,
   downloadPDF,
@@ -237,6 +253,89 @@ export default function LinkedInToolbox({
               <option value="right">Right</option>
             </select>
           </div>
+
+          <div className="editor-field">
+            <label className="editor-label">Image Layout</label>
+            <select
+              value={imageLayout}
+              onChange={(e) => setImageLayout(e.target.value as ImageLayoutMode)}
+              style={{ width: "100%" }}
+            >
+              <option value="manual">Manual Layout</option>
+              <option value="collage">Collage Layout</option>
+              <option value="frame">Frame Layout</option>
+            </select>
+            <div className="tb__hint tb__hint--left">
+              Frame Layout lets users choose a template and place each image into a specific slot.
+            </div>
+          </div>
+
+          {imageLayout === "frame" ? (
+            <>
+              <div className="editor-field">
+                <label className="editor-label">Frame Examples</label>
+                <div className="tb__frameGrid">
+                  {FRAME_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={
+                        preset.id === framePresetId
+                          ? "tb__frameCard tb__frameCard--active"
+                          : "tb__frameCard"
+                      }
+                      onClick={() => setFramePresetId(preset.id)}
+                    >
+                      <div className={`tb__frameMini tb__frameMini--${preset.id}`}>
+                        <div className="tb__frameMiniBackdrop" />
+                        {preset.slots.map((slot) => (
+                          <span
+                            key={slot.id}
+                            className="tb__frameMiniSlot"
+                            style={{
+                              left: `${slot.x * 100}%`,
+                              top: `${slot.y * 100}%`,
+                              width: `${slot.w * 100}%`,
+                              height: `${slot.h * 100}%`,
+                              borderRadius: slot.radius ?? 12,
+                              transform: `rotate(${slot.rotation ?? 0}deg)`,
+                              clipPath: slot.clipPath,
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <span className="tb__frameCardTitle">{preset.label}</span>
+                      <span className="tb__frameCardMeta">{preset.description}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="editor-field">
+                <label className="editor-label">Frame Slots</label>
+                <div className="tb__slotList">
+                  {frameSlots.map((slot, index) => (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      className={
+                        slot.id === selectedFrameSlotId
+                          ? "tb__slotBtn tb__slotBtn--active"
+                          : "tb__slotBtn"
+                      }
+                      onClick={() => onAssignImageToFrameSlot(slot.id)}
+                    >
+                      <span>{`Slot ${index + 1}`}</span>
+                      <span>{slot.imageId ? "Filled" : "Empty"}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="tb__hint tb__hint--left">
+                  Select a slot, then upload an image or move the selected image into that slot.
+                </div>
+              </div>
+            </>
+          ) : null}
 
           <div className="editor-field">
             <label className="editor-label">Rotation</label>

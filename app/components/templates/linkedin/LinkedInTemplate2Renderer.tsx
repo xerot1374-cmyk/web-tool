@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useRef, useCallback } from "react";
+import { resolveFrameSlots, type FrameSlot } from "@/app/lib/imageLayouts";
 
 export type MediaBox = {
   x: number;
@@ -14,6 +15,7 @@ export type ImageItem = {
   src: string;
   base64?: string;
   orientation: "landscape" | "portrait";
+  frameSlotId?: string;
   x: number;
   y: number;
   w: number;
@@ -25,6 +27,7 @@ export type ImageItem = {
 };
 
 export type RasterMode = "none" | "grid" | "dots" | "cross" | "blueprint";
+export type ImageLayoutMode = "manual" | "collage" | "frame";
 
 export type LinkedInTemplate2Data = {
   profileImage: string;
@@ -96,6 +99,9 @@ export type LinkedInTemplate2Data = {
 
   productOrientation?: "landscape" | "portrait";
   productAlign?: "left" | "center" | "right";
+  imageLayout?: ImageLayoutMode;
+  framePresetId?: string;
+  frameSlots?: FrameSlot[];
   mediaBox?: MediaBox;
 
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
@@ -122,6 +128,10 @@ type Props = {
 
   onFieldChange?: (key: keyof LinkedInTemplate2Data, value: string) => void;
   onPickProductImage?: (file: File) => void;
+  onStartFrameImageDrag?: (
+    imageId: string,
+    event: React.MouseEvent<HTMLDivElement>
+  ) => void;
 };
 
 function safeScale(scale?: number) {
@@ -252,11 +262,11 @@ function renderMarkedText(text: string, marks?: TextMark[]) {
   return out;
 }
 
-function getCropValues(img: ImageItem) {
+function getCropValues(img?: ImageItem) {
   return {
-    cropX: Number.isFinite(img.cropX) ? Number(img.cropX) : 50,
-    cropY: Number.isFinite(img.cropY) ? Number(img.cropY) : 50,
-    cropScale: Number.isFinite(img.cropScale) ? Number(img.cropScale) : 1,
+    cropX: Number.isFinite(img?.cropX) ? Number(img?.cropX) : 50,
+    cropY: Number.isFinite(img?.cropY) ? Number(img?.cropY) : 50,
+    cropScale: Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1,
   };
 }
 
@@ -275,6 +285,7 @@ export default function LinkedInTemplate2Renderer({
   scale = 1,
   onFieldChange,
   onPickProductImage,
+  onStartFrameImageDrag,
 }: Props) {
   const s = safeScale(scale);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -307,7 +318,16 @@ export default function LinkedInTemplate2Renderer({
     return [];
   }, [data.productImages, data.productImage, data.productOrientation, data.mediaBox]);
 
-  const hasProductImage = images.length > 0;
+  const hasProductImage = images.length > 0 || data.imageLayout === "frame";
+  const frameSlots = useMemo(
+    () =>
+      data.imageLayout === "frame"
+        ? data.frameSlots?.length
+          ? data.frameSlots
+          : resolveFrameSlots(data.framePresetId, data.canvasPreset ?? "linkedin")
+        : [],
+    [data.imageLayout, data.framePresetId, data.canvasPreset, data.frameSlots]
+  );
 
   const vBadge = isEdit ? (data.badgeText ?? "") : clean(data.badgeText);
   const vTitle = isEdit ? (data.linkTitle ?? "") : clean(data.linkTitle);
@@ -379,15 +399,14 @@ export default function LinkedInTemplate2Renderer({
         `li2-viewport--${presetClass}`,
         isPreviewLike && "li2-viewport--autoHeight"
       )}
-      style={{
-        ["--li2-scale" as any]: String(s),
-      }}
+      style={{ "--li2-scale": String(s) } as React.CSSProperties}
     >
       <div
         className={cx(
           "li2-root",
           `li2-root--${presetClass}`,
           "li2-theme-cream",
+          data.imageLayout === "collage" && "li2-root--imageCollage",
           isPreviewLike && "li2-root--autoHeight",
           isEdit && "li2-root--editing"
         )}
@@ -408,84 +427,186 @@ export default function LinkedInTemplate2Renderer({
             hasProductImage ? "li2-header--hasimg" : "li2-header--noimg"
           )}
         >
-          {images.map((img) => {
-            const crop = getCropValues(img);
-            const imageOrientationClass =
-              img.orientation === "portrait"
-                ? "li2-productFrame--portrait"
-                : "li2-productFrame--landscape";
+          {data.imageLayout === "frame"
+            ? frameSlots.map((slot, index) => {
+                const img = images.find((item) => item.frameSlotId === slot.id);
+                const crop = getCropValues(img);
+                const imageOrientationClass =
+                  img?.orientation === "portrait"
+                    ? "li2-productFrame--portrait"
+                    : "li2-productFrame--landscape";
 
-            const alignClass =
-              data.productAlign === "left"
-                ? "li2-productSlot--left"
-                : data.productAlign === "right"
-                ? "li2-productSlot--right"
-                : "li2-productSlot--center";
-
-            return (
-              <div
-                key={img.id}
-                className={cx("li2-productSlot", alignClass)}
-                data-select="productImage"
-                data-image-id={img.id}
-                style={{
-                  position: "absolute",
-                  left: img.x,
-                  top: img.y,
-                  width: img.w,
-                  height: img.h,
-                  zIndex: 2,
-                  pointerEvents: "auto",
-                  transform: "none",
-                  right: "auto",
-                  bottom: "auto",
-                  margin: 0,
-                }}
-                onClick={canPickImage ? openFilePicker : undefined}
-                title={canPickImage ? "Click to add/change image" : undefined}
-              >
-                <div
-                  className={cx("li2-productFrame", imageOrientationClass)}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    boxSizing: "border-box",
-                    display: "block",
-                    overflow: "hidden",
-                    position: "relative",
-                    left: "auto",
-                    top: "auto",
-                    transform: `rotate(${img.rotation ?? 0}deg)`,
-                    transformOrigin: "center center",
-                    borderRadius: 20,
-                    background: "transparent",
-                    border: "1px solid rgba(15,23,42,0.10)",
-                  }}
-                >
-                  <img
-                    className="li2-productImg li2-productImg--cropped"
-                    src={img.src}
-                    alt="product"
-                    draggable={false}
+                return (
+                  <div
+                    key={slot.id}
+                    className={cx("li2-productSlot", "li2-productSlot--frame")}
+                    data-select={img ? "productImage" : "frameSlot"}
+                    data-image-id={img?.id}
+                    data-frame-slot-id={slot.id}
+                    data-frame-shape={slot.shape}
                     style={{
                       position: "absolute",
-                      left: `${crop.cropX}%`,
-                      top: `${crop.cropY}%`,
-                      width: `${crop.cropScale * 100}%`,
-                      height: `${crop.cropScale * 100}%`,
-                      maxWidth: "none",
-                      maxHeight: "none",
-                      transform: "translate(-50%, -50%)",
-                      objectFit: "cover",
-                      display: "block",
-                      userSelect: "none",
-                      pointerEvents: "none",
+                      left: slot.x,
+                      top: slot.y,
+                      width: slot.w,
+                      height: slot.h,
+                      zIndex: 12 + index,
+                      pointerEvents: "auto",
+                      right: "auto",
+                      bottom: "auto",
+                      margin: 0,
+                      transform: `rotate(${slot.rotation ?? 0}deg)`,
                     }}
-                  />
-                </div>
-              </div>
-            );
-          })}
+                    onClick={canPickImage && !img ? openFilePicker : undefined}
+                    onMouseDown={
+                      img && isEdit
+                        ? (event) => onStartFrameImageDrag?.(img.id, event)
+                        : undefined
+                    }
+                    title={canPickImage && !img ? "Click to add image to this frame" : undefined}
+                  >
+                    <div
+                      className={cx(
+                        "li2-productFrame",
+                        "li2-productFrame--frame",
+                        imageOrientationClass,
+                        !img && "li2-productFrame--empty"
+                      )}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        boxSizing: "border-box",
+                        display: "block",
+                        overflow: "hidden",
+                        position: "relative",
+                        borderRadius: slot.radius,
+                        background: "#ffffff",
+                        border: "1px solid rgba(255,255,255,0.96)",
+                        clipPath: slot.clipPath,
+                      }}
+                    >
+                      {img ? (
+                        <div className="li2-productFrameInner--frame">
+                          <img
+                            className="li2-productImg li2-productImg--cropped"
+                            src={img.src}
+                            alt="product"
+                            draggable={false}
+                            style={{
+                              position: "absolute",
+                              left: `${crop.cropX}%`,
+                              top: `${crop.cropY}%`,
+                              width: `${crop.cropScale * 100}%`,
+                              height: `${crop.cropScale * 100}%`,
+                              maxWidth: "none",
+                              maxHeight: "none",
+                              transform: "translate(-50%, -50%)",
+                              objectFit: "cover",
+                              display: "block",
+                              userSelect: "none",
+                              pointerEvents: "none",
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="li2-framePlaceholder">Add image</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            : images.map((img, index) => {
+                const crop = getCropValues(img);
+                const isCollage = data.imageLayout === "collage";
+                const imageOrientationClass =
+                  img.orientation === "portrait"
+                    ? "li2-productFrame--portrait"
+                    : "li2-productFrame--landscape";
+
+                const alignClass =
+                  data.productAlign === "left"
+                    ? "li2-productSlot--left"
+                    : data.productAlign === "right"
+                    ? "li2-productSlot--right"
+                    : "li2-productSlot--center";
+
+                return (
+                  <div
+                    key={img.id}
+                    className={cx(
+                      "li2-productSlot",
+                      alignClass,
+                      isCollage && "li2-productSlot--collage"
+                    )}
+                    data-select="productImage"
+                    data-image-id={img.id}
+                    data-collage-index={isCollage ? String(index) : undefined}
+                    style={{
+                      position: "absolute",
+                      left: img.x,
+                      top: img.y,
+                      width: img.w,
+                      height: img.h,
+                      zIndex: isCollage ? 10 + index : 2,
+                      pointerEvents: "auto",
+                      transform: "none",
+                      right: "auto",
+                      bottom: "auto",
+                      margin: 0,
+                    }}
+                    onClick={canPickImage ? openFilePicker : undefined}
+                    title={canPickImage ? "Click to add/change image" : undefined}
+                  >
+                    <div
+                      className={cx(
+                        "li2-productFrame",
+                        imageOrientationClass,
+                        isCollage && "li2-productFrame--collage"
+                      )}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        boxSizing: "border-box",
+                        display: "block",
+                        overflow: "hidden",
+                        position: "relative",
+                        left: "auto",
+                        top: "auto",
+                        transform: `rotate(${img.rotation ?? 0}deg)`,
+                        transformOrigin: "center center",
+                        borderRadius: 20,
+                        background: isCollage ? "#ffffff" : "transparent",
+                        border: isCollage
+                          ? "1px solid rgba(255,255,255,0.92)"
+                          : "1px solid rgba(15,23,42,0.10)",
+                      }}
+                    >
+                      <div className={cx(isCollage && "li2-productFrameInner--collage")}>
+                        <img
+                          className="li2-productImg li2-productImg--cropped"
+                          src={img.src}
+                          alt="product"
+                          draggable={false}
+                          style={{
+                            position: "absolute",
+                            left: `${crop.cropX}%`,
+                            top: `${crop.cropY}%`,
+                            width: `${crop.cropScale * 100}%`,
+                            height: `${crop.cropScale * 100}%`,
+                            maxWidth: "none",
+                            maxHeight: "none",
+                            transform: "translate(-50%, -50%)",
+                            objectFit: "cover",
+                            display: "block",
+                            userSelect: "none",
+                            pointerEvents: "none",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
 
           {canPickImage ? (
             <input

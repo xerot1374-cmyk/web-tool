@@ -41,6 +41,19 @@ type Payload = {
   };
 
   images?: any[];
+  imageLayout?: "manual" | "collage" | "frame";
+  framePresetId?: string;
+  frameSlots?: Array<{
+    id: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    radius: number;
+    rotation?: number;
+    clipPath?: string;
+    shape?: "rect" | "organic" | "pill" | "arch" | "blob";
+  }>;
   titleStyle?: any;
   bodyStyle?: any;
   badgeStyle?: any;

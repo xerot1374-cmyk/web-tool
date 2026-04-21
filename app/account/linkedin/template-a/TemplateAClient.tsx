@@ -16,6 +16,14 @@ import TextToolbar from "@/app/components/templates/linkedin-shared/TextToolbar"
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
 import {
+  FRAME_PRESETS,
+  getFirstAvailableFrameSlotId,
+  getHeaderHeightForPreset,
+  resolveFrameSlots,
+  type FrameSlot,
+  type ImageLayoutMode,
+} from "@/app/lib/imageLayouts";
+import {
   CANVAS_PRESETS,
   getCanvasFrame,
   type CanvasPreset,
@@ -62,6 +70,7 @@ type ImageItem = {
   src: string;
   base64?: string;
   orientation: "landscape" | "portrait";
+  frameSlotId?: string;
   x: number;
   y: number;
   w: number;
@@ -77,6 +86,7 @@ type ImagePayloadItem = {
   src?: string;
   base64?: string;
   orientation: "landscape" | "portrait";
+  frameSlotId?: string;
   x: number;
   y: number;
   w: number;
@@ -261,6 +271,9 @@ type PdfPayload = {
   productImage?: string;
   productOrientation?: "landscape" | "portrait";
   productAlign?: "left" | "center" | "right";
+  imageLayout?: ImageLayoutMode;
+  framePresetId?: string;
+  frameSlots?: FrameSlot[];
   productImageBase64?: string;
   mediaBox?: MediaBox;
 
@@ -326,6 +339,7 @@ type SelectableId =
   | "body"
   | "badge"
   | "productImage"
+  | "frameSlot"
   | "video"
   | "links"
   | "company"
@@ -337,6 +351,8 @@ type EditorTextField = "title" | "body" | "badge" | "company" | "caption";
 type EditField = Exclude<EditorTextField, "caption"> | null;
 
 type DragMode =
+  | "frame-swap"
+  | "frame-image-scale"
   | "move"
   | "resize-n"
   | "resize-s"
@@ -375,13 +391,13 @@ function uid() {
 
 function imageToViewportRect(
   image: Pick<ImageItem, "x" | "y" | "w" | "h">,
-  scale: number
+  _scale: number
 ) {
   return new DOMRect(
-    image.x * scale,
-    image.y * scale,
-    image.w * scale,
-    image.h * scale
+    image.x,
+    image.y,
+    image.w,
+    image.h
   );
 }
 
@@ -417,6 +433,190 @@ function getCropScale(img?: ImageItem | null) {
   return Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1;
 }
 
+function getImageAspectRatio(image: Pick<ImageItem, "w" | "h" | "orientation">) {
+  if (image.w > 0 && image.h > 0) {
+    return image.w / image.h;
+  }
+  return image.orientation === "portrait" ? 3 / 4 : 4 / 3;
+}
+
+function fitImageToBounds(
+  image: Pick<ImageItem, "w" | "h" | "orientation">,
+  maxW: number,
+  maxH: number
+) {
+  const aspectRatio = getImageAspectRatio(image);
+  let width = maxW;
+  let height = width / aspectRatio;
+
+  if (height > maxH) {
+    height = maxH;
+    width = height * aspectRatio;
+  }
+
+  return {
+    w: Math.max(120, Math.round(width)),
+    h: Math.max(120, Math.round(height)),
+  };
+}
+
+function getCollageSlots(
+  count: number,
+  canvasW: number,
+  headerH: number,
+  align: "left" | "center" | "right"
+) {
+  const alignShift =
+    align === "left" ? -canvasW * 0.12 : align === "right" ? canvasW * 0.12 : 0;
+
+  if (count <= 1) {
+    return [
+      { cx: canvasW * 0.5 + alignShift, cy: headerH * 0.57, bw: canvasW * 0.44, bh: headerH * 0.5, rotation: -3 },
+    ];
+  }
+
+  if (count === 2) {
+    return [
+      { cx: canvasW * 0.4 + alignShift, cy: headerH * 0.57, bw: canvasW * 0.34, bh: headerH * 0.45, rotation: -9 },
+      { cx: canvasW * 0.62 + alignShift, cy: headerH * 0.52, bw: canvasW * 0.34, bh: headerH * 0.45, rotation: 8 },
+    ];
+  }
+
+  if (count === 3) {
+    return [
+      { cx: canvasW * 0.3 + alignShift, cy: headerH * 0.59, bw: canvasW * 0.28, bh: headerH * 0.38, rotation: -11 },
+      { cx: canvasW * 0.7 + alignShift, cy: headerH * 0.57, bw: canvasW * 0.28, bh: headerH * 0.38, rotation: 10 },
+      { cx: canvasW * 0.5 + alignShift, cy: headerH * 0.5, bw: canvasW * 0.35, bh: headerH * 0.47, rotation: -2 },
+    ];
+  }
+
+  if (count === 4) {
+    return [
+      { cx: canvasW * 0.31 + alignShift, cy: headerH * 0.43, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: -10 },
+      { cx: canvasW * 0.68 + alignShift, cy: headerH * 0.42, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: 9 },
+      { cx: canvasW * 0.38 + alignShift, cy: headerH * 0.68, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: -4 },
+      { cx: canvasW * 0.62 + alignShift, cy: headerH * 0.64, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: 6 },
+    ];
+  }
+
+  const baseSlots = [
+    { cx: canvasW * 0.25 + alignShift, cy: headerH * 0.44, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: -12 },
+    { cx: canvasW * 0.74 + alignShift, cy: headerH * 0.43, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: 12 },
+    { cx: canvasW * 0.35 + alignShift, cy: headerH * 0.68, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: -6 },
+    { cx: canvasW * 0.65 + alignShift, cy: headerH * 0.66, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: 7 },
+    { cx: canvasW * 0.5 + alignShift, cy: headerH * 0.54, bw: canvasW * 0.28, bh: headerH * 0.38, rotation: -1 },
+  ];
+
+  return Array.from({ length: count }, (_, index) => {
+    if (index < baseSlots.length) return baseSlots[index];
+
+    const extraIndex = index - baseSlots.length;
+    return {
+      cx: canvasW * 0.5 + alignShift + (extraIndex % 2 === 0 ? -30 : 30),
+      cy: headerH * 0.52 + extraIndex * 16,
+      bw: canvasW * 0.18,
+      bh: headerH * 0.24,
+      rotation: extraIndex % 2 === 0 ? -8 : 8,
+    };
+  });
+}
+
+function arrangeImagesForLayout(
+  sourceImages: ImageItem[],
+  layout: ImageLayoutMode,
+  preset: CanvasPreset,
+  align: "left" | "center" | "right",
+  framePresetId: string,
+  frameSlotsOverride?: FrameSlot[]
+) {
+  if (sourceImages.length === 0) {
+    return sourceImages;
+  }
+
+  if (layout === "frame") {
+    const frameSlots = frameSlotsOverride?.length
+      ? frameSlotsOverride
+      : resolveFrameSlots(framePresetId, preset);
+    const slotIds = frameSlots.map((slot) => slot.id);
+    const assigned = new Set<string>();
+    let slotIndex = 0;
+
+    return sourceImages.map((img) => {
+      let nextSlotId =
+        img.frameSlotId && slotIds.includes(img.frameSlotId) ? img.frameSlotId : undefined;
+
+      if (!nextSlotId || assigned.has(nextSlotId)) {
+        while (slotIndex < slotIds.length && assigned.has(slotIds[slotIndex])) {
+          slotIndex += 1;
+        }
+        nextSlotId = slotIds[slotIndex];
+        slotIndex += 1;
+      }
+
+      if (!nextSlotId) {
+        return {
+          ...img,
+          frameSlotId: undefined,
+        };
+      }
+
+      assigned.add(nextSlotId);
+      const slot = frameSlots.find((item) => item.id === nextSlotId);
+      if (!slot) {
+        return {
+          ...img,
+          frameSlotId: undefined,
+        };
+      }
+
+      return {
+        ...img,
+        frameSlotId: nextSlotId,
+        x: slot.x,
+        y: slot.y,
+        w: slot.w,
+        h: slot.h,
+        rotation: 0,
+      };
+    });
+  }
+
+  if (layout !== "collage") {
+    return sourceImages;
+  }
+
+  const canvas = CANVAS_PRESETS[preset];
+  const headerH = getHeaderHeightForPreset(preset);
+  const safeTop = 118;
+  const safeBottom = 34;
+  const safeSide = 28;
+  const slots = getCollageSlots(sourceImages.length, canvas.w, headerH, align);
+
+  return sourceImages.map((img, index) => {
+    const slot = slots[index] ?? slots[slots.length - 1];
+    const fit = fitImageToBounds(img, slot.bw, slot.bh);
+    const x = clamp(
+      Math.round(slot.cx - fit.w / 2),
+      safeSide,
+      Math.max(safeSide, canvas.w - safeSide - fit.w)
+    );
+    const y = clamp(
+      Math.round(slot.cy - fit.h / 2),
+      safeTop,
+      Math.max(safeTop, headerH - safeBottom - fit.h)
+    );
+
+    return {
+      ...img,
+      x,
+      y,
+      w: fit.w,
+      h: fit.h,
+      rotation: normalizeAngle(slot.rotation),
+    };
+  });
+}
+
 export default function TemplateAClient({
   sessionUser,
 }: TemplateAClientProps) {
@@ -441,6 +641,8 @@ export default function TemplateAClient({
 
   const [selectedId, setSelectedId] = useState<SelectableId | null>(null);
   const [selectedRect, setSelectedRect] = useState<DOMRect | null>(null);
+  const [selectedFrameSlotId, setSelectedFrameSlotId] = useState<string | null>(null);
+  const [hoverFrameSlotId, setHoverFrameSlotId] = useState<string | null>(null);
 
   const [editField, setEditField] = useState<EditField>(null);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
@@ -460,9 +662,11 @@ export default function TemplateAClient({
     startClientX: number;
     startClientY: number;
     startImage: ImageItem | null;
+    startFrameSlot?: FrameSlot | null;
     startAngle: number;
     centerX: number;
     centerY: number;
+    hoverFrameSlotId?: string | null;
   } | null>(null);
 
   const [previewContentHeight, setPreviewContentHeight] = useState<number>(
@@ -605,6 +809,11 @@ export default function TemplateAClient({
   const [productAlign, setProductAlign] = useState<"left" | "center" | "right">(
       "center"
   );
+  const [imageLayout, setImageLayout] = useState<ImageLayoutMode>("manual");
+  const [framePresetId, setFramePresetId] = useState<string>(FRAME_PRESETS[0].id);
+  const [frameSlotsState, setFrameSlotsState] = useState<FrameSlot[]>(() =>
+    resolveFrameSlots(FRAME_PRESETS[0].id, "linkedin")
+  );
 
   const [images, setImages] = useState<ImageItem[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -737,6 +946,10 @@ export default function TemplateAClient({
     return images.find((img) => img.id === selectedImageId) ?? null;
   }
 
+  function getImageById(imageId: string) {
+    return images.find((img) => img.id === imageId) ?? null;
+  }
+
   function updateSelectedImage(updater: (prev: ImageItem) => ImageItem) {
     if (!selectedImageId) return;
     setImages((prev) =>
@@ -755,6 +968,76 @@ export default function TemplateAClient({
     setProductImage(first.src);
     setProductOrientation(first.orientation);
     setMediaBox({x: first.x, y: first.y, w: first.w, h: first.h});
+  }
+
+  function applyImageLayout(
+    nextLayout: ImageLayoutMode,
+    sourceImages: ImageItem[],
+    align: "left" | "center" | "right" = productAlign
+  ) {
+    return arrangeImagesForLayout(
+      sourceImages,
+      nextLayout,
+      canvasPreset,
+      align,
+      framePresetId,
+      frameSlotsState
+    );
+  }
+
+  function setImageLayoutMode(nextLayout: ImageLayoutMode) {
+    setImageLayout(nextLayout);
+
+    if (nextLayout === "manual") {
+      return;
+    }
+
+    setImages((prev) => {
+      const next = applyImageLayout(nextLayout, prev);
+      syncLegacyFromFirstImage(next);
+      return next;
+    });
+  }
+
+  function setFramePresetValue(nextFramePresetId: string) {
+    setFramePresetId(nextFramePresetId);
+    setSelectedFrameSlotId(null);
+    const nextFrameSlots = resolveFrameSlots(nextFramePresetId, canvasPreset);
+    setFrameSlotsState(nextFrameSlots);
+
+    setImages((prev) => {
+      const next = arrangeImagesForLayout(
+        prev,
+        imageLayout,
+        canvasPreset,
+        productAlign,
+        nextFramePresetId,
+        nextFrameSlots
+      );
+      syncLegacyFromFirstImage(next);
+      return next;
+    });
+  }
+
+  function setProductAlignValue(nextAlign: "left" | "center" | "right") {
+    setProductAlign(nextAlign);
+
+    if (imageLayout === "collage") {
+      setImages((prev) => {
+        const next = applyImageLayout(imageLayout, prev, nextAlign);
+        syncLegacyFromFirstImage(next);
+        return next;
+      });
+      return;
+    }
+
+    if (imageLayout === "frame") {
+      return;
+    }
+
+    if (selectedImageId) {
+      updateSelectedImageAlign(nextAlign);
+    }
   }
 
   async function onPickProductImage(file: File | null) {
@@ -779,6 +1062,7 @@ export default function TemplateAClient({
       src: URL.createObjectURL(resized),
       base64,
       orientation,
+      frameSlotId: undefined,
       x: 200,
       y: 300,
       w: fit.w,
@@ -789,8 +1073,31 @@ export default function TemplateAClient({
       cropScale: 1,
     };
 
+    const targetFrameSlotId =
+      imageLayout === "frame"
+        ? selectedFrameSlotId ??
+          getSelectedImage()?.frameSlotId ??
+          getFirstAvailableFrameSlotId(
+            framePresetId,
+            canvasPreset,
+            images.map((img) => img.frameSlotId).filter(Boolean) as string[]
+          )
+        : undefined;
+
     setImages((prev) => {
-      const next = [...prev, nextImage];
+      if (imageLayout === "frame") {
+        const existingIndex = prev.findIndex((img) => img.frameSlotId === targetFrameSlotId);
+        const nextWithSlot = { ...nextImage, frameSlotId: targetFrameSlotId };
+        const raw =
+          existingIndex >= 0
+            ? prev.map((img, index) => (index === existingIndex ? nextWithSlot : img))
+            : [...prev, nextWithSlot];
+        const next = applyImageLayout(imageLayout, raw);
+        syncLegacyFromFirstImage(next);
+        return next;
+      }
+
+      const next = applyImageLayout(imageLayout, [...prev, nextImage]);
       syncLegacyFromFirstImage(next);
       return next;
     });
@@ -798,13 +1105,17 @@ export default function TemplateAClient({
     setProductImageFile(resized);
     setSelectedId("productImage");
     setSelectedImageId(nextImage.id);
-    setSelectedRect(new DOMRect(nextImage.x, nextImage.y, nextImage.w, nextImage.h));
+    setSelectedFrameSlotId(targetFrameSlotId ?? null);
+    setSelectedRect(targetFrameSlotId ? getFrameSlotRect(targetFrameSlotId) : null);
   }
 
   function removeSelectedImage() {
     if (!selectedImageId) return;
     setImages((prev) => {
-      const next = prev.filter((img) => img.id !== selectedImageId);
+      const next = applyImageLayout(
+        imageLayout,
+        prev.filter((img) => img.id !== selectedImageId)
+      );
       syncLegacyFromFirstImage(next);
       return next;
     });
@@ -825,7 +1136,7 @@ export default function TemplateAClient({
     };
 
     setImages((prev) => {
-      const next = [...prev, dup];
+      const next = applyImageLayout(imageLayout, [...prev, dup]);
       syncLegacyFromFirstImage(next);
       return next;
     });
@@ -860,7 +1171,7 @@ export default function TemplateAClient({
     };
 
     setImages((prev) => {
-      const next = [...prev, pasted];
+      const next = applyImageLayout(imageLayout, [...prev, pasted]);
       syncLegacyFromFirstImage(next);
       return next;
     });
@@ -918,11 +1229,120 @@ export default function TemplateAClient({
     }));
   }
 
+  function getFrameSlotRect(slotId: string) {
+    const slot = frameSlotsState.find((item) => item.id === slotId);
+    if (!slot) return null;
+    return new DOMRect(slot.x, slot.y, slot.w, slot.h);
+  }
+
+  function getFrameSlotAtPoint(x: number, y: number) {
+    return frameSlotsState.find(
+      (slot) => x >= slot.x && x <= slot.x + slot.w && y >= slot.y && y <= slot.y + slot.h
+    );
+  }
+
+  function getSelectedFrameSlot() {
+    if (!selectedFrameSlotId) return null;
+    return frameSlotsState.find((slot) => slot.id === selectedFrameSlotId) ?? null;
+  }
+
+  function clampFrameSlotBox(slot: Pick<FrameSlot, "x" | "y" | "w" | "h">) {
+    const headerHeight = getHeaderHeightForPreset(canvasPreset);
+    const minW = 120;
+    const minH = 90;
+    const w = clamp(slot.w, minW, currentCanvas.w);
+    const h = clamp(slot.h, minH, headerHeight);
+    const x = clamp(slot.x, 0, Math.max(0, currentCanvas.w - w));
+    const y = clamp(slot.y, 90, Math.max(90, headerHeight - h));
+    return { x, y, w, h };
+  }
+
+  function swapImageIntoFrameSlot(imageId: string, targetSlotId: string) {
+    setImages((prev) => {
+      const current = prev.find((img) => img.id === imageId);
+      if (!current) return prev;
+
+      const sourceSlotId = current.frameSlotId;
+      const occupant = prev.find(
+        (img) => img.id !== imageId && img.frameSlotId === targetSlotId
+      );
+
+      const nextRaw = prev.map((img) => {
+        if (img.id === imageId) {
+          return { ...img, frameSlotId: targetSlotId };
+        }
+        if (occupant && img.id === occupant.id) {
+          return { ...img, frameSlotId: sourceSlotId };
+        }
+        return img;
+      });
+
+      const next = applyImageLayout("frame", nextRaw);
+      syncLegacyFromFirstImage(next);
+      return next;
+    });
+
+    setSelectedImageId(imageId);
+    setSelectedFrameSlotId(targetSlotId);
+    const rect = getFrameSlotRect(targetSlotId);
+    if (rect) setSelectedRect(rect);
+  }
+
+  function updateSelectedFrameSlot(updater: (prev: FrameSlot) => FrameSlot) {
+    if (!selectedFrameSlotId) return;
+
+    setFrameSlotsState((prev) => {
+      const nextSlots = prev.map((slot) =>
+        slot.id === selectedFrameSlotId ? updater(slot) : slot
+      );
+      setImages((currentImages) => {
+        const nextImages = arrangeImagesForLayout(
+          currentImages,
+          "frame",
+          canvasPreset,
+          productAlign,
+          framePresetId,
+          nextSlots
+        );
+        syncLegacyFromFirstImage(nextImages);
+        return nextImages;
+      });
+      return nextSlots;
+    });
+  }
+
+  function assignSelectedImageToFrameSlot(slotId: string) {
+    if (!selectedImageId) {
+      setSelectedFrameSlotId(slotId);
+      const rect = getFrameSlotRect(slotId);
+      setSelectedId("frameSlot");
+      setSelectedRect(rect);
+      return;
+    }
+
+    setImages((prev) => {
+      const next = applyImageLayout(
+        imageLayout,
+        prev.map((img) =>
+          img.id === selectedImageId ? { ...img, frameSlotId: slotId } : img
+        )
+      );
+      syncLegacyFromFirstImage(next);
+      return next;
+    });
+
+    setSelectedFrameSlotId(slotId);
+    setSelectedId("productImage");
+    const rect = getFrameSlotRect(slotId);
+    setSelectedRect(rect);
+  }
+
   function clearSelection() {
     setSelectedId(null);
     setSelectedRect(null);
     setEditField(null);
     setSelectedImageId(null);
+    setSelectedFrameSlotId(null);
   }
 
   function computeRectRelativeToStage(targetEl: HTMLElement) {
@@ -938,6 +1358,17 @@ export default function TemplateAClient({
     const h = r1.height / previewScale;
 
     return new DOMRect(x, y, w, h);
+  }
+
+  function clientPointToStage(clientX: number, clientY: number) {
+    const stage = stageRef.current;
+    if (!stage) return null;
+
+    const rect = stage.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / previewScale,
+      y: (clientY - rect.top) / previewScale,
+    };
   }
 
   function onCanvasClick(e: React.MouseEvent) {
@@ -959,13 +1390,22 @@ export default function TemplateAClient({
         setSelectedImageId(imageId);
         const img = images.find((x) => x.id === imageId);
         if (img) {
+          setSelectedFrameSlotId(img.frameSlotId ?? null);
           setSelectedRect(new DOMRect(img.x, img.y, img.w, img.h));
         }
+      }
+    } else if (id === "frameSlot") {
+      const frameSlotId = t.getAttribute("data-frame-slot-id");
+      setSelectedImageId(null);
+      if (frameSlotId) {
+        setSelectedFrameSlotId(frameSlotId);
+        setSelectedRect(getFrameSlotRect(frameSlotId));
       }
     } else {
       const rect = computeRectRelativeToStage(t);
       setSelectedRect(rect);
       setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
     }
 
     if (editField && id !== editField) setEditField(null);
@@ -1037,13 +1477,54 @@ export default function TemplateAClient({
 
     function startMediaInteraction(
         e: React.MouseEvent<HTMLDivElement>,
-        mode: DragMode
+        mode: DragMode,
+        imageOverride?: ImageItem | null
     ) {
-      const current = getSelectedImage();
+      const current = imageOverride ?? getSelectedImage();
       if (!current) return;
 
       e.preventDefault();
       e.stopPropagation();
+
+      if (imageLayout === "frame") {
+        const selectedSlot = current.frameSlotId
+          ? frameSlotsState.find((slot) => slot.id === current.frameSlotId) ?? null
+          : getSelectedFrameSlot();
+        setSelectedId("productImage");
+        setSelectedImageId(current.id);
+        setSelectedFrameSlotId(current.frameSlotId ?? null);
+        if (current.frameSlotId) {
+          const rect = getFrameSlotRect(current.frameSlotId);
+          if (rect) setSelectedRect(rect);
+        }
+        if (mode !== "move") {
+          dragStateRef.current = {
+            mode,
+            startClientX: e.clientX,
+            startClientY: e.clientY,
+            startImage: current,
+            startFrameSlot: selectedSlot,
+            startAngle: 0,
+            centerX: 0,
+            centerY: 0,
+            hoverFrameSlotId: current.frameSlotId ?? null,
+          };
+          return;
+        }
+        dragStateRef.current = {
+          mode: "frame-swap",
+          startClientX: e.clientX,
+          startClientY: e.clientY,
+          startImage: current,
+          startFrameSlot: selectedSlot,
+          startAngle: 0,
+          centerX: 0,
+          centerY: 0,
+          hoverFrameSlotId: current.frameSlotId ?? null,
+        };
+        setHoverFrameSlotId(current.frameSlotId ?? null);
+        return;
+      }
 
       setSelectedId("productImage");
       setSelectedImageId(current.id);
@@ -1052,11 +1533,12 @@ export default function TemplateAClient({
 
       const centerX = current.x + current.w / 2;
       const centerY = current.y + current.h / 2;
+      const stagePoint = clientPointToStage(e.clientX, e.clientY);
       const startPointerAngle = angleFromCenter(
           centerX,
           centerY,
-          e.clientX / previewScale,
-          e.clientY / previewScale
+          stagePoint?.x ?? centerX,
+          stagePoint?.y ?? centerY
       );
 
       dragStateRef.current = {
@@ -1070,6 +1552,25 @@ export default function TemplateAClient({
       };
     }
 
+    function startFrameImageDrag(
+      imageId: string,
+      e: React.MouseEvent<HTMLDivElement>
+    ) {
+      const current = getImageById(imageId);
+      if (!current) return;
+
+      setSelectedId("productImage");
+      setSelectedImageId(imageId);
+      setSelectedFrameSlotId(current.frameSlotId ?? null);
+
+      if (current.frameSlotId) {
+        const rect = getFrameSlotRect(current.frameSlotId);
+        if (rect) setSelectedRect(rect);
+      }
+
+      startMediaInteraction(e, "move", current);
+    }
+
     useEffect(() => {
       function onWindowMove(e: MouseEvent) {
         const drag = dragStateRef.current;
@@ -1079,12 +1580,96 @@ export default function TemplateAClient({
         const dy = (e.clientY - drag.startClientY) / previewScale;
         const start = drag.startImage;
 
+        if (drag.mode === "frame-swap") {
+          const stagePoint = clientPointToStage(e.clientX, e.clientY);
+          const slot = stagePoint
+            ? getFrameSlotAtPoint(stagePoint.x, stagePoint.y)
+            : undefined;
+          const nextSlotId = slot?.id ?? null;
+          drag.hoverFrameSlotId = nextSlotId;
+          setHoverFrameSlotId(nextSlotId);
+          if (slot) {
+            setSelectedRect(new DOMRect(slot.x, slot.y, slot.w, slot.h));
+          }
+          return;
+        }
+
+        if (imageLayout === "frame" && drag.mode === "frame-image-scale") {
+          const delta = (dx + dy) * 0.01;
+          updateSelectedImage((prev) => ({
+            ...prev,
+            cropScale: clamp((drag.startImage?.cropScale ?? 1) + delta, 1, 3),
+          }));
+          return;
+        }
+
+        if (
+          imageLayout === "frame" &&
+          drag.startFrameSlot &&
+          selectedFrameSlotId &&
+          drag.mode !== "move"
+        ) {
+          let x = drag.startFrameSlot.x;
+          let y = drag.startFrameSlot.y;
+          let w = drag.startFrameSlot.w;
+          let h = drag.startFrameSlot.h;
+
+          if (
+            drag.mode === "resize-e" ||
+            drag.mode === "resize-ne" ||
+            drag.mode === "resize-se"
+          ) {
+            w = drag.startFrameSlot.w + dx;
+          }
+          if (
+            drag.mode === "resize-s" ||
+            drag.mode === "resize-se" ||
+            drag.mode === "resize-sw"
+          ) {
+            h = drag.startFrameSlot.h + dy;
+          }
+          if (
+            drag.mode === "resize-w" ||
+            drag.mode === "resize-nw" ||
+            drag.mode === "resize-sw"
+          ) {
+            x = drag.startFrameSlot.x + dx;
+            w = drag.startFrameSlot.w - dx;
+          }
+          if (
+            drag.mode === "resize-n" ||
+            drag.mode === "resize-ne" ||
+            drag.mode === "resize-nw"
+          ) {
+            y = drag.startFrameSlot.y + dy;
+            h = drag.startFrameSlot.h - dy;
+          }
+
+          const fixed = clampFrameSlotBox({
+            x: Math.round(x),
+            y: Math.round(y),
+            w: Math.round(w),
+            h: Math.round(h),
+          });
+
+          updateSelectedFrameSlot((prev) => ({
+            ...prev,
+            ...fixed,
+          }));
+          const rect = getFrameSlotRect(selectedFrameSlotId);
+          if (rect) {
+            setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
+          }
+          return;
+        }
+
         if (drag.mode === "rotate") {
+          const stagePoint = clientPointToStage(e.clientX, e.clientY);
           const pointerAngle = angleFromCenter(
               drag.centerX,
               drag.centerY,
-              e.clientX / previewScale,
-              e.clientY / previewScale
+              stagePoint?.x ?? drag.centerX,
+              stagePoint?.y ?? drag.centerY
           );
           const delta = pointerAngle - drag.startAngle;
           updateSelectedImage((prev) => ({
@@ -1160,6 +1745,14 @@ export default function TemplateAClient({
       }
 
       function onWindowUp() {
+        const drag = dragStateRef.current;
+        if (drag?.mode === "frame-swap" && drag.startImage) {
+          const targetSlotId = drag.hoverFrameSlotId ?? drag.startImage.frameSlotId ?? null;
+          if (targetSlotId) {
+            swapImageIntoFrameSlot(drag.startImage.id, targetSlotId);
+          }
+          setHoverFrameSlotId(null);
+        }
         dragStateRef.current = null;
       }
 
@@ -1170,7 +1763,7 @@ export default function TemplateAClient({
         window.removeEventListener("mousemove", onWindowMove);
         window.removeEventListener("mouseup", onWindowUp);
       };
-    }, [previewScale, currentCanvas.w, currentCanvas.h, selectedImageId, images]);
+    }, [previewScale, currentCanvas.w, currentCanvas.h, selectedImageId, images, imageLayout, framePresetId, canvasPreset]);
 
     useEffect(() => {
       if (selectedId !== "productImage" || !selectedImageId) return;
@@ -1178,6 +1771,35 @@ export default function TemplateAClient({
       if (!current) return;
       setSelectedRect(imageToViewportRect(current, previewScale));
     }, [images, previewScale, selectedId, selectedImageId]);
+
+    useEffect(() => {
+      if (selectedId !== "frameSlot" || !selectedFrameSlotId) return;
+      const rect = getFrameSlotRect(selectedFrameSlotId);
+      if (rect) setSelectedRect(rect);
+    }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
+
+    useEffect(() => {
+      if (imageLayout === "manual") return;
+      const nextFrameSlots =
+        imageLayout === "frame"
+          ? resolveFrameSlots(framePresetId, canvasPreset)
+          : frameSlotsState;
+      if (imageLayout === "frame") {
+        setFrameSlotsState(nextFrameSlots);
+      }
+      setImages((prev) => {
+        const next = arrangeImagesForLayout(
+          prev,
+          imageLayout,
+          canvasPreset,
+          productAlign,
+          framePresetId,
+          nextFrameSlots
+        );
+        syncLegacyFromFirstImage(next);
+        return next;
+      });
+    }, [imageLayout, framePresetId, canvasPreset]);
 
     useEffect(() => {
       function onWindowKeyDown(e: KeyboardEvent) {
@@ -1597,6 +2219,13 @@ export default function TemplateAClient({
       setProductImage(payload.productImageBase64 ?? payload.productImage ?? "");
       setProductOrientation(payload.productOrientation ?? "landscape");
       setProductAlign(payload.productAlign ?? "center");
+      setImageLayout(payload.imageLayout ?? "manual");
+      setFramePresetId(payload.framePresetId ?? FRAME_PRESETS[0].id);
+      setFrameSlotsState(
+        payload.frameSlots?.length
+          ? payload.frameSlots
+          : resolveFrameSlots(payload.framePresetId ?? FRAME_PRESETS[0].id, payload.canvasPreset ?? "linkedin")
+      );
       if (payload.mediaBox) setMediaBox(payload.mediaBox);
 
       if (payload.images?.length) {
@@ -1605,6 +2234,7 @@ export default function TemplateAClient({
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
           orientation: img.orientation,
+          frameSlotId: img.frameSlotId,
           x: img.x,
           y: img.y,
           w: img.w,
@@ -1634,6 +2264,7 @@ export default function TemplateAClient({
               src: img.base64 ?? img.src ?? "",
               base64: img.base64,
               orientation: img.orientation,
+              frameSlotId: img.frameSlotId,
               x: img.x,
               y: img.y,
               w: img.w,
@@ -1653,6 +2284,15 @@ export default function TemplateAClient({
           productImages: payloadImages,
           productOrientation: payload.productOrientation ?? "landscape",
           productAlign: payload.productAlign ?? "center",
+          imageLayout: payload.imageLayout ?? "manual",
+          framePresetId: payload.framePresetId ?? FRAME_PRESETS[0].id,
+          frameSlots:
+            payload.frameSlots?.length
+              ? payload.frameSlots
+              : resolveFrameSlots(
+                  payload.framePresetId ?? FRAME_PRESETS[0].id,
+                  payload.canvasPreset ?? "linkedin"
+                ),
           mediaBox: payload.mediaBox ?? mediaBox,
           badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
           badgeMarks: payload.badgeMarks ?? [],
@@ -1686,6 +2326,9 @@ export default function TemplateAClient({
         productImages: images,
         productOrientation,
         productAlign,
+        imageLayout,
+        framePresetId,
+        frameSlots: frameSlotsState,
         mediaBox,
         badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
         badgeMarks,
@@ -1719,6 +2362,9 @@ export default function TemplateAClient({
       images,
       productOrientation,
       productAlign,
+      imageLayout,
+      framePresetId,
+      frameSlotsState,
       mediaBox,
       badgeText,
       badgeMarks,
@@ -1782,6 +2428,7 @@ export default function TemplateAClient({
           src: img.src,
           base64: img.base64,
           orientation: img.orientation,
+          frameSlotId: img.frameSlotId,
           x: img.x,
           y: img.y,
           w: img.w,
@@ -1800,6 +2447,9 @@ export default function TemplateAClient({
           productImage: productImage?.trim() ? productImage : undefined,
           productOrientation,
           productAlign,
+          imageLayout,
+          framePresetId,
+          frameSlots: frameSlotsState,
           productImageBase64: legacyProductImageBase64,
           mediaBox,
 
@@ -1882,6 +2532,7 @@ export default function TemplateAClient({
           src: img.src,
           base64: img.base64,
           orientation: img.orientation,
+          frameSlotId: img.frameSlotId,
           x: img.x,
           y: img.y,
           w: img.w,
@@ -1921,6 +2572,9 @@ export default function TemplateAClient({
               canvasPreset,
               productOrientation,
               productAlign,
+              imageLayout,
+              framePresetId,
+              frameSlots: frameSlotsState,
             })
         );
         form.append("video", videoFile);
@@ -1949,6 +2603,14 @@ export default function TemplateAClient({
     }
 
     const selectedImage = getSelectedImage();
+    const frameSlots = useMemo(
+      () =>
+        resolveFrameSlots(framePresetId, canvasPreset).map((slot) => ({
+          ...slot,
+          imageId: images.find((img) => img.frameSlotId === slot.id)?.id,
+        })),
+      [framePresetId, canvasPreset, images]
+    );
 
     const selectionHandles: SelectionHandle[] = selectedRect
         ? [
@@ -2033,6 +2695,9 @@ export default function TemplateAClient({
                 productImages={effective.productImages}
                 productOrientation={effective.productOrientation}
                 productAlign={effective.productAlign}
+                imageLayout={effective.imageLayout}
+                framePresetId={effective.framePresetId}
+                frameSlots={effective.frameSlots}
                 mediaBox={effective.mediaBox}
                 profileImage={effective.profileImage}
                 name={effective.name}
@@ -2136,6 +2801,9 @@ export default function TemplateAClient({
                             productImages={effective.productImages}
                             productOrientation={effective.productOrientation}
                             productAlign={effective.productAlign}
+                            imageLayout={effective.imageLayout}
+                            framePresetId={effective.framePresetId}
+                            frameSlots={effective.frameSlots}
                             mediaBox={effective.mediaBox}
                             profileImage={effective.profileImage}
                             name={effective.name}
@@ -2158,6 +2826,7 @@ export default function TemplateAClient({
                             companyStyle={effective.companyStyle}
                             headlineStyle={effective.headlineStyle}
                             sublineStyle={effective.sublineStyle}
+                            onStartFrameImageDrag={startFrameImageDrag}
                           />
                         </div>
 
@@ -2172,10 +2841,16 @@ export default function TemplateAClient({
                               border: "2px solid rgba(59,130,246,0.95)",
                               borderRadius: 10,
                               pointerEvents:
-                                selectedId === "productImage" && !editField ? "auto" : "none",
+                                (selectedId === "productImage" || selectedId === "frameSlot") &&
+                                !editField
+                                  ? "auto"
+                                  : "none",
                               boxSizing: "border-box",
                               boxShadow: "0 0 0 2px rgba(59,130,246,0.12)",
-                              cursor: selectedId === "productImage" ? "move" : "default",
+                              cursor:
+                                selectedId === "productImage"
+                                  ? "move"
+                                  : "default",
                               zIndex: 9999,
 
                             }}
@@ -2185,7 +2860,8 @@ export default function TemplateAClient({
                                 : undefined
                             }
                           >
-                            {selectedId === "productImage" && !editField ? (
+                            {((selectedId === "productImage" && !editField && imageLayout !== "frame") ||
+                              (imageLayout === "frame" && !editField && (selectedId === "productImage" || selectedId === "frameSlot"))) ? (
                               <>
                                 {selectionHandles.map((h) => (
                                   <div
@@ -2205,26 +2881,65 @@ export default function TemplateAClient({
                                       bottom: h.bottom,
                                       transform: h.transform,
                                     }}
-                                    onMouseDown={(e) => startMediaInteraction(e, h.mode)}
+                                    onMouseDown={(e) => {
+                                      if (imageLayout === "frame" && selectedId === "frameSlot") {
+                                        e.stopPropagation();
+                                        const current = getSelectedFrameSlot();
+                                        if (!current) return;
+                                        dragStateRef.current = {
+                                          mode: h.mode,
+                                          startClientX: e.clientX,
+                                          startClientY: e.clientY,
+                                          startImage: selectedImage,
+                                          startFrameSlot: current,
+                                          startAngle: 0,
+                                          centerX: 0,
+                                          centerY: 0,
+                                        };
+                                      } else {
+                                        startMediaInteraction(e, h.mode);
+                                      }
+                                    }}
                                   />
                                 ))}
 
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    left: "50%",
-                                    top: -34,
-                                    width: 16,
-                                    height: 16,
-                                    borderRadius: 999,
-                                    background: "#111827",
-                                    border: "2px solid #fff",
-                                    transform: "translateX(-50%)",
-                                    cursor: "grab",
-                                    boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                  }}
-                                  onMouseDown={(e) => startMediaInteraction(e, "rotate")}
-                                />
+                                {imageLayout !== "frame" ? (
+                                  <div
+                                    style={{
+                                      position: "absolute",
+                                      left: "50%",
+                                      top: -34,
+                                      width: 16,
+                                      height: 16,
+                                      borderRadius: 999,
+                                      background: "#111827",
+                                      border: "2px solid #fff",
+                                      transform: "translateX(-50%)",
+                                      cursor: "grab",
+                                      boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                                    }}
+                                    onMouseDown={(e) => startMediaInteraction(e, "rotate")}
+                                  />
+                                ) : null}
+
+                                {imageLayout === "frame" && selectedId === "productImage" ? (
+                                  <div
+                                    title="Resize image inside frame"
+                                    style={{
+                                      position: "absolute",
+                                      right: 18,
+                                      bottom: 18,
+                                      width: 18,
+                                      height: 18,
+                                      borderRadius: 6,
+                                      background: "#111827",
+                                      border: "2px solid #fff",
+                                      cursor: "nwse-resize",
+                                      boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                                    }}
+                                    onMouseDown={(e) => startMediaInteraction(e, "frame-image-scale")}
+                                  />
+                                ) : null}
 
                                 <button
                                   type="button"
@@ -2372,7 +3087,14 @@ export default function TemplateAClient({
                     companyRef={companyRef}
                     onPickProductImage={onPickProductImage}
                     productAlign={productAlign}
-                    setProductAlign={setProductAlign}
+                    setProductAlign={setProductAlignValue}
+                    imageLayout={imageLayout}
+                    setImageLayout={setImageLayoutMode}
+                    framePresetId={framePresetId}
+                    setFramePresetId={setFramePresetValue}
+                    frameSlots={frameSlots}
+                    selectedFrameSlotId={selectedFrameSlotId}
+                    onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
                     setVideoFile={setVideoFile}
                     loadingPdf={loadingPdf}
                     downloadPDF={downloadPDF}
@@ -2420,12 +3142,9 @@ export default function TemplateAClient({
                     sublineStyle={sublineStyle}
                     setSublineStyle={setSublineStyle}
                     productAlign={productAlign}
-                    setProductAlign={(v) => {
-                      setProductAlign(v);
-                      if (selectedImageId) {
-                        updateSelectedImageAlign(v);
-                      }
-                    }}
+                    setProductAlign={setProductAlignValue}
+                    imageLayout={imageLayout}
+                    setImageLayout={setImageLayoutMode}
                     selectedImageRotation={selectedImage?.rotation ?? 0}
                     setSelectedImageRotation={setSelectedImageRotation}
                     selectedImageCropX={getCropX(selectedImage)}

@@ -9,6 +9,8 @@ type BoxTextStyle = {
   textAlign: "left" | "center" | "right";
 };
 
+type ImageLayoutMode = "manual" | "collage" | "frame";
+
 type Props = {
   selectedId: string | null;
   applySelectionStylePatch?: (
@@ -53,6 +55,8 @@ type Props = {
 
   productAlign: "left" | "center" | "right";
   setProductAlign: (v: "left" | "center" | "right") => void;
+  imageLayout: ImageLayoutMode;
+  setImageLayout: (v: ImageLayoutMode) => void;
 
   selectedImageRotation?: number;
   setSelectedImageRotation?: (deg: number) => void;
@@ -244,9 +248,13 @@ function TextControls({
 function EmptyState({
   showRaster,
   setShowRaster,
+  imageLayout,
+  setImageLayout,
 }: {
   showRaster: boolean;
   setShowRaster?: (v: boolean) => void;
+  imageLayout: ImageLayoutMode;
+  setImageLayout: (v: ImageLayoutMode) => void;
 }) {
   return (
     <div className="properties-panel">
@@ -259,6 +267,18 @@ function EmptyState({
           onChange={setShowRaster}
           label="Show raster in preview"
         />
+
+        <div className="properties-panel__field">
+          <label>Image Layout</label>
+          <select
+            value={imageLayout}
+            onChange={(e) => setImageLayout(e.target.value as ImageLayoutMode)}
+          >
+            <option value="manual">Manual Layout</option>
+            <option value="collage">Collage Layout</option>
+            <option value="frame">Frame Layout</option>
+          </select>
+        </div>
       </Section>
     </div>
   );
@@ -300,6 +320,8 @@ export default function PropertiesPanel({
 
   productAlign,
   setProductAlign,
+  imageLayout,
+  setImageLayout,
 
   selectedImageRotation = 0,
   setSelectedImageRotation,
@@ -318,7 +340,14 @@ export default function PropertiesPanel({
   onDuplicateSelectedImage,
 }: Props) {
   if (!selectedId) {
-    return <EmptyState showRaster={showRaster} setShowRaster={setShowRaster} />;
+    return (
+      <EmptyState
+        showRaster={showRaster}
+        setShowRaster={setShowRaster}
+        imageLayout={imageLayout}
+        setImageLayout={setImageLayout}
+      />
+    );
   }
 
   if (selectedId === "title") {
@@ -433,6 +462,18 @@ export default function PropertiesPanel({
               <option value="left">Left</option>
               <option value="center">Center</option>
               <option value="right">Right</option>
+            </select>
+          </div>
+
+          <div className="properties-panel__field">
+            <label>Layout</label>
+            <select
+              value={imageLayout}
+              onChange={(e) => setImageLayout(e.target.value as ImageLayoutMode)}
+            >
+              <option value="manual">Manual Layout</option>
+              <option value="collage">Collage Layout</option>
+              <option value="frame">Frame Layout</option>
             </select>
           </div>
 

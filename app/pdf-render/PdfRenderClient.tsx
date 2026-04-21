@@ -27,6 +27,7 @@ type ImagePayloadItem = {
   src?: string;
   base64?: string;
   orientation: "landscape" | "portrait";
+  frameSlotId?: string;
   x: number;
   y: number;
   w: number;
@@ -37,6 +38,19 @@ type ImagePayloadItem = {
   cropScale?: number;
 };
 
+type ImageLayoutMode = "manual" | "collage" | "frame";
+type FrameSlot = {
+  id: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  rotation?: number;
+  clipPath?: string;
+  shape?: "rect" | "organic" | "pill" | "arch" | "blob";
+};
+
 type Payload = {
   profileImage: string;
   name: string;
@@ -45,6 +59,9 @@ type Payload = {
   productImageBase64?: string;
   productOrientation?: "landscape" | "portrait";
   productAlign?: "left" | "center" | "right";
+  imageLayout?: ImageLayoutMode;
+  framePresetId?: string;
+  frameSlots?: FrameSlot[];
   mediaBox?: {
     x: number;
     y: number;
@@ -93,6 +110,7 @@ export default function PdfRenderClient() {
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
           orientation: img.orientation,
+          frameSlotId: img.frameSlotId,
           x: img.x,
           y: img.y,
           w: img.w,
@@ -104,6 +122,9 @@ export default function PdfRenderClient() {
         })) ?? [],
       productOrientation: payload.productOrientation ?? "landscape",
       productAlign: payload.productAlign ?? "center",
+      imageLayout: payload.imageLayout ?? "manual",
+      framePresetId: payload.framePresetId,
+      frameSlots: payload.frameSlots,
       mediaBox: payload.mediaBox,
       badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
       linkTitle: payload.linkTitle ?? "",

@@ -4,6 +4,7 @@ import LinkedInTemplate2Renderer, {
   type MediaBox,
   type RasterMode,
 } from "./LinkedInTemplate2Renderer";
+import type { FrameSlot } from "@/app/lib/imageLayouts";
 
 export type TextStyle = {
   fontFamily: string;
@@ -35,6 +36,7 @@ export type ImageItem = {
   src: string;
   base64?: string;
   orientation: "landscape" | "portrait";
+  frameSlotId?: string;
   x: number;
   y: number;
   w: number;
@@ -44,6 +46,8 @@ export type ImageItem = {
   cropY?: number;
   cropScale?: number;
 };
+
+export type ImageLayoutMode = "manual" | "collage" | "frame";
 
 type Props = LinkedInTemplate2Data & {
   scale?: number;
@@ -63,10 +67,17 @@ type Props = LinkedInTemplate2Data & {
 
   mediaBox?: MediaBox;
   productImages?: ImageItem[];
+  imageLayout?: ImageLayoutMode;
+  framePresetId?: string;
+  frameSlots?: FrameSlot[];
 
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
   showRaster?: boolean;
   rasterMode?: RasterMode;
+  onStartFrameImageDrag?: (
+    imageId: string,
+    event: React.MouseEvent<HTMLDivElement>
+  ) => void;
 };
 
 export default function LinkedInTemplate2(props: Props) {
@@ -85,9 +96,13 @@ export default function LinkedInTemplate2(props: Props) {
     sublineStyle,
     mediaBox,
     productImages,
+    imageLayout,
+    framePresetId,
+    frameSlots,
     canvasPreset,
     showRaster,
     rasterMode,
+    onStartFrameImageDrag,
     ...rest
   } = props;
 
@@ -107,12 +122,16 @@ export default function LinkedInTemplate2(props: Props) {
         sublineStyle,
         mediaBox,
         productImages,
+        imageLayout,
+        framePresetId,
+        frameSlots,
         canvasPreset,
         showRaster,
         rasterMode,
       }}
       mode={mode}
       scale={scale}
+      onStartFrameImageDrag={onStartFrameImageDrag}
     />
   );
 }
