@@ -109,6 +109,7 @@ function TextControls({
   style,
   setStyle,
   showTextInput = true,
+  showColor = true,
   applySelectionStylePatch,
 }: {
   title: string;
@@ -119,6 +120,7 @@ function TextControls({
   style: BoxTextStyle;
   setStyle: (updater: (prev: BoxTextStyle) => BoxTextStyle) => void;
   showTextInput?: boolean;
+  showColor?: boolean;
   applySelectionStylePatch?: Props["applySelectionStylePatch"];
 }) {
   const supportsSelectionPatch =
@@ -181,23 +183,25 @@ function TextControls({
             />
           </div>
 
-          <div className="properties-panel__field">
-            <label>Color</label>
-            <input
-              type="color"
-              value={style.color}
-              onChange={(e) => {
-                const next = e.target.value;
-                const applied =
-                  supportsSelectionPatch && applySelectionStylePatch
-                    ? applySelectionStylePatch(field, { color: next })
-                    : false;
-                if (!applied) {
-                  setStyle((prev) => ({ ...prev, color: next }));
-                }
-              }}
-            />
-          </div>
+          {showColor ? (
+            <div className="properties-panel__field">
+              <label>Color</label>
+              <input
+                type="color"
+                value={style.color}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  const applied =
+                    supportsSelectionPatch && applySelectionStylePatch
+                      ? applySelectionStylePatch(field, { color: next })
+                      : false;
+                  if (!applied) {
+                    setStyle((prev) => ({ ...prev, color: next }));
+                  }
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         <div className="properties-panel__field">
@@ -351,6 +355,7 @@ export default function PropertiesPanel({
         setText={setBadgeText}
         style={badgeStyle}
         setStyle={setBadgeStyle}
+        showColor={false}
         applySelectionStylePatch={applySelectionStylePatch}
       />
     );

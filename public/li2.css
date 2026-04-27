@@ -491,14 +491,15 @@
 
 .li2-linkRow {
   margin-top: 12px;
-  font-size: 13px;
+  font-size: 18px;
   color: var(--li2-muted);
 }
 
 .li2-link {
-  color: var(--li2-red);
+  color: #2563eb;
   text-decoration: none;
   font-weight: 800;
+  line-height: 1.35;
 }
 
 .li2-linksList {

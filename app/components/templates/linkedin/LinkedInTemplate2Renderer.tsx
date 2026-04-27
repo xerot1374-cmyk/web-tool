@@ -127,6 +127,14 @@ type Props = {
     imageId: string,
     event: React.MouseEvent<HTMLDivElement>
   ) => void;
+  onSelectableClick?: (
+    field: "badge" | "title" | "body" | "company",
+    event: React.MouseEvent<HTMLElement>
+  ) => void;
+  onSelectableDoubleClick?: (
+    field: "badge" | "title" | "body" | "company",
+    event: React.MouseEvent<HTMLElement>
+  ) => void;
 };
 
 function safeScale(scale?: number) {
@@ -272,6 +280,8 @@ export default function LinkedInTemplate2Renderer({
   onFieldChange,
   onPickProductImage,
   onStartFrameImageDrag,
+  onSelectableClick,
+  onSelectableDoubleClick,
 }: Props) {
   const s = safeScale(scale);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -606,6 +616,8 @@ export default function LinkedInTemplate2Renderer({
           <div
             className="li2-badge"
             data-select="badge"
+            onClick={(event) => onSelectableClick?.("badge", event)}
+            onDoubleClick={(event) => onSelectableDoubleClick?.("badge", event)}
             style={{
               minWidth: 120,
               fontFamily: data.badgeStyle?.fontFamily,
@@ -644,6 +656,8 @@ export default function LinkedInTemplate2Renderer({
             <div
               className="li2-linkTitle"
               data-select="title"
+              onClick={(event) => onSelectableClick?.("title", event)}
+              onDoubleClick={(event) => onSelectableDoubleClick?.("title", event)}
               style={{
                 fontFamily: data.titleStyle?.fontFamily,
                 fontSize: data.titleStyle?.fontSize,
@@ -659,6 +673,8 @@ export default function LinkedInTemplate2Renderer({
             <div
               className="li2-company"
               data-select="company"
+              onClick={(event) => onSelectableClick?.("company", event)}
+              onDoubleClick={(event) => onSelectableDoubleClick?.("company", event)}
               style={{
                 fontFamily: data.companyStyle?.fontFamily,
                 fontSize: data.companyStyle?.fontSize,
@@ -677,6 +693,8 @@ export default function LinkedInTemplate2Renderer({
             <div
               className="li2-company"
               data-select="company"
+              onClick={(event) => onSelectableClick?.("company", event)}
+              onDoubleClick={(event) => onSelectableDoubleClick?.("company", event)}
               style={{
                 fontFamily: data.companyStyle?.fontFamily,
                 fontSize: data.companyStyle?.fontSize,
@@ -758,6 +776,8 @@ export default function LinkedInTemplate2Renderer({
             <div
               className="li2-body"
               data-select="body"
+              onClick={(event) => onSelectableClick?.("body", event)}
+              onDoubleClick={(event) => onSelectableDoubleClick?.("body", event)}
               style={{
                 fontFamily: data.bodyStyle?.fontFamily,
                 fontSize: data.bodyStyle?.fontSize,
@@ -777,6 +797,8 @@ export default function LinkedInTemplate2Renderer({
             <div
               className="li2-body"
               data-select="body"
+              onClick={(event) => onSelectableClick?.("body", event)}
+              onDoubleClick={(event) => onSelectableDoubleClick?.("body", event)}
               style={{
                 fontFamily: data.bodyStyle?.fontFamily,
                 fontSize: data.bodyStyle?.fontSize,

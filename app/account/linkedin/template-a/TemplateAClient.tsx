@@ -284,7 +284,6 @@ type PdfPayload = {
   company?: string;
   headline?: string;
   subline?: string;
-
   bodyText?: string;
   bodyMarks?: TextMark[];
   titleMarks?: TextMark[];
@@ -1368,10 +1367,19 @@ export default function TemplateAClient({
     };
   }
 
+  function getSelectableTarget(target: EventTarget | null) {
+    if (!target) return null;
+    if (target instanceof HTMLElement) {
+      return target.closest("[data-select]") as HTMLElement | null;
+    }
+    if (target instanceof Node) {
+      return target.parentElement?.closest("[data-select]") as HTMLElement | null;
+    }
+    return null;
+  }
+
   function onCanvasClick(e: React.MouseEvent) {
-    const t = (e.target as HTMLElement | null)?.closest?.(
-        "[data-select]"
-    ) as HTMLElement | null;
+    const t = getSelectableTarget(e.target);
 
     if (!t) {
       clearSelection();
@@ -1441,15 +1449,45 @@ export default function TemplateAClient({
   }
 
   function onCanvasDoubleClick(e: React.MouseEvent) {
-    const t = (e.target as HTMLElement | null)?.closest?.(
-        "[data-select]"
-    ) as HTMLElement | null;
+    const t = getSelectableTarget(e.target);
     if (!t) return;
 
     const id = (t.getAttribute("data-select") || "") as SelectableId;
     if (id !== "title" && id !== "body" && id !== "badge" && id !== "company") return;
 
+    if (id === "badge") {
+      setEditField(null);
+      setSelectedId("badge");
+      setSelectedRect(computeRectRelativeToStage(t));
+      setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
+      return;
+    }
+
     startEdit(id, t);
+  }
+
+  function selectCanvasField(
+    field: "title" | "body" | "badge" | "company",
+    targetEl: HTMLElement
+  ) {
+    setSelectedId(field);
+    setSelectedRect(computeRectRelativeToStage(targetEl));
+    setSelectedImageId(null);
+    setSelectedFrameSlotId(null);
+    if (editField && field !== editField) setEditField(null);
+  }
+
+  function activateCanvasField(
+    field: "title" | "body" | "badge" | "company",
+    targetEl: HTMLElement
+  ) {
+    if (field === "badge") {
+      setEditField(null);
+      selectCanvasField(field, targetEl);
+      return;
+    }
+    startEdit(field, targetEl);
   }
 
     useEffect(() => {
@@ -2806,6 +2844,7 @@ export default function TemplateAClient({
                         <div className="li2-template">
                           <LinkedInTemplate2
                             scale={1}
+                            mode="edit"
                             canvasPreset={canvasPreset}
                             productImage={effective.productImage}
                             productImages={effective.productImages}
@@ -2837,6 +2876,14 @@ export default function TemplateAClient({
                             headlineStyle={effective.headlineStyle}
                             sublineStyle={effective.sublineStyle}
                             onStartFrameImageDrag={startFrameImageDrag}
+                            onSelectableClick={(field, event) => {
+                              event.stopPropagation();
+                              selectCanvasField(field, event.currentTarget);
+                            }}
+                            onSelectableDoubleClick={(field, event) => {
+                              event.stopPropagation();
+                              activateCanvasField(field, event.currentTarget);
+                            }}
                           />
                         </div>
 

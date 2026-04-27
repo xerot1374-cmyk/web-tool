@@ -60,7 +60,6 @@ type Payload = {
   companyStyle?: BoxTextStyle;
   headlineStyle?: BoxTextStyle;
   sublineStyle?: BoxTextStyle;
-
   canvasPreset?: CanvasPreset;
 };
 
@@ -173,8 +172,8 @@ function resolveSrc(req: Request, raw?: string) {
 }
 
 function getHeaderHeight(preset?: CanvasPreset) {
-  if (preset === "instagram") return 420;
-  if (preset === "instagramStory") return 760;
+  if (preset === "instagram") return 760;
+  if (preset === "instagramStory") return 1320;
   return 850;
 }
 
