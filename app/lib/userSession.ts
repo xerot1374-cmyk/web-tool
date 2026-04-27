@@ -5,6 +5,7 @@ export type SessionUser = {
   name: string;
   role: string;
   profileImage: string;
+  isAdmin?: boolean;
 };
 
 export async function getSessionUser(): Promise<SessionUser | null> {

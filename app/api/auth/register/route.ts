@@ -3,7 +3,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getProfileImage, hashPassword, setSessionCookie } from "@/lib/auth";
+import { isConfiguredAdminName } from "@/lib/adminAccess";
 import { prisma } from "@/lib/prisma";
+import { getTeamEmailRejectedMessage, isAllowedTeamEmail } from "@/lib/teamEmail";
 
 export const runtime = "nodejs";
 
@@ -30,6 +32,13 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { message: "Name, role, email, and password are required" },
       { status: 400 }
+    );
+  }
+
+  if (!isAllowedTeamEmail(email)) {
+    return NextResponse.json(
+      { message: getTeamEmailRejectedMessage() },
+      { status: 403 }
     );
   }
 
@@ -66,6 +75,7 @@ export async function POST(req: Request) {
       name,
       role,
       email,
+      isAdmin: isConfiguredAdminName(name),
       passwordHash: await hashPassword(password),
       profileImage,
     },
@@ -77,6 +87,7 @@ export async function POST(req: Request) {
     name: user.name,
     role: user.role,
     profileImage: getProfileImage(user.profileImage),
+    isAdmin: user.isAdmin,
   });
 
   return res;

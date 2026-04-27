@@ -10,6 +10,7 @@ export type SessionUser = {
   name: string;
   role: string;
   profileImage: string;
+  isAdmin: boolean;
 };
 
 function getSessionCookieOptions(maxAge?: number) {
@@ -58,6 +59,7 @@ export function setSessionCookie(res: NextResponse, user: SessionUser) {
       name: user.name,
       role: user.role,
       profileImage: getProfileImage(user.profileImage),
+      isAdmin: user.isAdmin,
     }),
     getSessionCookieOptions(60 * 60 * 24 * 7)
   );

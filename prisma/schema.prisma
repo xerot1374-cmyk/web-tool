@@ -17,6 +17,8 @@ model User {
   email        String   @unique
   passwordHash String
   role         String   @default("user")
+  isAdmin      Boolean  @default(false)
+  isBlocked    Boolean  @default(false)
   profileImage String?
   createdAt    DateTime @default(now())
 }

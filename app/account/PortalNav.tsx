@@ -6,19 +6,23 @@ import { useState } from "react";
 
 type PortalNavProps = {
   isAuthenticated: boolean;
+  isAdmin?: boolean;
 };
 
-const navItems = [
+const baseNavItems = [
   { href: "/account", label: "Portal" },
   { href: "/account/profile", label: "Profile" },
   { href: "/account/analytics", label: "Data Analysis" },
   { href: "/account/linkedin/template-a", label: "Template Editor" },
 ];
 
-export default function PortalNav({ isAuthenticated }: PortalNavProps) {
+export default function PortalNav({ isAuthenticated, isAdmin = false }: PortalNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const navItems = isAdmin
+    ? [...baseNavItems, { href: "/account/users", label: "User Admin" }]
+    : baseNavItems;
 
   async function handleAuthAction() {
     if (!isAuthenticated) {

@@ -3,7 +3,9 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { clearSessionCookie, getProfileImage, hashPassword, setSessionCookie } from "@/lib/auth";
+import { isConfiguredAdminName } from "@/lib/adminAccess";
 import { prisma } from "@/lib/prisma";
+import { getTeamEmailRejectedMessage, isAllowedTeamEmail } from "@/lib/teamEmail";
 
 export const runtime = "nodejs";
 
@@ -48,6 +50,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!isAllowedTeamEmail(email)) {
+    return NextResponse.json(
+      { message: getTeamEmailRejectedMessage() },
+      { status: 403 }
+    );
+  }
+
   if (password && password.length < 8) {
     return NextResponse.json(
       { message: "New password must be at least 8 characters" },
@@ -59,6 +68,15 @@ export async function POST(req: Request) {
 
   if (!existingUser) {
     const res = NextResponse.json({ message: "Session user not found" }, { status: 404 });
+    clearSessionCookie(res);
+    return res;
+  }
+
+  if (existingUser.isBlocked) {
+    const res = NextResponse.json(
+      { message: "Your account has been blocked. Please contact an administrator." },
+      { status: 403 }
+    );
     clearSessionCookie(res);
     return res;
   }
@@ -82,6 +100,7 @@ export async function POST(req: Request) {
       name,
       role,
       email,
+      isAdmin: existingUser.isAdmin || isConfiguredAdminName(existingUser.name),
       profileImage,
       ...(password ? { passwordHash: await hashPassword(password) } : {}),
     },
@@ -102,6 +121,7 @@ export async function POST(req: Request) {
     name: updatedUser.name,
     role: updatedUser.role,
     profileImage: getProfileImage(updatedUser.profileImage),
+    isAdmin: updatedUser.isAdmin || isConfiguredAdminName(updatedUser.name),
   });
 
   return res;

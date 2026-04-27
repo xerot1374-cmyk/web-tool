@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
-import ProfileForm from "./ProfileForm";
+import { requireCurrentUser } from "@/app/lib/currentUser";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/app/lib/userSession";
 import { getProfileImage } from "@/lib/auth";
 import PortalNav from "../PortalNav";
+import ProfileForm from "./ProfileForm";
 
 export default async function ProfilePage() {
+  const currentUser = await requireCurrentUser();
   const sessionUser = await getSessionUser();
 
   if (!sessionUser?.email) {
@@ -23,7 +25,7 @@ export default async function ProfilePage() {
   return (
     <main className="app-container portal-shell">
       <div className="portal-wrapper">
-        <PortalNav isAuthenticated />
+        <PortalNav isAuthenticated isAdmin={currentUser.isAdmin} />
         <ProfileForm
           initialUser={{
             email: user.email,

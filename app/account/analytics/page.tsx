@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireCurrentUser } from "@/app/lib/currentUser";
 import PortalNav from "../PortalNav";
 
 const activityGroups = [
@@ -27,11 +28,13 @@ const insightCards = [
   },
 ];
 
-export default function AnalyticsPage() {
+export default async function AnalyticsPage() {
+  const user = await requireCurrentUser();
+
   return (
     <main className="app-container portal-shell">
       <div className="portal-wrapper">
-        <PortalNav isAuthenticated />
+        <PortalNav isAuthenticated isAdmin={user.isAdmin} />
         <div className="portal-header-row">
           <div>
             <p className="portal-eyebrow">Data Analysis</p>

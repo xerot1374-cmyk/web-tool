@@ -49,6 +49,10 @@ export default function RegisterPage() {
     <div style={{ maxWidth: 420, margin: "64px auto", padding: 16 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Register</h1>
 
+      <p style={{ marginBottom: 12, color: "#555" }}>
+        Registration is only available for team emails ending with @protos-3d.de.
+      </p>
+
       {error && (
         <div style={{ padding: 10, border: "1px solid #f99", marginBottom: 12 }}>
           {error}
@@ -71,6 +75,8 @@ export default function RegisterPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            pattern=".+@protos-3d\.de"
+            title="Please use your @protos-3d.de team email address."
             style={{ width: "100%", padding: 10 }}
           />
         </div>
