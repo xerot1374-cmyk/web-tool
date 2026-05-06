@@ -8,7 +8,9 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./
+COPY prisma.config.ts ./prisma.config.ts
 COPY prisma ./prisma
+COPY lib/env.ts ./lib/env.ts
 RUN npm ci
 
 FROM node:20-bookworm-slim AS builder

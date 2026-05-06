@@ -1,11 +1,9 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
-const connectionString = process.env.DATABASE_URL;
+import { DEFAULT_DATABASE_URL } from "./env";
 
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set");
-}
+const connectionString = process.env.DATABASE_URL ?? DEFAULT_DATABASE_URL;
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
