@@ -50,6 +50,8 @@ type RichStyle = {
   fontSize?: number;
   color?: string;
   highlight?: boolean;
+  fontWeight?: number | string;
+  fontStyle?: "normal" | "italic";
 };
 
 export type TextMark = {
@@ -115,41 +117,6 @@ function normalizeUrl(raw: string): string | undefined {
 
 type UnicodeStyle = "bold" | "italic";
 
-const UNICODE_MAPS: Record<
-  UnicodeStyle,
-  { upper: number; lower: number; digits: number }
-> = {
-  bold: { upper: 0x1d400, lower: 0x1d41a, digits: 0x1d7ce },
-  italic: { upper: 0x1d434, lower: 0x1d44e, digits: -1 },
-};
-
-function toUnicodeStyledChar(ch: string, style: UnicodeStyle) {
-  const code = ch.codePointAt(0);
-  if (code == null) return ch;
-
-  const map = UNICODE_MAPS[style];
-
-  if (code >= 0x41 && code <= 0x5a) {
-    return String.fromCodePoint(map.upper + (code - 0x41));
-  }
-  if (code >= 0x61 && code <= 0x7a) {
-    return String.fromCodePoint(map.lower + (code - 0x61));
-  }
-  if (code >= 0x30 && code <= 0x39) {
-    if (map.digits >= 0) {
-      return String.fromCodePoint(map.digits + (code - 0x30));
-    }
-    return ch;
-  }
-  return ch;
-}
-
-function styleUnicodeText(input: string, style: UnicodeStyle) {
-  let out = "";
-  for (const ch of input) out += toUnicodeStyledChar(ch, style);
-  return out;
-}
-
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -170,18 +137,75 @@ function applyOnSelection(
   const nextSelStart = start;
   const nextSelEnd = start + replaced.length;
 
-  return { next, nextSelStart, nextSelEnd };
+  return { next, nextSelStart, nextSelEnd, replaceStart: start, replaceEnd: end };
+}
+
+function isFormattingWordChar(ch: string) {
+  return /[\p{L}\p{N}_#]/u.test(ch);
+}
+
+function expandSelectionToWord(text: string, selStart: number, selEnd: number) {
+  let start = clamp(Math.min(selStart, selEnd), 0, text.length);
+  let end = clamp(Math.max(selStart, selEnd), 0, text.length);
+
+  if (start !== end) return {start, end};
+
+  while (start > 0 && isFormattingWordChar(text[start - 1])) {
+    start -= 1;
+  }
+  while (end < text.length && isFormattingWordChar(text[end])) {
+    end += 1;
+  }
+
+  return {start, end};
+}
+
+function applyOnSelectionOrWord(
+  text: string,
+  selStart: number,
+  selEnd: number,
+  transform: (selected: string) => string
+) {
+  const {start, end} = expandSelectionToWord(text, selStart, selEnd);
+  return applyOnSelection(text, start, end, transform);
 }
 
 function applyOnLines(
   text: string,
   selStart: number,
   selEnd: number,
-  perLine: (line: string, idx: number) => string
+  perLine: (line: string, idx: number, nonEmptyIdx: number) => string
 ) {
   const start = clamp(Math.min(selStart, selEnd), 0, text.length);
   const end = clamp(Math.max(selStart, selEnd), 0, text.length);
 
+  const {lineStart, lineEnd} = getSelectedLineBlock(text, start, end);
+
+  const block = text.slice(lineStart, lineEnd);
+  const lines = block.split("\n");
+  let nonEmptyIdx = 0;
+  const replacedLines = lines.map((ln, i) => {
+    if (!ln.trim()) return perLine(ln, i, nonEmptyIdx);
+    const replaced = perLine(ln, i, nonEmptyIdx);
+    nonEmptyIdx += 1;
+    return replaced;
+  });
+  const replacedBlock = replacedLines.join("\n");
+
+  const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
+  const nextSelStart = lineStart;
+  const nextSelEnd = lineStart + replacedBlock.length;
+
+  return {
+    next,
+    nextSelStart,
+    nextSelEnd,
+    replaceStart: lineStart,
+    replaceEnd: lineEnd,
+  };
+}
+
+function getSelectedLineBlock(text: string, start: number, end: number) {
   const rangeStart =
     start === end ? text.lastIndexOf("\n", start - 1) + 1 : start;
   const rangeEnd =
@@ -196,27 +220,42 @@ function applyOnLines(
   const after = text.indexOf("\n", rangeEnd);
   const lineEnd = after === -1 ? text.length : after;
 
+  return {lineStart, lineEnd};
+}
+
+function applyOnLineBlock(
+  text: string,
+  selStart: number,
+  selEnd: number,
+  transform: (lines: string[]) => string[]
+) {
+  const start = clamp(Math.min(selStart, selEnd), 0, text.length);
+  const end = clamp(Math.max(selStart, selEnd), 0, text.length);
+  const {lineStart, lineEnd} = getSelectedLineBlock(text, start, end);
+
   const block = text.slice(lineStart, lineEnd);
-  const lines = block.split("\n");
-  const replacedLines = lines.map((ln, i) => perLine(ln, i));
-  const replacedBlock = replacedLines.join("\n");
-
+  const replacedBlock = transform(block.split("\n")).join("\n");
   const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-  const nextSelStart = lineStart;
-  const nextSelEnd = lineStart + replacedBlock.length;
 
-  return { next, nextSelStart, nextSelEnd };
+  return {
+    next,
+    nextSelStart: lineStart,
+    nextSelEnd: lineStart + replacedBlock.length,
+    replaceStart: lineStart,
+    replaceEnd: lineEnd,
+  };
 }
 
 function toHashtag(s: string) {
   const cleaned = s
     .trim()
     .replace(/[\u200c]/g, "")
+    .replace(/^#+/, "")
     .replace(/[^\p{L}\p{N}\s_]+/gu, "")
     .replace(/\s+/g, "");
 
   if (!cleaned) return "";
-  return cleaned.startsWith("#") ? cleaned : `#${cleaned}`;
+  return `#${cleaned}`;
 }
 
 async function copyTextToClipboard(
@@ -1418,6 +1457,7 @@ export default function TemplateAClient({
 
   function startEdit(field: Exclude<EditField, null>, targetEl: HTMLElement) {
     setEditField(field);
+    setActiveField(field);
     setSelectedId(field);
 
     const rect = computeRectRelativeToStage(targetEl);
@@ -1943,21 +1983,25 @@ export default function TemplateAClient({
     }
 
     function getEditorFieldControl(
-        field: EditorTextField = activeField
+        field: EditorTextField = editField ?? activeField
     ): {
       text: string;
       setText: (value: string) => void;
       ref: RefObject<HTMLInputElement | null> | RefObject<HTMLTextAreaElement | null>;
     } {
+      const refForField = <T extends HTMLInputElement | HTMLTextAreaElement>(
+        fieldRef: RefObject<T | null>
+      ) => (field === editField ? editRef : fieldRef);
+
       switch (field) {
         case "badge":
-          return {text: badgeText, setText: setBadgeTextValue, ref: badgeRef};
+          return {text: badgeText, setText: setBadgeTextValue, ref: refForField(badgeRef)};
         case "title":
-          return {text: title, setText: setTitleValue, ref: titleRef};
+          return {text: title, setText: setTitleValue, ref: refForField(titleRef)};
         case "company":
-          return {text: company, setText: setCompanyValue, ref: companyRef};
+          return {text: company, setText: setCompanyValue, ref: refForField(companyRef)};
         case "body":
-          return {text: body, setText: setBody, ref: bodyRef};
+          return {text: body, setText: setBody, ref: refForField(bodyRef)};
         case "caption":
         default:
           return {text: caption, setText: setCaption, ref: captionRef};
@@ -1973,6 +2017,8 @@ export default function TemplateAClient({
           next: string;
           nextSelStart: number;
           nextSelEnd: number;
+          replaceStart?: number;
+          replaceEnd?: number;
         }
     ) {
       const {text, setText, ref} = getEditorFieldControl();
@@ -1982,8 +2028,18 @@ export default function TemplateAClient({
       const s = el.selectionStart ?? 0;
       const e = el.selectionEnd ?? 0;
 
-      const {next, nextSelStart, nextSelEnd} = fn(text, s, e);
+      const {next, nextSelStart, nextSelEnd, replaceStart, replaceEnd} = fn(text, s, e);
       setText(next);
+
+      if (
+          next !== text &&
+          replaceStart != null &&
+          replaceEnd != null
+      ) {
+        const delta = next.length - text.length;
+        const {marks, setMarks} = getActiveMarksState();
+        setMarks(shiftMarksAfterTextChange(marks, replaceStart, replaceEnd, delta));
+      }
 
       requestAnimationFrame(() => {
         const node = ref.current;
@@ -1993,7 +2049,36 @@ export default function TemplateAClient({
       });
     }
 
-    function getActiveMarksState(field: EditorTextField = activeField) {
+    function shiftMarksAfterTextChange(
+        marks: TextMark[],
+        replaceStart: number,
+        replaceEnd: number,
+        delta: number
+    ) {
+      return marks
+          .flatMap((mark) => {
+            if (mark.end <= replaceStart) return [mark];
+            if (mark.start >= replaceEnd) {
+              return [{...mark, start: mark.start + delta, end: mark.end + delta}];
+            }
+
+            const pieces: TextMark[] = [];
+            if (mark.start < replaceStart) {
+              pieces.push({...mark, end: replaceStart});
+            }
+            if (mark.end > replaceEnd) {
+              pieces.push({
+                ...mark,
+                start: replaceStart + Math.max(0, delta),
+                end: mark.end + delta,
+              });
+            }
+            return pieces;
+          })
+          .filter((mark) => mark.end > mark.start);
+    }
+
+    function getActiveMarksState(field: EditorTextField = editField ?? activeField) {
       switch (field) {
         case "badge":
           return {marks: badgeMarks, setMarks: setBadgeMarks};
@@ -2022,11 +2107,93 @@ export default function TemplateAClient({
       return a.start < b.end && b.start < a.end;
     }
 
-    function splitMark(mark: TextMark, cutStart: number, cutEnd: number): TextMark[] {
-      const out: TextMark[] = [];
-      if (mark.start < cutStart) out.push({...mark, end: cutStart});
-      if (cutEnd < mark.end) out.push({...mark, start: cutEnd});
-      return out;
+    function cleanStyle(style: RichStyle): RichStyle {
+      const next: RichStyle = {};
+      if (style.fontFamily) next.fontFamily = style.fontFamily;
+      if (style.fontSize) next.fontSize = style.fontSize;
+      if (style.color) next.color = style.color;
+      if (style.highlight) next.highlight = true;
+      if (style.fontWeight && style.fontWeight !== "normal") {
+        next.fontWeight = style.fontWeight;
+      }
+      if (style.fontStyle && style.fontStyle !== "normal") {
+        next.fontStyle = style.fontStyle;
+      }
+      return next;
+    }
+
+    function hasStyle(style: RichStyle) {
+      return Object.keys(cleanStyle(style)).length > 0;
+    }
+
+    function stylesEqual(a: RichStyle, b: RichStyle) {
+      return JSON.stringify(cleanStyle(a)) === JSON.stringify(cleanStyle(b));
+    }
+
+    function mergeMarks(next: TextMark[]) {
+      next.sort((a, b) => a.start - b.start);
+
+      const merged: TextMark[] = [];
+      for (const m of next) {
+        const style = cleanStyle(m.style ?? {});
+        if (m.end <= m.start || !hasStyle(style)) continue;
+
+        const last = merged[merged.length - 1];
+        if (last && last.end === m.start && stylesEqual(last.style, style)) {
+          last.end = m.end;
+        } else {
+          merged.push({...m, style});
+        }
+      }
+
+      return merged;
+    }
+
+    function styleForSegment(prev: TextMark[], start: number, end: number) {
+      return prev.reduce<RichStyle>((style, mark) => {
+        if (!overlaps(mark, {start, end})) return style;
+        return {...style, ...(mark.style ?? {})};
+      }, {});
+    }
+
+    function updateMarksInRange(
+        prev: TextMark[],
+        range: { start: number; end: number },
+        transform: (style: RichStyle) => RichStyle
+    ) {
+      const next: TextMark[] = [];
+      const boundaries = new Set<number>([range.start, range.end]);
+
+      for (const mark of prev) {
+        if (!overlaps(mark, range)) {
+          next.push(mark);
+          continue;
+        }
+
+        if (mark.start < range.start) {
+          next.push({...mark, end: range.start});
+        }
+        if (range.end < mark.end) {
+          next.push({...mark, start: range.end});
+        }
+
+        boundaries.add(Math.max(mark.start, range.start));
+        boundaries.add(Math.min(mark.end, range.end));
+      }
+
+      const points = [...boundaries].sort((a, b) => a - b);
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const start = points[i];
+        const end = points[i + 1];
+        if (end <= start) continue;
+
+        const style = cleanStyle(transform(styleForSegment(prev, start, end)));
+        if (hasStyle(style)) {
+          next.push({start, end, style});
+        }
+      }
+
+      return mergeMarks(next);
     }
 
     function applyStyleToMarks(
@@ -2034,109 +2201,99 @@ export default function TemplateAClient({
         range: { start: number; end: number },
         patch: RichStyle
     ) {
-      const next: TextMark[] = [];
-      let covered = false;
-
-      for (const m of prev) {
-        if (!overlaps(m, range)) {
-          next.push(m);
-          continue;
-        }
-
-        if (m.start < range.start) {
-          next.push({...m, end: range.start});
-        }
-
-        const midStart = Math.max(m.start, range.start);
-        const midEnd = Math.min(m.end, range.end);
-        if (midEnd > midStart) {
-          covered = true;
-          next.push({
-            start: midStart,
-            end: midEnd,
-            style: {...(m.style ?? {}), ...patch},
-          });
-        }
-
-        if (range.end < m.end) {
-          next.push({...m, start: range.end});
-        }
-      }
-
-      if (!covered) {
-        next.push({start: range.start, end: range.end, style: {...patch}});
-      }
-
-      next.sort((a, b) => a.start - b.start);
-
-      const merged: TextMark[] = [];
-      for (const m of next) {
-        const last = merged[merged.length - 1];
-        if (
-            last &&
-            last.end === m.start &&
-            JSON.stringify(last.style) === JSON.stringify(m.style)
-        ) {
-          last.end = m.end;
-        } else {
-          merged.push({...m, style: {...(m.style ?? {})}});
-        }
-      }
-
-      return merged.filter((m) => m.end > m.start);
+      return updateMarksInRange(prev, range, (style) => ({...style, ...patch}));
     }
 
-    function toggleHighlightMarks(
+    function selectionHasEveryStyle(
         prev: TextMark[],
-        range: { start: number; end: number }
+        range: { start: number; end: number },
+        predicate: (style: RichStyle) => boolean
     ) {
-      let had = false;
-      for (const m of prev) {
-        if (overlaps(m, range) && m.style.highlight) {
-          had = true;
-          break;
-        }
+      const boundaries = new Set<number>([range.start, range.end]);
+      for (const mark of prev) {
+        if (!overlaps(mark, range)) continue;
+        boundaries.add(Math.max(mark.start, range.start));
+        boundaries.add(Math.min(mark.end, range.end));
       }
 
-      if (had) {
-        const out: TextMark[] = [];
-        for (const m of prev) {
-          if (!overlaps(m, range)) {
-            out.push(m);
-            continue;
-          }
-          out.push(...splitMark(m, range.start, range.end));
-        }
-        return out;
+      const points = [...boundaries].sort((a, b) => a - b);
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const start = points[i];
+        const end = points[i + 1];
+        if (end > start && !predicate(styleForSegment(prev, start, end))) return false;
       }
 
-      return applyStyleToMarks(prev, range, {highlight: true});
+      return true;
+    }
+
+    function toggleStyleMarks(
+        prev: TextMark[],
+        range: { start: number; end: number },
+        active: (style: RichStyle) => boolean,
+        add: RichStyle,
+        remove: RichStyle
+    ) {
+      const shouldRemove = selectionHasEveryStyle(prev, range, active);
+      return updateMarksInRange(prev, range, (style) => ({
+        ...style,
+        ...(shouldRemove ? remove : add),
+      }));
     }
 
     function applyStyleSelection(
         patch: RichStyle,
-        mode: "set" | "toggleHighlight" = "set"
+        mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set"
     ) {
+      let applied = false;
       withActiveSelection((text, s0, e0) => {
-        const {s, e} = clampRange(s0, e0, text.length);
+        const wordRange = expandSelectionToWord(text, s0, e0);
+        const {s, e} = clampRange(wordRange.start, wordRange.end, text.length);
         if (s === e) return {next: text, nextSelStart: s, nextSelEnd: e};
 
         const {setMarks, marks} = getActiveMarksState();
+        applied = true;
 
+        const range = {start: s, end: e};
         if (mode === "toggleHighlight") {
-          setMarks(toggleHighlightMarks(marks, {start: s, end: e}));
+          setMarks(toggleStyleMarks(
+              marks,
+              range,
+              (style) => style.highlight === true,
+              {highlight: true},
+              {highlight: undefined}
+          ));
+        } else if (mode === "toggleBold") {
+          setMarks(toggleStyleMarks(
+              marks,
+              range,
+              (style) => style.fontWeight === 800 || style.fontWeight === "800" || style.fontWeight === "bold",
+              {fontWeight: 800},
+              {fontWeight: undefined}
+          ));
+        } else if (mode === "toggleItalic") {
+          setMarks(toggleStyleMarks(
+              marks,
+              range,
+              (style) => style.fontStyle === "italic",
+              {fontStyle: "italic"},
+              {fontStyle: undefined}
+          ));
         } else {
-          setMarks(applyStyleToMarks(marks, {start: s, end: e}, patch));
+          setMarks(applyStyleToMarks(marks, range, patch));
         }
 
         return {next: text, nextSelStart: s, nextSelEnd: e};
       });
+
+      if (applied && editField) {
+        setEditField(null);
+      }
     }
 
     function applySelectionStyleForField(
         field: "title" | "body" | "badge" | "company",
         patch: RichStyle,
-        mode: "set" | "toggleHighlight" = "set"
+        mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set"
     ) {
       const {text, ref} = getEditorFieldControl(field);
       const el = ref.current;
@@ -2147,10 +2304,33 @@ export default function TemplateAClient({
 
       const {setMarks, marks} = getActiveMarksState(field);
 
+      const range = {start: s, end: e};
       if (mode === "toggleHighlight") {
-        setMarks(toggleHighlightMarks(marks, {start: s, end: e}));
+        setMarks(toggleStyleMarks(
+            marks,
+            range,
+            (style) => style.highlight === true,
+            {highlight: true},
+            {highlight: undefined}
+        ));
+      } else if (mode === "toggleBold") {
+        setMarks(toggleStyleMarks(
+            marks,
+            range,
+            (style) => style.fontWeight === 800 || style.fontWeight === "800" || style.fontWeight === "bold",
+            {fontWeight: 800},
+            {fontWeight: undefined}
+        ));
+      } else if (mode === "toggleItalic") {
+        setMarks(toggleStyleMarks(
+            marks,
+            range,
+            (style) => style.fontStyle === "italic",
+            {fontStyle: "italic"},
+            {fontStyle: undefined}
+        ));
       } else {
-        setMarks(applyStyleToMarks(marks, {start: s, end: e}, patch));
+        setMarks(applyStyleToMarks(marks, range, patch));
       }
 
       setActiveField(field);
@@ -2163,12 +2343,7 @@ export default function TemplateAClient({
     }
 
     function applyUnicodeStyle(style: UnicodeStyle) {
-      withActiveSelection((text, s, e) =>
-          applyOnSelection(text, s, e, (selected) => {
-            if (!selected) return "";
-            return styleUnicodeText(selected, style);
-          })
-      );
+      applyStyleSelection({}, style === "bold" ? "toggleBold" : "toggleItalic");
     }
 
     function applyBullet() {
@@ -2176,26 +2351,49 @@ export default function TemplateAClient({
           applyOnLines(text, s, e, (line) => {
             const trimmed = line.trim();
             if (!trimmed) return line;
-            if (/^\s*•\s+/.test(line)) return line;
-            return `• ${line}`;
+            const indent = line.match(/^\s*/)?.[0] ?? "";
+            const content = line.slice(indent.length);
+            if (/^\u2022\s+/.test(content)) {
+              return `${indent}${content.replace(/^\u2022\s+/, "")}`;
+            }
+            return `${indent}\u2022 ${content.replace(/^\d+\.\s+/, "")}`;
           })
       );
     }
 
     function applyNumbered() {
       withActiveSelection((text, s, e) =>
-          applyOnLines(text, s, e, (line, idx) => {
-            const trimmed = line.trim();
-            if (!trimmed) return line;
-            if (/^\s*\d+\.\s+/.test(line)) return line;
-            return `${idx + 1}. ${line}`;
+          applyOnLineBlock(text, s, e, (lines) => {
+            const contentLines = lines.filter((line) => line.trim());
+            const removeNumbers =
+                contentLines.length > 0 &&
+                contentLines.every((line) => /^\s*\d+\.\s+/.test(line));
+
+            let nonEmptyIdx = 0;
+            return lines.map((line) => {
+              const trimmed = line.trim();
+              if (!trimmed) return line;
+
+              const indent = line.match(/^\s*/)?.[0] ?? "";
+              const content = line
+                  .slice(indent.length)
+                  .replace(/^\u2022\s+/, "")
+                  .replace(/^\d+\.\s+/, "");
+
+              if (removeNumbers) {
+                return `${indent}${content}`;
+              }
+
+              nonEmptyIdx += 1;
+              return `${indent}${nonEmptyIdx}. ${content}`;
+            });
           })
       );
     }
 
     function applyHashtag() {
       withActiveSelection((text, s, e) =>
-          applyOnSelection(text, s, e, (selected) => {
+          applyOnSelectionOrWord(text, s, e, (selected) => {
             if (!selected.trim()) return selected;
             const tag = toHashtag(selected);
             return tag || selected;
@@ -3151,6 +3349,7 @@ export default function TemplateAClient({
                     setCaption={setCaption}
                     captionRef={captionRef}
                     captionStyle={captionStyle}
+                    captionMarks={captionMarks}
                     activeField={activeField}
                     setActiveField={setActiveField}
                     activeTextStyle={activeTextStyle}

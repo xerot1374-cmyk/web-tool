@@ -626,11 +626,47 @@
 .tt__buttonGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .tt__btn--strong {
   background: var(--surface-muted);
+}
+
+.tt__formatBtn {
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  text-align: left;
+}
+
+.tt__formatBtn:hover {
+  border-color: rgba(164, 7, 47, 0.24);
+  background: #ffffff;
+}
+
+.tt__formatIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 8px;
+  background: rgba(164, 7, 47, 0.08);
+  color: var(--brand-red);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.tt__formatText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tt__emoji {

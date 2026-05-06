@@ -113,6 +113,8 @@ export type TextMark = {
     fontSize?: number;
     color?: string;
     highlight?: boolean;
+    fontWeight?: number | string;
+    fontStyle?: "normal" | "italic";
   };
 };
 
@@ -185,39 +187,6 @@ function EditableInput({
   );
 }
 
-function EditableTextarea({
-  value,
-  placeholder,
-  className,
-  onChange,
-  rows = 6,
-}: {
-  value: string;
-  placeholder: string;
-  className: string;
-  onChange: (v: string) => void;
-  rows?: number;
-}) {
-  return (
-    <textarea
-      value={value}
-      placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      className={className}
-      rows={rows}
-      style={{
-        width: "100%",
-        background: "transparent",
-        border: "none",
-        outline: "none",
-        resize: "none",
-        padding: 0,
-        margin: 0,
-      }}
-    />
-  );
-}
-
 function renderMarkedText(text: string, marks?: TextMark[]) {
   const t = String(text ?? "");
   if (!marks || marks.length === 0) return t;
@@ -246,6 +215,8 @@ function renderMarkedText(text: string, marks?: TextMark[]) {
       fontFamily: m.style.fontFamily,
       fontSize: m.style.fontSize,
       color: m.style.color,
+      fontWeight: m.style.fontWeight,
+      fontStyle: m.style.fontStyle,
       background: m.style.highlight ? "rgba(250,204,21,0.18)" : undefined,
     };
 
@@ -669,27 +640,7 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
-          {isEdit ? (
-            <div
-              className="li2-company"
-              data-select="company"
-              onClick={(event) => onSelectableClick?.("company", event)}
-              onDoubleClick={(event) => onSelectableDoubleClick?.("company", event)}
-              style={{
-                fontFamily: data.companyStyle?.fontFamily,
-                fontSize: data.companyStyle?.fontSize,
-                color: data.companyStyle?.color,
-                textAlign: data.companyStyle?.textAlign,
-              }}
-            >
-              <EditableInput
-                value={vCompany}
-                placeholder="Company"
-                className="li2-company"
-                onChange={(val) => setField("company", val)}
-              />
-            </div>
-          ) : vCompany ? (
+          {vCompany ? (
             <div
               className="li2-company"
               data-select="company"
@@ -772,28 +723,7 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
-          {isEdit ? (
-            <div
-              className="li2-body"
-              data-select="body"
-              onClick={(event) => onSelectableClick?.("body", event)}
-              onDoubleClick={(event) => onSelectableDoubleClick?.("body", event)}
-              style={{
-                fontFamily: data.bodyStyle?.fontFamily,
-                fontSize: data.bodyStyle?.fontSize,
-                color: data.bodyStyle?.color,
-                textAlign: data.bodyStyle?.textAlign,
-              }}
-            >
-              <EditableTextarea
-                value={vBody}
-                placeholder="Body"
-                className="li2-body"
-                onChange={(val) => setField("bodyText", val)}
-                rows={6}
-              />
-            </div>
-          ) : vBody ? (
+          {vBody ? (
             <div
               className="li2-body"
               data-select="body"

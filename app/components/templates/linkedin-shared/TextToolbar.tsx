@@ -51,6 +51,21 @@ const COLOR_OPTIONS = [
   "#0D9488",
 ];
 
+const FORMAT_ACTIONS: Array<{
+  label: string;
+  icon: string;
+  title: string;
+  variant?: "strong";
+  action: "bold" | "italic" | "bullet" | "numbered" | "hashtag" | "highlight";
+}> = [
+  { label: "Bold", icon: "B", title: "Bold selected text", variant: "strong", action: "bold" },
+  { label: "Italic", icon: "I", title: "Italicize selected text", variant: "strong", action: "italic" },
+  { label: "Bullet", icon: "\u2022", title: "Toggle bullet list", action: "bullet" },
+  { label: "Numbered", icon: "1.", title: "Create numbered list", action: "numbered" },
+  { label: "Hashtag", icon: "#", title: "Convert selection to hashtag", action: "hashtag" },
+  { label: "Highlight", icon: "H", title: "Highlight selected text", action: "highlight" },
+];
+
 export default function TextToolbar({
   activeField,
   copied,
@@ -68,6 +83,17 @@ export default function TextToolbar({
   applySizeSelection,
   applyColorSelection,
 }: Props) {
+  const runFormatAction = (action: (typeof FORMAT_ACTIONS)[number]["action"]) => {
+    if (action === "bold" || action === "italic") {
+      applyUnicodeStyle(action);
+      return;
+    }
+    if (action === "bullet") applyBullet();
+    if (action === "numbered") applyNumbered();
+    if (action === "hashtag") applyHashtag();
+    if (action === "highlight") applyHighlightSelection();
+  };
+
   return (
     <div className="tt">
       <div className="tt__header">
@@ -150,37 +176,24 @@ export default function TextToolbar({
       </div>
 
       <div className="tt__buttonGrid">
-        <button
-          className="tt__btn tt__btn--strong"
-          type="button"
-          onClick={() => applyUnicodeStyle("bold")}
-        >
-          Bold
-        </button>
-
-        <button
-          className="tt__btn tt__btn--strong"
-          type="button"
-          onClick={() => applyUnicodeStyle("italic")}
-        >
-          Italic
-        </button>
-
-        <button className="tt__btn" type="button" onClick={applyBullet}>
-          Bullet
-        </button>
-
-        <button className="tt__btn" type="button" onClick={applyNumbered}>
-          Numbered
-        </button>
-
-        <button className="tt__btn" type="button" onClick={applyHashtag}>
-          Hashtag
-        </button>
-
-        <button className="tt__btn" type="button" onClick={applyHighlightSelection}>
-          Highlight
-        </button>
+        {FORMAT_ACTIONS.map((item) => (
+          <button
+            key={item.action}
+            className={`tt__btn tt__formatBtn${
+              item.variant === "strong" ? " tt__btn--strong" : ""
+            }`}
+            type="button"
+            title={item.title}
+            aria-label={item.title}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => runFormatAction(item.action)}
+          >
+            <span className="tt__formatIcon" aria-hidden="true">
+              {item.icon}
+            </span>
+            <span className="tt__formatText">{item.label}</span>
+          </button>
+        ))}
       </div>
 
       <button className="tt__btn tt__btn--primary" type="button" onClick={copyActive}>

@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import React from "react";
 import { FRAME_PRESETS, type FrameSlot } from "@/app/lib/imageLayouts";
 
 type TextStyle = {
@@ -8,6 +8,19 @@ type TextStyle = {
   fontSize: number;
   color: string;
   highlight: boolean;
+};
+
+type TextMark = {
+  start: number;
+  end: number;
+  style: {
+    fontFamily?: string;
+    fontSize?: number;
+    color?: string;
+    highlight?: boolean;
+    fontWeight?: number | string;
+    fontStyle?: "normal" | "italic";
+  };
 };
 
 type EditorTextField = "badge" | "title" | "company" | "caption" | "body";
@@ -31,6 +44,7 @@ type Props = {
   setCaption: (v: string) => void;
   captionRef: React.RefObject<HTMLTextAreaElement | null>;
   captionStyle: TextStyle;
+  captionMarks?: TextMark[];
 
   activeField: EditorTextField;
   setActiveField: React.Dispatch<React.SetStateAction<EditorTextField>>;
@@ -92,6 +106,52 @@ type Props = {
   onDuplicateSelectedImage?: () => void;
 };
 
+function renderMarkedText(text: string, marks: TextMark[] = []) {
+  if (!marks.length) return text;
+
+  const safeMarks = marks
+    .map((mark) => ({
+      start: Math.max(0, Math.min(mark.start, text.length)),
+      end: Math.max(0, Math.min(mark.end, text.length)),
+      style: mark.style ?? {},
+    }))
+    .filter((mark) => mark.end > mark.start)
+    .sort((a, b) => a.start - b.start);
+
+  const out: React.ReactNode[] = [];
+  let pos = 0;
+
+  safeMarks.forEach((mark, index) => {
+    if (mark.start > pos) {
+      out.push(<React.Fragment key={`t-${pos}`}>{text.slice(pos, mark.start)}</React.Fragment>);
+    }
+
+    out.push(
+      <span
+        key={`m-${mark.start}-${mark.end}-${index}`}
+        style={{
+          fontFamily: mark.style.fontFamily,
+          fontSize: mark.style.fontSize,
+          color: mark.style.color,
+          fontWeight: mark.style.fontWeight,
+          fontStyle: mark.style.fontStyle,
+          background: mark.style.highlight ? "rgba(250,204,21,0.28)" : undefined,
+        }}
+      >
+        {text.slice(mark.start, mark.end)}
+      </span>
+    );
+
+    pos = mark.end;
+  });
+
+  if (pos < text.length) {
+    out.push(<React.Fragment key={`t-${pos}`}>{text.slice(pos)}</React.Fragment>);
+  }
+
+  return out;
+}
+
 export default function LinkedInToolbox({
   badgeText,
   setBadgeText,
@@ -105,6 +165,7 @@ export default function LinkedInToolbox({
   caption,
   setCaption,
   captionRef,
+  captionMarks = [],
   copied,
   activeField,
   setActiveField,
@@ -498,7 +559,7 @@ export default function LinkedInToolbox({
                 </button>
               </div>
 
-              <div className="tb__captionText">{caption}</div>
+              <div className="tb__captionText">{renderMarkedText(caption, captionMarks)}</div>
             </div>
           ) : null}
         </section>

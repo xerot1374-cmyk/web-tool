@@ -27,6 +27,8 @@ export type TextMark = {
     fontSize?: number;
     color?: string;
     highlight?: boolean;
+    fontWeight?: number | string;
+    fontStyle?: "normal" | "italic";
   };
 };
 
