@@ -206,15 +206,16 @@ function applyOnLines(
 }
 
 function getSelectedLineBlock(text: string, start: number, end: number) {
+  const effectiveEnd = start !== end && end > start && text[end - 1] === "\n" ? end - 1 : end;
   const rangeStart =
     start === end ? text.lastIndexOf("\n", start - 1) + 1 : start;
   const rangeEnd =
     start === end
       ? (() => {
-          const n = text.indexOf("\n", end);
+          const n = text.indexOf("\n", effectiveEnd);
           return n === -1 ? text.length : n;
         })()
-      : end;
+      : effectiveEnd;
 
   const lineStart = text.lastIndexOf("\n", rangeStart - 1) + 1;
   const after = text.indexOf("\n", rangeEnd);
@@ -223,28 +224,12 @@ function getSelectedLineBlock(text: string, start: number, end: number) {
   return {lineStart, lineEnd};
 }
 
-function applyOnLineBlock(
-  text: string,
-  selStart: number,
-  selEnd: number,
-  transform: (lines: string[]) => string[]
-) {
-  const start = clamp(Math.min(selStart, selEnd), 0, text.length);
-  const end = clamp(Math.max(selStart, selEnd), 0, text.length);
-  const {lineStart, lineEnd} = getSelectedLineBlock(text, start, end);
-
-  const block = text.slice(lineStart, lineEnd);
-  const replacedBlock = transform(block.split("\n")).join("\n");
-  const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-
-  return {
-    next,
-    nextSelStart: lineStart,
-    nextSelEnd: lineStart + replacedBlock.length,
-    replaceStart: lineStart,
-    replaceEnd: lineEnd,
-  };
-}
+type LinePrefixChange = {
+  oldLineStart: number;
+  oldLineEnd: number;
+  oldPrefixLength: number;
+  newPrefixLength: number;
+};
 
 function toHashtag(s: string) {
   const cleaned = s
@@ -2019,6 +2004,7 @@ export default function TemplateAClient({
           nextSelEnd: number;
           replaceStart?: number;
           replaceEnd?: number;
+          preserveReplacementMarks?: boolean;
         }
     ) {
       const {text, setText, ref} = getEditorFieldControl();
@@ -2028,8 +2014,17 @@ export default function TemplateAClient({
       const s = el.selectionStart ?? 0;
       const e = el.selectionEnd ?? 0;
 
-      const {next, nextSelStart, nextSelEnd, replaceStart, replaceEnd} = fn(text, s, e);
-      setText(next);
+      const {
+        next,
+        nextSelStart,
+        nextSelEnd,
+        replaceStart,
+        replaceEnd,
+        preserveReplacementMarks,
+      } = fn(text, s, e);
+      if (next !== text) {
+        setText(next);
+      }
 
       if (
           next !== text &&
@@ -2038,7 +2033,15 @@ export default function TemplateAClient({
       ) {
         const delta = next.length - text.length;
         const {marks, setMarks} = getActiveMarksState();
-        setMarks(shiftMarksAfterTextChange(marks, replaceStart, replaceEnd, delta));
+        setMarks(
+            shiftMarksAfterTextChange(
+                marks,
+                replaceStart,
+                replaceEnd,
+                delta,
+                preserveReplacementMarks ? nextSelEnd - nextSelStart : 0
+            )
+        );
       }
 
       requestAnimationFrame(() => {
@@ -2053,9 +2056,14 @@ export default function TemplateAClient({
         marks: TextMark[],
         replaceStart: number,
         replaceEnd: number,
-        delta: number
+        delta: number,
+        replacementMarkLength = 0
     ) {
-      return marks
+      const replacementStyle =
+          replacementMarkLength > 0
+              ? cleanStyle(styleForSegment(marks, replaceStart, replaceEnd))
+              : {};
+      const shifted = marks
           .flatMap((mark) => {
             if (mark.end <= replaceStart) return [mark];
             if (mark.start >= replaceEnd) {
@@ -2076,6 +2084,56 @@ export default function TemplateAClient({
             return pieces;
           })
           .filter((mark) => mark.end > mark.start);
+
+      if (replacementMarkLength > 0 && hasStyle(replacementStyle)) {
+        shifted.push({
+          start: replaceStart,
+          end: replaceStart + replacementMarkLength,
+          style: replacementStyle,
+        });
+      }
+
+      return mergeMarks(shifted);
+    }
+
+    function remapMarksForLinePrefixChanges(
+        marks: TextMark[],
+        changes: LinePrefixChange[]
+    ) {
+      if (!changes.length) return marks;
+
+      const shiftPoint = (pos: number) => {
+        let cumulativeDelta = 0;
+
+        for (const change of changes) {
+          const oldContentStart = change.oldLineStart + change.oldPrefixLength;
+          const delta = change.newPrefixLength - change.oldPrefixLength;
+
+          if (pos < change.oldLineStart) continue;
+          if (pos <= change.oldLineEnd) {
+            const newPrefixStart = change.oldLineStart + cumulativeDelta;
+            if (pos <= oldContentStart) {
+              return newPrefixStart + change.newPrefixLength;
+            } else {
+              return pos + cumulativeDelta + delta;
+            }
+          }
+
+          cumulativeDelta += delta;
+        }
+
+        return pos + cumulativeDelta;
+      };
+
+      return mergeMarks(
+          marks
+              .map((mark) => ({
+                ...mark,
+                start: shiftPoint(mark.start),
+                end: shiftPoint(mark.end),
+              }))
+              .filter((mark) => mark.end > mark.start)
+      );
     }
 
     function getActiveMarksState(field: EditorTextField = editField ?? activeField) {
@@ -2362,43 +2420,78 @@ export default function TemplateAClient({
     }
 
     function applyNumbered() {
-      withActiveSelection((text, s, e) =>
-          applyOnLineBlock(text, s, e, (lines) => {
-            const contentLines = lines.filter((line) => line.trim());
-            const removeNumbers =
-                contentLines.length > 0 &&
-                contentLines.every((line) => /^\s*\d+\.\s+/.test(line));
+      const {text, setText, ref} = getEditorFieldControl();
+      const el = ref.current;
+      if (!el) return;
 
-            let nonEmptyIdx = 0;
-            return lines.map((line) => {
-              const trimmed = line.trim();
-              if (!trimmed) return line;
+      const s = el.selectionStart ?? 0;
+      const e = el.selectionEnd ?? 0;
+      const {lineStart, lineEnd} = getSelectedLineBlock(text, s, e);
+      const block = text.slice(lineStart, lineEnd);
+      const lines = block.split("\n");
+      const contentLines = lines.filter((line) => line.trim());
+      const removeNumbers =
+          contentLines.length > 0 &&
+          contentLines.every((line) => /^\s*\d+\.\s+/.test(line));
 
-              const indent = line.match(/^\s*/)?.[0] ?? "";
-              const content = line
-                  .slice(indent.length)
-                  .replace(/^\u2022\s+/, "")
-                  .replace(/^\d+\.\s+/, "");
+      let offset = lineStart;
+      let nonEmptyIdx = 0;
+      const changes: LinePrefixChange[] = [];
 
-              if (removeNumbers) {
-                return `${indent}${content}`;
-              }
+      const replacedLines = lines.map((line) => {
+        const oldLineStart = offset;
+        const oldLineEnd = oldLineStart + line.length;
+        offset = oldLineEnd + 1;
 
-              nonEmptyIdx += 1;
-              return `${indent}${nonEmptyIdx}. ${content}`;
-            });
-          })
-      );
+        const trimmed = line.trim();
+        if (!trimmed) return line;
+
+        const indent = line.match(/^\s*/)?.[0] ?? "";
+        const contentWithMarker = line.slice(indent.length);
+        const oldMarker = contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
+        const content = contentWithMarker.slice(oldMarker.length);
+        const newMarker = removeNumbers ? "" : `${(nonEmptyIdx += 1)}. `;
+
+        changes.push({
+          oldLineStart: oldLineStart + indent.length,
+          oldLineEnd,
+          oldPrefixLength: oldMarker.length,
+          newPrefixLength: newMarker.length,
+        });
+
+        return `${indent}${newMarker}${content}`;
+      });
+
+      const replacedBlock = replacedLines.join("\n");
+      const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
+      setText(next);
+
+      if (next !== text) {
+        const {marks, setMarks} = getActiveMarksState();
+        setMarks(remapMarksForLinePrefixChanges(marks, changes));
+      }
+
+      requestAnimationFrame(() => {
+        const node = ref.current;
+        if (!node) return;
+        node.focus();
+        node.setSelectionRange(lineStart, lineStart + replacedBlock.length);
+      });
     }
 
     function applyHashtag() {
-      withActiveSelection((text, s, e) =>
-          applyOnSelectionOrWord(text, s, e, (selected) => {
+      withActiveSelection((text, s, e) => {
+        const result = applyOnSelectionOrWord(text, s, e, (selected) => {
             if (!selected.trim()) return selected;
             const tag = toHashtag(selected);
             return tag || selected;
-          })
-      );
+        });
+
+        return {
+          ...result,
+          preserveReplacementMarks: result.replaceEnd > result.replaceStart,
+        };
+      });
     }
 
     function insertEmoji(emoji: string) {
@@ -3319,7 +3412,6 @@ export default function TemplateAClient({
                     activeField={activeField}
                     copied={copied}
                     applyUnicodeStyle={applyUnicodeStyle}
-                    applyBullet={applyBullet}
                     applyNumbered={applyNumbered}
                     applyHashtag={applyHashtag}
                     copyActive={copyCaption}
