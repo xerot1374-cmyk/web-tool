@@ -152,6 +152,13 @@ function linkLabel(linkUrl: string) {
   }
 }
 
+function normalizeHttpUrl(raw: string) {
+  const value = raw.trim();
+  if (!value) return "";
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return `https://${value}`;
+}
+
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
@@ -303,26 +310,19 @@ export default function LinkedInTemplate2Renderer({
   const vSubline = isEdit ? (data.subline ?? "") : clean(data.subline);
   const vBody = isEdit ? (data.bodyText ?? "") : clean(data.bodyText);
 
-  const vLink = useMemo(() => {
-    if (!isEdit) return "";
-    const raw = data.linkUrl;
-    if (Array.isArray(raw)) return raw.join("\n");
-    return raw ?? "";
-  }, [isEdit, data.linkUrl]);
-
   const urls = useMemo((): string[] => {
     if (Array.isArray(data.linkUrls) && data.linkUrls.length) {
-      return data.linkUrls.map((s) => String(s).trim()).filter(Boolean);
+      return data.linkUrls.map((s) => normalizeHttpUrl(String(s))).filter(Boolean);
     }
 
     if (Array.isArray(data.linkUrl) && data.linkUrl.length) {
-      return data.linkUrl.map((s) => String(s).trim()).filter(Boolean);
+      return data.linkUrl.map((s) => normalizeHttpUrl(String(s))).filter(Boolean);
     }
 
     const raw = typeof data.linkUrl === "string" ? data.linkUrl : "";
     return String(raw)
       .split("\n")
-      .map((s) => s.trim())
+      .map((s) => normalizeHttpUrl(s))
       .filter(Boolean);
   }, [data.linkUrls, data.linkUrl]);
 
@@ -740,16 +740,7 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
-          {isEdit && vLink ? (
-            <div className="li2-linkRow" data-select="links">
-              <EditableInput
-                value={vLink}
-                placeholder="Link (optional)"
-                className="li2-link"
-                onChange={(val) => setField("linkUrl", val)}
-              />
-            </div>
-          ) : urls.length ? (
+          {urls.length ? (
             <div className="li2-linkRow" data-select="links">
               {urls.length === 1 ? (
                 <a className="li2-link" href={urls[0]} target="_blank" rel="noreferrer">
