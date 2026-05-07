@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 type SessionUser = {
   name: string;
   role: string;
-  profileImage: string;
+  profileImage: string | null;
 };
 
 type Props = {

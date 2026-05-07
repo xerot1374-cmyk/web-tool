@@ -33,7 +33,7 @@ import PropertiesPanel from "@/app/components/templates/linkedin-shared/Properti
 type SessionUser = {
   name: string;
   role: string;
-  profileImage: string;
+  profileImage: string | null;
 };
 
 type TemplateAClientProps = {

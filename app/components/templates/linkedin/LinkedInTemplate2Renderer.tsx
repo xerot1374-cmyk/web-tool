@@ -118,7 +118,7 @@ export type TextMark = {
   };
 };
 
-type Props = {
+export type LinkedInTemplate2RendererProps = {
   data: LinkedInTemplate2Data;
   mode: "edit" | "preview" | "export";
   scale?: number;
@@ -253,7 +253,7 @@ export default function LinkedInTemplate2Renderer({
   onStartFrameImageDrag,
   onSelectableClick,
   onSelectableDoubleClick,
-}: Props) {
+}: LinkedInTemplate2RendererProps) {
   const s = safeScale(scale);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -657,7 +657,7 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
-          {isEdit ? (
+          {isEdit && vHeadline ? (
             <div
               className="li2-headline"
               data-select="headline"
@@ -690,7 +690,7 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
-          {isEdit ? (
+          {isEdit && vSubline ? (
             <div
               className="li2-subline"
               data-select="subline"
@@ -740,7 +740,7 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
-          {isEdit ? (
+          {isEdit && vLink ? (
             <div className="li2-linkRow" data-select="links">
               <EditableInput
                 value={vLink}

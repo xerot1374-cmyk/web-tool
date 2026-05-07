@@ -77,6 +77,14 @@ type Props = LinkedInTemplate2Data & {
     imageId: string,
     event: React.MouseEvent<HTMLDivElement>
   ) => void;
+  onSelectableClick?: (
+    field: "badge" | "title" | "body" | "company",
+    event: React.MouseEvent<HTMLElement>
+  ) => void;
+  onSelectableDoubleClick?: (
+    field: "badge" | "title" | "body" | "company",
+    event: React.MouseEvent<HTMLElement>
+  ) => void;
 };
 
 export default function LinkedInTemplate2(props: Props) {
@@ -100,6 +108,8 @@ export default function LinkedInTemplate2(props: Props) {
     frameSlots,
     canvasPreset,
     onStartFrameImageDrag,
+    onSelectableClick,
+    onSelectableDoubleClick,
     ...rest
   } = props;
 
@@ -127,6 +137,8 @@ export default function LinkedInTemplate2(props: Props) {
       mode={mode}
       scale={scale}
       onStartFrameImageDrag={onStartFrameImageDrag}
+      onSelectableClick={onSelectableClick}
+      onSelectableDoubleClick={onSelectableDoubleClick}
     />
   );
 }

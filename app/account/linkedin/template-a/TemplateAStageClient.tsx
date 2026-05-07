@@ -1,8 +1,10 @@
 "use client";
 
-import LinkedInTemplate2Renderer from "../../../components/templates/linkedin/LinkedInTemplate2Renderer";
+import LinkedInTemplate2Renderer, {
+  type LinkedInTemplate2RendererProps,
+} from "../../../components/templates/linkedin/LinkedInTemplate2Renderer";
 
-export default function TemplateAStageClient(props: any) {
+export default function TemplateAStageClient(props: LinkedInTemplate2RendererProps) {
   return (
     <div className="li2-stage">
       <div className="li2-template">
