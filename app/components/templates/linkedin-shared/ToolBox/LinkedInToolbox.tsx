@@ -39,6 +39,7 @@ type Props = {
   setBody: (v: string) => void;
   bodyRef: React.RefObject<HTMLTextAreaElement | null>;
   bodyStyle: TextStyle;
+  bodyMarks?: TextMark[];
 
   caption: string;
   setCaption: (v: string) => void;
@@ -162,6 +163,7 @@ export default function LinkedInToolbox({
   body,
   setBody,
   bodyRef,
+  bodyMarks = [],
   caption,
   setCaption,
   captionRef,
@@ -203,6 +205,8 @@ export default function LinkedInToolbox({
   onDeleteSelectedImage,
   onDuplicateSelectedImage,
 }: Props) {
+  const bodyMirrorRef = React.useRef<HTMLDivElement | null>(null);
+
   return (
     <aside className="tb">
       <div className="tb__header">
@@ -262,17 +266,36 @@ export default function LinkedInToolbox({
 
           <div className="editor-field">
             <label className="editor-label">Body</label>
-            <textarea
-              className="editor-textarea"
-              value={body}
-              ref={bodyRef}
-              onFocus={() => setActiveField("body")}
-              onSelect={() => setActiveField("body")}
-              onDoubleClick={() => setActiveField("body")}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Write the main body copy here"
-              rows={6}
-            />
+            <div className="editor-richTextarea">
+              {body && bodyMarks.length ? (
+                <div
+                  ref={bodyMirrorRef}
+                  className="editor-richTextarea__mirror"
+                  aria-hidden="true"
+                >
+                  {renderMarkedText(body, bodyMarks)}
+                </div>
+              ) : null}
+              <textarea
+                className={`editor-textarea${
+                  body && bodyMarks.length ? " editor-textarea--richMirror" : ""
+                }`}
+                value={body}
+                ref={bodyRef}
+                onFocus={() => setActiveField("body")}
+                onSelect={() => setActiveField("body")}
+                onDoubleClick={() => setActiveField("body")}
+                onScroll={(e) => {
+                  if (bodyMirrorRef.current) {
+                    bodyMirrorRef.current.scrollTop = e.currentTarget.scrollTop;
+                    bodyMirrorRef.current.scrollLeft = e.currentTarget.scrollLeft;
+                  }
+                }}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Write the main body copy here"
+                rows={6}
+              />
+            </div>
           </div>
         </section>
 

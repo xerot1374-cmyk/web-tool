@@ -3437,6 +3437,7 @@ export default function TemplateAClient({
                     setBody={setBody}
                     bodyRef={bodyRef}
                     bodyStyle={bodyStyle}
+                    bodyMarks={bodyMarks}
                     caption={caption}
                     setCaption={setCaption}
                     captionRef={captionRef}

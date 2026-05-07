@@ -216,6 +216,44 @@
   line-height: 1.6;
 }
 
+.editor-richTextarea {
+  position: relative;
+}
+
+.editor-richTextarea__mirror {
+  position: absolute;
+  inset: 0;
+  min-height: 132px;
+  padding: 14px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  box-sizing: border-box;
+  color: var(--brand-ink);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: auto;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.editor-richTextarea__mirror::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-textarea--richMirror {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--brand-ink);
+}
+
+.editor-textarea--richMirror::selection {
+  color: transparent;
+  background: rgba(164, 7, 47, 0.18);
+}
+
 .editor-previewSelect:focus,
 .editor-input:focus,
 .editor-textarea:focus,
