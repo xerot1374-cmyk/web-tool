@@ -12,6 +12,8 @@ type TextMark = {
     fontSize?: number;
     color?: string;
     highlight?: boolean;
+    fontWeight?: number | string;
+    fontStyle?: "normal" | "italic";
   };
 };
 
@@ -55,6 +57,7 @@ type Payload = {
   profileImage: string;
   name: string;
   role: string;
+  title?: string;
   productImage?: string;
   productImageBase64?: string;
   productOrientation?: "landscape" | "portrait";
@@ -70,11 +73,15 @@ type Payload = {
   };
   images?: ImagePayloadItem[];
   badgeText?: string;
+  badgeMarks?: TextMark[];
   badgeStyle?: BoxTextStyle;
   linkTitle?: string;
+  titleMarks?: TextMark[];
   company?: string;
+  companyMarks?: TextMark[];
   headline?: string;
   subline?: string;
+  body?: string;
   bodyText?: string;
   bodyMarks?: TextMark[];
   titleStyle?: BoxTextStyle;
@@ -85,6 +92,8 @@ type Payload = {
   companyLogo?: string;
   companyLogoBase64?: string;
   link?: string;
+  linkUrl?: string | string[];
+  linkUrls?: string[];
   canvasPreset?: CanvasPreset;
 };
 
@@ -127,11 +136,15 @@ export default function PdfRenderClient() {
       frameSlots: payload.frameSlots,
       mediaBox: payload.mediaBox,
       badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
-      linkTitle: payload.linkTitle ?? "",
+      badgeMarks: payload.badgeMarks ?? [],
+      linkTitle: payload.linkTitle ?? payload.title ?? "",
+      titleMarks: payload.titleMarks ?? [],
       company: payload.company ?? "",
-      bodyText: payload.bodyText ?? "",
+      companyMarks: payload.companyMarks ?? [],
+      bodyText: payload.bodyText ?? payload.body ?? "",
       bodyMarks: payload.bodyMarks ?? [],
-      linkUrl: payload.link?.trim() ? payload.link : undefined,
+      linkUrl: payload.linkUrl ?? (payload.link?.trim() ? payload.link : undefined),
+      linkUrls: payload.linkUrls,
       headline: payload.headline?.trim() ? payload.headline.trim() : undefined,
       subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
       companyLogo: payload.companyLogoBase64 ?? payload.companyLogo ?? "/logo.png",
