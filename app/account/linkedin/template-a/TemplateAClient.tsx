@@ -10,6 +10,7 @@ import {
   useState,
   type RefObject,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
 import TextToolbar from "@/app/components/templates/linkedin-shared/TextToolbar";
@@ -168,41 +169,6 @@ function applyOnSelectionOrWord(
 ) {
   const {start, end} = expandSelectionToWord(text, selStart, selEnd);
   return applyOnSelection(text, start, end, transform);
-}
-
-function applyOnLines(
-  text: string,
-  selStart: number,
-  selEnd: number,
-  perLine: (line: string, idx: number, nonEmptyIdx: number) => string
-) {
-  const start = clamp(Math.min(selStart, selEnd), 0, text.length);
-  const end = clamp(Math.max(selStart, selEnd), 0, text.length);
-
-  const {lineStart, lineEnd} = getSelectedLineBlock(text, start, end);
-
-  const block = text.slice(lineStart, lineEnd);
-  const lines = block.split("\n");
-  let nonEmptyIdx = 0;
-  const replacedLines = lines.map((ln, i) => {
-    if (!ln.trim()) return perLine(ln, i, nonEmptyIdx);
-    const replaced = perLine(ln, i, nonEmptyIdx);
-    nonEmptyIdx += 1;
-    return replaced;
-  });
-  const replacedBlock = replacedLines.join("\n");
-
-  const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-  const nextSelStart = lineStart;
-  const nextSelEnd = lineStart + replacedBlock.length;
-
-  return {
-    next,
-    nextSelStart,
-    nextSelEnd,
-    replaceStart: lineStart,
-    replaceEnd: lineEnd,
-  };
 }
 
 function getSelectedLineBlock(text: string, start: number, end: number) {
@@ -367,9 +333,32 @@ type SelectableId =
   | "headline"
   | "subline";
 
+const PREVIEW_TEXT_SELECTABLE_IDS = new Set<SelectableId>([
+  "title",
+  "body",
+  "badge",
+  "company",
+]);
+
+const PREVIEW_SELECTABLE_IDS = new Set<SelectableId>([
+  ...PREVIEW_TEXT_SELECTABLE_IDS,
+  "productImage",
+  "frameSlot",
+]);
+
+function isPreviewTextSelectableId(id: SelectableId | null): id is "title" | "body" | "badge" | "company" {
+  return id !== null && PREVIEW_TEXT_SELECTABLE_IDS.has(id);
+}
+
+function isPreviewSelectableId(id: string): id is SelectableId {
+  return PREVIEW_SELECTABLE_IDS.has(id as SelectableId);
+}
+
 type EditorTextField = "title" | "body" | "badge" | "company" | "caption";
 
 type EditField = Exclude<EditorTextField, "caption"> | null;
+
+type RichEditField = "title" | "body" | "company" | "badge";
 
 type DragMode =
   | "frame-swap"
@@ -666,6 +655,16 @@ export default function TemplateAClient({
 
   const [editField, setEditField] = useState<EditField>(null);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
+  const titleEditRef = useRef<HTMLDivElement | null>(null);
+  const bodyEditRef = useRef<HTMLDivElement | null>(null);
+  const companyEditRef = useRef<HTMLDivElement | null>(null);
+  const badgeEditRef = useRef<HTMLDivElement | null>(null);
+  const richEditSelectionRef = useRef<Record<RichEditField, { start: number; end: number }>>({
+    title: { start: 0, end: 0 },
+    body: { start: 0, end: 0 },
+    company: { start: 0, end: 0 },
+    badge: { start: 0, end: 0 },
+  });
   const [editStyle, setEditStyle] = useState<CSSProperties>({});
 
   const [mediaBox, setMediaBox] = useState<MediaBox>({
@@ -821,6 +820,14 @@ export default function TemplateAClient({
       highlight: false,
     },
   });
+  const [pendingTextStyles, setPendingTextStyles] = useState<Record<EditorTextField, RichStyle>>({
+    badge: {},
+    title: {},
+    company: {},
+    body: {},
+    caption: {},
+  });
+  const pendingTextStylesRef = useRef(pendingTextStyles);
 
   const [productImage, setProductImage] = useState<string>("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
@@ -1380,6 +1387,15 @@ export default function TemplateAClient({
     return new DOMRect(x, y, w, h);
   }
 
+  function remeasureBadgeSelection() {
+    const stage = stageRef.current;
+    const badgeTextEl = stage?.querySelector('[data-select="badge"]') as HTMLElement | null;
+    if (!badgeTextEl) return;
+
+    const rect = computeRectRelativeToStage(badgeTextEl);
+    if (rect) setSelectedRect(rect);
+  }
+
   function clientPointToStage(clientX: number, clientY: number) {
     const stage = stageRef.current;
     if (!stage) return null;
@@ -1402,15 +1418,38 @@ export default function TemplateAClient({
     return null;
   }
 
+  function getBadgeTextTargetAtPoint(clientX: number, clientY: number) {
+    if (!badgeText.trim()) return null;
+
+    const stage = stageRef.current;
+    const badgeTextEl = stage?.querySelector('[data-select="badge"]') as HTMLElement | null;
+    if (!badgeTextEl) return null;
+
+    const rect = badgeTextEl.getBoundingClientRect();
+    const isInside =
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom;
+
+    return isInside ? badgeTextEl : null;
+  }
+
   function onCanvasClick(e: React.MouseEvent) {
-    const t = getSelectableTarget(e.target);
+    const t = getBadgeTextTargetAtPoint(e.clientX, e.clientY) ?? getSelectableTarget(e.target);
 
     if (!t) {
       clearSelection();
       return;
     }
 
-    const id = (t.getAttribute("data-select") || "") as SelectableId;
+    const rawId = t.getAttribute("data-select") || "";
+    if (!isPreviewSelectableId(rawId)) {
+      clearSelection();
+      return;
+    }
+
+    const id = rawId;
     setSelectedId(id);
 
     if (id === "productImage") {
@@ -1440,7 +1479,18 @@ export default function TemplateAClient({
     if (editField && id !== editField) setEditField(null);
   }
 
-  function startEdit(field: Exclude<EditField, null>, targetEl: HTMLElement) {
+  function isRichEditField(field: EditorTextField | EditField | null): field is RichEditField {
+    return field === "body" || field === "title" || field === "company" || field === "badge";
+  }
+
+  function getRichEditText(field: RichEditField) {
+    if (field === "title") return title;
+    if (field === "company") return company;
+    if (field === "badge") return badgeText;
+    return body;
+  }
+
+  function startRichTextEdit(field: RichEditField, targetEl: HTMLElement) {
     setEditField(field);
     setActiveField(field);
     setSelectedId(field);
@@ -1474,22 +1524,18 @@ export default function TemplateAClient({
   }
 
   function onCanvasDoubleClick(e: React.MouseEvent) {
-    const t = getSelectableTarget(e.target);
+    const t = getBadgeTextTargetAtPoint(e.clientX, e.clientY) ?? getSelectableTarget(e.target);
     if (!t) return;
 
     const id = (t.getAttribute("data-select") || "") as SelectableId;
     if (id !== "title" && id !== "body" && id !== "badge" && id !== "company") return;
 
-    if (id === "badge") {
-      setEditField(null);
-      setSelectedId("badge");
-      setSelectedRect(computeRectRelativeToStage(t));
-      setSelectedImageId(null);
-      setSelectedFrameSlotId(null);
+    if (!isRichEditField(id)) {
+      selectCanvasField(id, t);
       return;
     }
 
-    startEdit(id, t);
+    startRichTextEdit(id, t);
   }
 
   function selectCanvasField(
@@ -1507,17 +1553,26 @@ export default function TemplateAClient({
     field: "title" | "body" | "badge" | "company",
     targetEl: HTMLElement
   ) {
-    if (field === "badge") {
+    if (!isRichEditField(field)) {
       setEditField(null);
       selectCanvasField(field, targetEl);
       return;
     }
-    startEdit(field, targetEl);
+    startRichTextEdit(field, targetEl);
   }
 
     useEffect(() => {
       if (!editField) return;
       requestAnimationFrame(() => {
+        if (isRichEditField(editField)) {
+          const text = getRichEditText(editField);
+          const next = { start: text.length, end: text.length };
+          richEditSelectionRef.current[editField] = next;
+          const root = getRichEditRoot(editField);
+          root?.focus();
+          restoreContentEditableSelection(root, next);
+          return;
+        }
         editRef.current?.focus();
         const v = editRef.current?.value ?? "";
         editRef.current?.setSelectionRange(v.length, v.length);
@@ -1528,10 +1583,20 @@ export default function TemplateAClient({
       setEditField(null);
     }
 
-    function onEditKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    function onEditKeyDown(e: React.KeyboardEvent<HTMLElement>) {
       if (e.key === "Escape") {
         e.preventDefault();
         setEditField(null);
+        return;
+      }
+
+      if (editField === "badge" && e.key === "Enter") {
+        e.preventDefault();
+        return;
+      }
+
+      if (editField === "body" && e.currentTarget instanceof HTMLTextAreaElement) {
+        handleNumberedListEnter("body", e);
       }
     }
 
@@ -1967,6 +2032,163 @@ export default function TemplateAClient({
       }
     }
 
+    function getNodeTextLength(node: Node | null) {
+      return node?.textContent?.length ?? 0;
+    }
+
+    function getRichEditRoot(field: RichEditField) {
+      if (field === "title") return titleEditRef.current;
+      if (field === "company") return companyEditRef.current;
+      if (field === "badge") return badgeEditRef.current;
+      return bodyEditRef.current;
+    }
+
+    function getRichEditMarks(field: RichEditField) {
+      if (field === "title") return titleMarks;
+      if (field === "company") return companyMarks;
+      if (field === "badge") return badgeMarks;
+      return bodyMarks;
+    }
+
+    function getContentEditableOffset(root: HTMLElement, node: Node, offset: number) {
+      let total = 0;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+      while (walker.nextNode()) {
+        const current = walker.currentNode;
+        if (current === node) {
+          return total + Math.min(offset, getNodeTextLength(current));
+        }
+        total += getNodeTextLength(current);
+      }
+
+      if (node === root) {
+        return Array.from(root.childNodes)
+          .slice(0, offset)
+          .reduce((sum, child) => sum + getNodeTextLength(child), 0);
+      }
+
+      return total;
+    }
+
+    function readContentEditableSelection(field: RichEditField, root: HTMLElement | null) {
+      const selection = window.getSelection();
+      if (!root || !selection || selection.rangeCount === 0) {
+        return richEditSelectionRef.current[field];
+      }
+
+      const range = selection.getRangeAt(0);
+      if (
+        !root.contains(range.startContainer) ||
+        !root.contains(range.endContainer)
+      ) {
+        return richEditSelectionRef.current[field];
+      }
+
+      const start = getContentEditableOffset(root, range.startContainer, range.startOffset);
+      const end = getContentEditableOffset(root, range.endContainer, range.endOffset);
+      const next = { start: Math.min(start, end), end: Math.max(start, end) };
+      richEditSelectionRef.current[field] = next;
+      return next;
+    }
+
+    function findContentEditablePosition(root: HTMLElement, target: number) {
+      let remaining = Math.max(0, target);
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+      while (walker.nextNode()) {
+        const current = walker.currentNode;
+        const length = getNodeTextLength(current);
+        if (remaining <= length) {
+          return { node: current, offset: remaining };
+        }
+        remaining -= length;
+      }
+
+      return { node: root, offset: root.childNodes.length };
+    }
+
+    function restoreContentEditableSelection(
+      root: HTMLElement | null,
+      range: { start: number; end: number }
+    ) {
+      if (!root) return;
+      const selection = window.getSelection();
+      if (!selection) return;
+
+      const start = findContentEditablePosition(root, range.start);
+      const end = findContentEditablePosition(root, range.end);
+      const domRange = document.createRange();
+      domRange.setStart(start.node, start.offset);
+      domRange.setEnd(end.node, end.offset);
+      selection.removeAllRanges();
+      selection.addRange(domRange);
+    }
+
+    function getContentEditablePlainText(root: HTMLElement) {
+      return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
+    }
+
+    function handleRichEditableInput(field: RichEditField) {
+      const root = getRichEditRoot(field);
+      if (!root) return;
+
+      const selection = readContentEditableSelection(field, root);
+      handleTextChange(field, getContentEditablePlainText(root), selection.end);
+      requestAnimationFrame(() => {
+        if (field === "badge") remeasureBadgeSelection();
+        richEditSelectionRef.current[field] = selection;
+        restoreContentEditableSelection(getRichEditRoot(field), selection);
+      });
+    }
+
+    function renderEditableMarkedText(text: string, marks?: TextMark[]) {
+      const t = String(text ?? "");
+      if (!marks || marks.length === 0) return t || "\u00A0";
+
+      const safeMarks = marks
+        .map((m) => ({
+          start: Math.max(0, Math.min(m.start, t.length)),
+          end: Math.max(0, Math.min(m.end, t.length)),
+          style: m.style ?? {},
+        }))
+        .filter((m) => m.end > m.start)
+        .sort((a, b) => a.start - b.start);
+
+      const out: ReactNode[] = [];
+      let pos = 0;
+
+      for (let i = 0; i < safeMarks.length; i += 1) {
+        const mark = safeMarks[i];
+        if (mark.start > pos) {
+          out.push(<span key={`t-${pos}`}>{t.slice(pos, mark.start)}</span>);
+        }
+
+        out.push(
+          <span
+            key={`m-${mark.start}-${mark.end}-${i}`}
+            style={{
+              fontFamily: mark.style.fontFamily,
+              fontSize: mark.style.fontSize,
+              color: mark.style.color,
+              fontWeight: mark.style.fontWeight,
+              fontStyle: mark.style.fontStyle,
+              background: mark.style.highlight ? "rgba(250,204,21,0.18)" : undefined,
+            }}
+          >
+            {t.slice(mark.start, mark.end)}
+          </span>
+        );
+        pos = mark.end;
+      }
+
+      if (pos < t.length) {
+        out.push(<span key={`t-${pos}-end`}>{t.slice(pos)}</span>);
+      }
+
+      return out.length ? out : "\u00A0";
+    }
+
     function getEditorFieldControl(
         field: EditorTextField = editField ?? activeField
     ): {
@@ -1976,7 +2198,7 @@ export default function TemplateAClient({
     } {
       const refForField = <T extends HTMLInputElement | HTMLTextAreaElement>(
         fieldRef: RefObject<T | null>
-      ) => (field === editField ? editRef : fieldRef);
+      ) => (field === editField && !isRichEditField(field) ? editRef : fieldRef);
 
       switch (field) {
         case "badge":
@@ -1991,6 +2213,130 @@ export default function TemplateAClient({
         default:
           return {text: caption, setText: setCaption, ref: captionRef};
       }
+    }
+
+    function setFieldTextRaw(field: EditorTextField, value: string) {
+      switch (field) {
+        case "badge":
+          setBadgeText(value);
+          return;
+        case "title":
+          setTitle(value);
+          return;
+        case "company":
+          setCompany(value);
+          return;
+        case "body":
+          _setBody(value);
+          return;
+        case "caption":
+        default:
+          _setCaption(value);
+      }
+    }
+
+    function getTextChangeRange(prev: string, next: string) {
+      let start = 0;
+      while (
+          start < prev.length &&
+          start < next.length &&
+          prev[start] === next[start]
+      ) {
+        start += 1;
+      }
+
+      let prevEnd = prev.length;
+      let nextEnd = next.length;
+      while (
+          prevEnd > start &&
+          nextEnd > start &&
+          prev[prevEnd - 1] === next[nextEnd - 1]
+      ) {
+        prevEnd -= 1;
+        nextEnd -= 1;
+      }
+
+      return {start, prevEnd, nextEnd};
+    }
+
+    function togglePendingStyle(
+        field: EditorTextField,
+        mode: "toggleHighlight" | "toggleBold" | "toggleItalic"
+    ) {
+      setPendingTextStyles((prev) => {
+        const current = prev[field] ?? {};
+        let next: RichStyle = current;
+
+        if (mode === "toggleHighlight") {
+          next = current.highlight
+              ? {...current, highlight: undefined}
+              : {...current, highlight: true};
+        } else if (mode === "toggleBold") {
+          const isBold =
+              current.fontWeight === 800 ||
+              current.fontWeight === "800" ||
+              current.fontWeight === "bold";
+          next = isBold
+              ? {...current, fontWeight: undefined}
+              : {...current, fontWeight: 800};
+        } else {
+          next = current.fontStyle === "italic"
+              ? {...current, fontStyle: undefined}
+              : {...current, fontStyle: "italic"};
+        }
+
+        const updated = {...prev, [field]: cleanStyle(next)};
+        pendingTextStylesRef.current = updated;
+        return updated;
+      });
+    }
+
+    function setPendingStyle(field: EditorTextField, patch: RichStyle) {
+      setPendingTextStyles((prev) => {
+        const updated = {
+          ...prev,
+          [field]: cleanStyle({...prev[field], ...patch}),
+        };
+        pendingTextStylesRef.current = updated;
+        return updated;
+      });
+    }
+
+    function handleTextChange(
+        field: EditorTextField,
+        next: string,
+        selectionStart: number | null
+    ) {
+      const {text} = getEditorFieldControl(field);
+      if (next === text) return;
+
+      const {start, prevEnd, nextEnd} = getTextChangeRange(text, next);
+      const insertedLength = Math.max(0, nextEnd - start);
+      const delta = next.length - text.length;
+      const pendingStyle = cleanStyle(pendingTextStylesRef.current[field] ?? {});
+
+      setFieldTextRaw(field, next);
+
+      const {setMarks} = getActiveMarksState(field);
+      setMarks((prevMarks) => {
+        const shifted = shiftMarksAfterTextChange(prevMarks, start, prevEnd, delta);
+        return insertedLength > 0 && hasStyle(pendingStyle)
+            ? mergeMarks([
+              ...shifted,
+              {
+                start,
+                end: start + insertedLength,
+                style: pendingStyle,
+              },
+            ])
+            : shifted;
+      });
+
+      requestAnimationFrame(() => {
+        const node = getEditorFieldControl(field).ref.current;
+        if (!node || selectionStart == null) return;
+        node.setSelectionRange(selectionStart, selectionStart);
+      });
     }
 
     function withActiveSelection(
@@ -2302,50 +2648,93 @@ export default function TemplateAClient({
         patch: RichStyle,
         mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set"
     ) {
-      let applied = false;
-      withActiveSelection((text, s0, e0) => {
-        const wordRange = expandSelectionToWord(text, s0, e0);
-        const {s, e} = clampRange(wordRange.start, wordRange.end, text.length);
-        if (s === e) return {next: text, nextSelStart: s, nextSelEnd: e};
+      const field: EditorTextField = isRichEditField(editField) ? editField : activeField;
+      const {text, ref} = getEditorFieldControl(field);
+      const editableSelection =
+        isRichEditField(editField)
+          ? readContentEditableSelection(editField, getRichEditRoot(editField))
+          : null;
+      const el = ref.current;
+      const rawStart = editableSelection?.start ?? el?.selectionStart ?? 0;
+      const rawEnd = editableSelection?.end ?? el?.selectionEnd ?? rawStart;
+      const {s, e} = clampRange(rawStart, rawEnd, text.length);
+      const restoreSelection = () => {
+        requestAnimationFrame(() => {
+          if (isRichEditField(editField)) {
+            const range = { start: s, end: e };
+            richEditSelectionRef.current[editField] = range;
+            const root = getRichEditRoot(editField);
+            root?.focus();
+            restoreContentEditableSelection(root, range);
+            return;
+          }
+          const node = ref.current;
+          if (!node) return;
+          node.focus();
+          node.setSelectionRange(s, e);
+        });
+      };
 
-        const {setMarks, marks} = getActiveMarksState();
-        applied = true;
-
-        const range = {start: s, end: e};
-        if (mode === "toggleHighlight") {
-          setMarks(toggleStyleMarks(
-              marks,
-              range,
-              (style) => style.highlight === true,
-              {highlight: true},
-              {highlight: undefined}
-          ));
-        } else if (mode === "toggleBold") {
-          setMarks(toggleStyleMarks(
-              marks,
-              range,
-              (style) => style.fontWeight === 800 || style.fontWeight === "800" || style.fontWeight === "bold",
-              {fontWeight: 800},
-              {fontWeight: undefined}
-          ));
-        } else if (mode === "toggleItalic") {
-          setMarks(toggleStyleMarks(
-              marks,
-              range,
-              (style) => style.fontStyle === "italic",
-              {fontStyle: "italic"},
-              {fontStyle: undefined}
-          ));
+      if (s === e) {
+        if (mode === "set") {
+          setPendingStyle(field, patch);
         } else {
-          setMarks(applyStyleToMarks(marks, range, patch));
+          togglePendingStyle(field, mode);
         }
-
-        return {next: text, nextSelStart: s, nextSelEnd: e};
-      });
-
-      if (applied && editField) {
-        setEditField(null);
+        restoreSelection();
+        return;
       }
+
+      const {setMarks, marks} = getActiveMarksState(field);
+      const range = {start: s, end: e};
+      if (mode === "toggleHighlight") {
+        const shouldRemove = selectionHasEveryStyle(
+            marks,
+            range,
+            (style) => style.highlight === true
+        );
+        setMarks(toggleStyleMarks(
+            marks,
+            range,
+            (style) => style.highlight === true,
+            {highlight: true},
+            {highlight: undefined}
+        ));
+        setPendingStyle(field, {highlight: shouldRemove ? undefined : true});
+      } else if (mode === "toggleBold") {
+        const isBold = (style: RichStyle) =>
+            style.fontWeight === 800 ||
+            style.fontWeight === "800" ||
+            style.fontWeight === "bold";
+        const shouldRemove = selectionHasEveryStyle(marks, range, isBold);
+        setMarks(toggleStyleMarks(
+            marks,
+            range,
+            isBold,
+            {fontWeight: 800},
+            {fontWeight: undefined}
+        ));
+        setPendingStyle(field, {fontWeight: shouldRemove ? undefined : 800});
+      } else if (mode === "toggleItalic") {
+        const shouldRemove = selectionHasEveryStyle(
+            marks,
+            range,
+            (style) => style.fontStyle === "italic"
+        );
+        setMarks(toggleStyleMarks(
+            marks,
+            range,
+            (style) => style.fontStyle === "italic",
+            {fontStyle: "italic"},
+            {fontStyle: undefined}
+        ));
+        setPendingStyle(field, {fontStyle: shouldRemove ? undefined : "italic"});
+      } else {
+        setMarks(applyStyleToMarks(marks, range, patch));
+        setPendingStyle(field, patch);
+      }
+
+      restoreSelection();
     }
 
     function applySelectionStyleForField(
@@ -2405,18 +2794,62 @@ export default function TemplateAClient({
     }
 
     function applyBullet() {
-      withActiveSelection((text, s, e) =>
-          applyOnLines(text, s, e, (line) => {
-            const trimmed = line.trim();
-            if (!trimmed) return line;
-            const indent = line.match(/^\s*/)?.[0] ?? "";
-            const content = line.slice(indent.length);
-            if (/^\u2022\s+/.test(content)) {
-              return `${indent}${content.replace(/^\u2022\s+/, "")}`;
-            }
-            return `${indent}\u2022 ${content.replace(/^\d+\.\s+/, "")}`;
-          })
-      );
+      const {text, setText, ref} = getEditorFieldControl();
+      const el = ref.current;
+      if (!el) return;
+
+      const s = el.selectionStart ?? 0;
+      const e = el.selectionEnd ?? 0;
+      const {lineStart, lineEnd} = getSelectedLineBlock(text, s, e);
+      const block = text.slice(lineStart, lineEnd);
+      const lines = block.split("\n");
+      const contentLines = lines.filter((line) => line.trim());
+      const removeBullets =
+          contentLines.length > 0 &&
+          contentLines.every((line) => /^\s*\u2022\s+/.test(line));
+
+      let offset = lineStart;
+      const changes: LinePrefixChange[] = [];
+
+      const replacedLines = lines.map((line) => {
+        const oldLineStart = offset;
+        const oldLineEnd = oldLineStart + line.length;
+        offset = oldLineEnd + 1;
+
+        const trimmed = line.trim();
+        if (!trimmed) return line;
+
+        const indent = line.match(/^\s*/)?.[0] ?? "";
+        const contentWithMarker = line.slice(indent.length);
+        const oldMarker = contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
+        const content = contentWithMarker.slice(oldMarker.length);
+        const newMarker = removeBullets ? "" : "\u2022 ";
+
+        changes.push({
+          oldLineStart: oldLineStart + indent.length,
+          oldLineEnd,
+          oldPrefixLength: oldMarker.length,
+          newPrefixLength: newMarker.length,
+        });
+
+        return `${indent}${newMarker}${content}`;
+      });
+
+      const replacedBlock = replacedLines.join("\n");
+      const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
+
+      if (next !== text) {
+        setText(next);
+        const {marks, setMarks} = getActiveMarksState();
+        setMarks(remapMarksForLinePrefixChanges(marks, changes));
+      }
+
+      requestAnimationFrame(() => {
+        const node = ref.current;
+        if (!node) return;
+        node.focus();
+        node.setSelectionRange(lineStart, lineStart + replacedBlock.length);
+      });
     }
 
     function applyNumbered() {
@@ -2464,9 +2897,9 @@ export default function TemplateAClient({
 
       const replacedBlock = replacedLines.join("\n");
       const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-      setText(next);
 
       if (next !== text) {
+        setText(next);
         const {marks, setMarks} = getActiveMarksState();
         setMarks(remapMarksForLinePrefixChanges(marks, changes));
       }
@@ -2479,10 +2912,102 @@ export default function TemplateAClient({
       });
     }
 
+    function handleNumberedListEnter(
+        field: "body" | "caption",
+        e: React.KeyboardEvent<HTMLElement>
+    ) {
+      if (
+          e.key !== "Enter" ||
+          e.shiftKey ||
+          e.altKey ||
+          e.ctrlKey ||
+          e.metaKey
+      ) {
+        return;
+      }
+
+      const {text, setText, ref} = getEditorFieldControl(field);
+      const el = ref.current as HTMLTextAreaElement | null;
+      if (!el) return;
+
+      const s = el.selectionStart ?? 0;
+      const selectionEnd = el.selectionEnd ?? s;
+      const lineStart = text.lastIndexOf("\n", Math.max(0, s - 1)) + 1;
+      const nextLineBreak = text.indexOf("\n", s);
+      const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak;
+      const line = text.slice(lineStart, lineEnd);
+      const match = line.match(/^(\s*)(\d+)\.\s(.*)$/);
+      if (!match) return;
+
+      e.preventDefault();
+      setActiveField(field);
+
+      const indent = match[1];
+      const currentNumber = Number(match[2]);
+      const marker = `${match[2]}. `;
+      const content = match[3];
+      const markerStart = lineStart + indent.length;
+      const markerEnd = markerStart + marker.length;
+
+      if (!content.trim()) {
+        const next = text.slice(0, markerStart) + text.slice(markerEnd);
+        if (next !== text) {
+          setText(next);
+          const {marks, setMarks} = getActiveMarksState(field);
+          setMarks(
+              remapMarksForLinePrefixChanges(marks, [
+                {
+                  oldLineStart: markerStart,
+                  oldLineEnd: lineEnd,
+                  oldPrefixLength: marker.length,
+                  newPrefixLength: 0,
+                },
+              ])
+          );
+        }
+
+        requestAnimationFrame(() => {
+          const node = ref.current;
+          if (!node) return;
+          node.focus();
+          node.setSelectionRange(markerStart, markerStart);
+        });
+        return;
+      }
+
+      const insert = `\n${indent}${currentNumber + 1}. `;
+      const next = text.slice(0, s) + insert + text.slice(selectionEnd);
+      setText(next);
+
+      const {marks, setMarks} = getActiveMarksState(field);
+      setMarks(
+          shiftMarksAfterTextChange(
+              marks,
+              s,
+              selectionEnd,
+              insert.length - (selectionEnd - s)
+          )
+      );
+
+      requestAnimationFrame(() => {
+        const node = ref.current;
+        if (!node) return;
+        const nextPos = s + insert.length;
+        node.focus();
+        node.setSelectionRange(nextPos, nextPos);
+      });
+    }
+
     function applyHashtag() {
       withActiveSelection((text, s, e) => {
         const result = applyOnSelectionOrWord(text, s, e, (selected) => {
             if (!selected.trim()) return selected;
+            if (/^#\S+$/.test(selected.trim())) {
+              const leading = selected.match(/^\s*/)?.[0] ?? "";
+              const trailing = selected.match(/\s*$/)?.[0] ?? "";
+              const inner = selected.trim().replace(/^#+/, "");
+              return `${leading}${inner}${trailing}`;
+            }
             const tag = toHashtag(selected);
             return tag || selected;
         });
@@ -2843,7 +3368,7 @@ export default function TemplateAClient({
         a.click();
         a.remove();
 
-        URL.revokeObjectURL(url);
+        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
         setSuccessMsg("PDF is created successfully.");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : "PDF is not created";
@@ -3180,21 +3705,24 @@ export default function TemplateAClient({
 
                         {selectedRect ? (
                           <div
+                            className={`editor-canvasSelection ${
+                              isPreviewTextSelectableId(selectedId)
+                                ? "editor-canvasSelection--text"
+                                : "editor-canvasSelection--media"
+                            }`}
+                            data-active-element={selectedId ?? undefined}
                             style={{
                               position: "absolute",
                               left: selectedRect.x,
                               top: selectedRect.y,
                               width: selectedRect.width,
                               height: selectedRect.height,
-                              border: "2px solid rgba(59,130,246,0.95)",
-                              borderRadius: 10,
                               pointerEvents:
                                 (selectedId === "productImage" || selectedId === "frameSlot") &&
                                 !editField
                                   ? "auto"
                                   : "none",
                               boxSizing: "border-box",
-                              boxShadow: "0 0 0 2px rgba(59,130,246,0.12)",
                               cursor:
                                 selectedId === "productImage"
                                   ? imageLayout === "frame"
@@ -3345,55 +3873,67 @@ export default function TemplateAClient({
                           </div>
                         ) : null}
 
-                        {editField && selectedRect ? (
-                          <textarea
-                            ref={editRef}
-                            value={
+                        {isRichEditField(editField) && selectedRect ? (
+                          <div
+                            ref={
                               editField === "title"
-                                ? title
+                                ? titleEditRef
                                 : editField === "badge"
-                                ? badgeText
+                                ? badgeEditRef
                                 : editField === "company"
-                                ? company
-                                : body
+                                ? companyEditRef
+                                : bodyEditRef
                             }
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (editField === "title") setTitleValue(v);
-                              else if (editField === "badge") setBadgeTextValue(v);
-                              else if (editField === "company") setCompanyValue(v);
-                              else setBody(v);
-                            }}
+                            contentEditable
+                            suppressContentEditableWarning
+                            role="textbox"
+                            aria-multiline={editField === "badge" ? false : true}
+                            tabIndex={0}
+                            onInput={() => handleRichEditableInput(editField)}
                             onBlur={onEditBlur}
                             onKeyDown={onEditKeyDown}
+                            onKeyUp={() => readContentEditableSelection(editField, getRichEditRoot(editField))}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onMouseUp={() => readContentEditableSelection(editField, getRichEditRoot(editField))}
+                            onClick={(e) => e.stopPropagation()}
+                            onDoubleClick={(e) => e.stopPropagation()}
                             spellCheck={false}
                             style={{
                               position: "absolute",
                               left: selectedRect.x,
                               top: selectedRect.y,
                               width: selectedRect.width,
-                              height: Math.max(
-                                selectedRect.height,
-                                editField === "body"
-                                  ? 140
-                                  : editField === "badge"
-                                  ? 48
-                                  : editField === "company"
-                                  ? 40
-                                  : 60
-                              ),
+                              height:
+                                editField === "badge"
+                                  ? selectedRect.height
+                                  : Math.max(selectedRect.height, 140),
                               border: "1px dashed rgba(59,130,246,0.85)",
                               outline: "none",
                               resize: "none",
-                              overflow: "auto",
-                              padding: "6px 8px",
+                              overflow: editField === "badge" ? "visible" : "auto",
+                              padding: editField === "badge" ? "0" : "6px 8px",
                               caretColor: "#111",
-                              whiteSpace: "pre-wrap",
+                              whiteSpace: editField === "badge" ? "nowrap" : "pre-wrap",
+                              wordBreak: editField === "badge" ? "normal" : "break-word",
                               boxSizing: "border-box",
                               zIndex: 10000,
                               ...editStyle,
+                              ...(editField === "badge"
+                                ? {
+                                    background: "transparent",
+                                    backgroundColor: "transparent",
+                                    minHeight: selectedRect.height,
+                                    lineHeight: editStyle.lineHeight,
+                                  }
+                                : null),
                             }}
-                          />
+                          >
+                            {renderEditableMarkedText(
+                              getRichEditText(editField),
+                              getRichEditMarks(editField)
+                            )}
+                          </div>
                         ) : null}
                         </div>
                       </div>
@@ -3412,6 +3952,7 @@ export default function TemplateAClient({
                     activeField={activeField}
                     copied={copied}
                     applyUnicodeStyle={applyUnicodeStyle}
+                    applyBullet={applyBullet}
                     applyNumbered={applyNumbered}
                     applyHashtag={applyHashtag}
                     copyActive={copyCaption}
@@ -3460,6 +4001,8 @@ export default function TemplateAClient({
                     linkInput={linkInput}
                     setLinkInput={setLinkInput}
                     handleAddLink={handleAddLink}
+                    onTextChange={handleTextChange}
+                    onTextKeyDown={handleNumberedListEnter}
                     company={company}
                     setCompany={setCompanyValue}
                     companyRef={companyRef}

@@ -10,16 +10,23 @@ type Payload = {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getPuppeteerLaunchOptions() {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+
+  return {
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    ...(executablePath ? { executablePath } : {}),
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const data = (await req.json()) as Payload;
     const frame = getCanvasFrame(data.canvasPreset);
     const renderUrl = absUrl(req, "/pdf-render");
 
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-    });
+    const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
     try {
       const page = await browser.newPage();

@@ -36,7 +36,7 @@ export default function TemplatePreviewPage() {
       a.href = url;
       a.download = "linkedin-template.pdf";
       a.click();
-      URL.revokeObjectURL(url);
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
     } finally {
       setLoading(false);
     }

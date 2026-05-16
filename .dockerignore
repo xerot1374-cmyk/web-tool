@@ -10,3 +10,9 @@ yarn-error.log*
 .env.*
 coverage
 *.tsbuildinfo
+Dockerfile
+docker-compose*.yml
+README.md
+COMPANY_HANDOFF.md
+tests
+*.log

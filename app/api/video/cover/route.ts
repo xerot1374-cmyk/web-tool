@@ -29,6 +29,16 @@ type Payload = {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function getPuppeteerLaunchOptions() {
+  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
+
+  return {
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    ...(executablePath ? { executablePath } : {}),
+  };
+}
+
 function normalizeHttpUrl(raw?: string): string | undefined {
   const v = raw?.trim();
   if (!v) return undefined;
@@ -156,10 +166,7 @@ function renderCoverHtml(req: Request, data: Payload) {
 async function screenshotCoverPng(req: Request, data: Payload, outPngPath: string) {
   const puppeteer = (await import("puppeteer")).default;
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
-  });
+  const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
   try {
     const page = await browser.newPage();

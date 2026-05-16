@@ -143,20 +143,18 @@ function safeScale(scale?: number) {
   return Number.isFinite(scale) && (scale as number) > 0 ? (scale as number) : 1;
 }
 
-function linkLabel(linkUrl: string) {
-  try {
-    const u = new URL(linkUrl);
-    return u.host.replace(/^www\./, "");
-  } catch {
-    return linkUrl;
-  }
-}
-
 function normalizeHttpUrl(raw: string) {
   const value = raw.trim();
   if (!value) return "";
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  if (/^https?:\/\//i.test(value)) return value;
   return `https://${value}`;
+}
+
+function linkLabel(linkUrl: string) {
+  const value = normalizeHttpUrl(linkUrl);
+  const withoutProtocol = value.replace(/^https?:\/\//i, "");
+  const host = withoutProtocol.split(/[/?#]/)[0];
+  return (host || linkUrl.trim()).replace(/^www\./i, "");
 }
 
 function cx(...parts: Array<string | false | null | undefined>) {
@@ -586,9 +584,6 @@ export default function LinkedInTemplate2Renderer({
 
           <div
             className="li2-badge"
-            data-select="badge"
-            onClick={(event) => onSelectableClick?.("badge", event)}
-            onDoubleClick={(event) => onSelectableDoubleClick?.("badge", event)}
             style={{
               minWidth: 120,
               fontFamily: data.badgeStyle?.fontFamily,
@@ -598,7 +593,14 @@ export default function LinkedInTemplate2Renderer({
               pointerEvents: "auto",
             }}
           >
-            {vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0"}
+            <span
+              data-select="badge"
+              onClick={(event) => onSelectableClick?.("badge", event)}
+              onDoubleClick={(event) => onSelectableDoubleClick?.("badge", event)}
+              style={{ cursor: isEdit ? "pointer" : undefined }}
+            >
+              {vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0"}
+            </span>
           </div>
 
           <div className="li2-userTop">

@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -32,9 +33,14 @@ services:
     build:
       context: .
       target: runner
+    init: true
+    restart: unless-stopped
+    shm_size: "1gb"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/social_media_tool?schema=public
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+      FFMPEG_PATH: /usr/bin/ffmpeg
+      FFPROBE_PATH: /usr/bin/ffprobe
       HOSTNAME: 0.0.0.0
       NODE_ENV: production
       PORT: 3000

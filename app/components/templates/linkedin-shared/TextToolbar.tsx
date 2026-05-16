@@ -14,6 +14,7 @@ type Props = {
   copied: boolean;
 
   applyUnicodeStyle: (style: "bold" | "italic") => void;
+  applyBullet: () => void;
   applyNumbered: () => void;
   applyHashtag: () => void;
   copyActive: () => void;
@@ -55,10 +56,11 @@ const FORMAT_ACTIONS: Array<{
   icon: string;
   title: string;
   variant?: "strong";
-  action: "bold" | "italic" | "numbered" | "hashtag" | "highlight";
+  action: "bold" | "italic" | "bullet" | "numbered" | "hashtag" | "highlight";
 }> = [
   { label: "Bold", icon: "B", title: "Bold selected text", variant: "strong", action: "bold" },
   { label: "Italic", icon: "I", title: "Italicize selected text", variant: "strong", action: "italic" },
+  { label: "Bullet", icon: "\u2022", title: "Toggle bullet list", action: "bullet" },
   { label: "Numbered", icon: "1.", title: "Toggle numbered list", action: "numbered" },
   { label: "Hashtag", icon: "#", title: "Convert selection to hashtag", action: "hashtag" },
   { label: "Highlight", icon: "H", title: "Highlight selected text", action: "highlight" },
@@ -68,6 +70,7 @@ export default function TextToolbar({
   activeField,
   copied,
   applyUnicodeStyle,
+  applyBullet,
   applyNumbered,
   applyHashtag,
   copyActive,
@@ -85,6 +88,7 @@ export default function TextToolbar({
       applyUnicodeStyle(action);
       return;
     }
+    if (action === "bullet") applyBullet();
     if (action === "numbered") applyNumbered();
     if (action === "hashtag") applyHashtag();
     if (action === "highlight") applyHighlightSelection();
@@ -154,6 +158,7 @@ export default function TextToolbar({
               key={color}
               type="button"
               className="tt__swatch"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setActiveTextStyle({ color });
                 applyColorSelection(color);

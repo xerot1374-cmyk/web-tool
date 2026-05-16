@@ -121,6 +121,17 @@
   gap: 18px;
 }
 
+.editor-canvasSelection {
+  border: 2px solid rgba(37, 99, 235, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.editor-canvasSelection--text {
+  outline: 1px solid rgba(255, 255, 255, 0.72);
+  outline-offset: -3px;
+}
+
 .editor-previewHeader {
   display: flex;
   justify-content: space-between;
@@ -244,13 +255,17 @@
 .editor-textarea--richMirror {
   position: relative;
   z-index: 1;
-  background: transparent;
-  color: transparent;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--brand-ink);
   caret-color: var(--brand-ink);
 }
 
+.editor-richTextarea:has(.editor-textarea--richMirror) .editor-richTextarea__mirror {
+  display: none;
+}
+
 .editor-textarea--richMirror::selection {
-  color: transparent;
+  color: var(--brand-ink);
   background: rgba(164, 7, 47, 0.18);
 }
 

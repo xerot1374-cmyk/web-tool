@@ -97,6 +97,52 @@ type Payload = {
   canvasPreset?: CanvasPreset;
 };
 
+const PDF_EMOJI_FONT_FALLBACK =
+  '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
+
+function withPdfEmojiFallback(fontFamily?: string) {
+  const value = fontFamily?.trim();
+  if (!value) return PDF_EMOJI_FONT_FALLBACK;
+  if (/Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji|Segoe UI Symbol/i.test(value)) {
+    return value;
+  }
+  return `${value}, ${PDF_EMOJI_FONT_FALLBACK}`;
+}
+
+function withPdfEmojiStyle<T extends { fontFamily?: string }>(style?: T) {
+  if (!style) return undefined;
+  if (!style.fontFamily?.trim()) return style;
+  return {
+    ...style,
+    fontFamily: withPdfEmojiFallback(style.fontFamily),
+  };
+}
+
+function withPdfEmojiMarks(marks?: TextMark[]) {
+  return (
+    marks?.map((mark) => ({
+      ...mark,
+      style: {
+        ...mark.style,
+        ...(mark.style.fontFamily?.trim()
+          ? { fontFamily: withPdfEmojiFallback(mark.style.fontFamily) }
+          : {}),
+      },
+    })) ?? []
+  );
+}
+
+function resolvePdfImageSrc(src?: string) {
+  const fallback = "/profile.jpg";
+  const value = src?.trim();
+  const normalized = value && value !== "/avatar.png" ? value : fallback;
+
+  if (/^(https?:|data:|blob:)/i.test(normalized)) return normalized;
+  if (typeof window === "undefined") return normalized;
+
+  return new URL(normalized, window.location.origin).toString();
+}
+
 function getPayload(): Payload | null {
   if (typeof window === "undefined") return null;
   return ((window as Window & { __PDF_PAYLOAD__?: Payload }).__PDF_PAYLOAD__ ?? null);
@@ -109,7 +155,7 @@ export default function PdfRenderClient() {
     if (!payload) return null;
 
     return {
-      profileImage: payload.profileImage,
+      profileImage: resolvePdfImageSrc(payload.profileImage),
       name: payload.name || "—",
       role: payload.role || "—",
       productImage: payload.productImageBase64 ?? payload.productImage ?? undefined,
@@ -136,24 +182,24 @@ export default function PdfRenderClient() {
       frameSlots: payload.frameSlots,
       mediaBox: payload.mediaBox,
       badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
-      badgeMarks: payload.badgeMarks ?? [],
+      badgeMarks: withPdfEmojiMarks(payload.badgeMarks),
       linkTitle: payload.linkTitle ?? payload.title ?? "",
-      titleMarks: payload.titleMarks ?? [],
+      titleMarks: withPdfEmojiMarks(payload.titleMarks),
       company: payload.company ?? "",
-      companyMarks: payload.companyMarks ?? [],
+      companyMarks: withPdfEmojiMarks(payload.companyMarks),
       bodyText: payload.bodyText ?? payload.body ?? "",
-      bodyMarks: payload.bodyMarks ?? [],
+      bodyMarks: withPdfEmojiMarks(payload.bodyMarks),
       linkUrl: payload.linkUrl ?? (payload.link?.trim() ? payload.link : undefined),
       linkUrls: payload.linkUrls,
       headline: payload.headline?.trim() ? payload.headline.trim() : undefined,
       subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
       companyLogo: payload.companyLogoBase64 ?? payload.companyLogo ?? "/logo.png",
-      titleStyle: payload.titleStyle,
-      bodyStyle: payload.bodyStyle,
-      badgeStyle: payload.badgeStyle,
-      companyStyle: payload.companyStyle,
-      headlineStyle: payload.headlineStyle,
-      sublineStyle: payload.sublineStyle,
+      titleStyle: withPdfEmojiStyle(payload.titleStyle),
+      bodyStyle: withPdfEmojiStyle(payload.bodyStyle),
+      badgeStyle: withPdfEmojiStyle(payload.badgeStyle),
+      companyStyle: withPdfEmojiStyle(payload.companyStyle),
+      headlineStyle: withPdfEmojiStyle(payload.headlineStyle),
+      sublineStyle: withPdfEmojiStyle(payload.sublineStyle),
       canvasPreset: payload.canvasPreset ?? "linkedin",
     };
   }, [payload]);
@@ -166,12 +212,33 @@ export default function PdfRenderClient() {
 
   return (
     <div
+      className="pdf-emoji-font-scope"
       style={{
         width: frame.w,
         background: "#ffffff",
         overflow: "visible",
       }}
     >
+      <style>
+        {`
+          .pdf-emoji-font-scope .li2-root {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ${PDF_EMOJI_FONT_FALLBACK};
+          }
+
+          nextjs-portal,
+          [data-nextjs-dialog-overlay],
+          [data-nextjs-toast],
+          [data-nextjs-dev-overlay],
+          .li2-overlay,
+          .li2-edit-control,
+          .li2-edit-input,
+          .li2-edit-badge,
+          .li2-edit-badgeInput,
+          .li2-edit-titleInput {
+            display: none !important;
+          }
+        `}
+      </style>
       <LinkedInTemplate2 {...effective} scale={1} mode="preview" />
     </div>
   );

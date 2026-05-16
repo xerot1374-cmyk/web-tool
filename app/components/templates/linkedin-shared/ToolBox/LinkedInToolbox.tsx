@@ -70,6 +70,15 @@ type Props = {
   setLinkInput: (v: string) => void;
 
   handleAddLink: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onTextChange?: (
+    field: EditorTextField,
+    value: string,
+    selectionStart: number | null
+  ) => void;
+  onTextKeyDown?: (
+    field: "body" | "caption",
+    e: React.KeyboardEvent<HTMLTextAreaElement>
+  ) => void;
 
   company: string;
   setCompany: (v: string) => void;
@@ -176,6 +185,8 @@ export default function LinkedInToolbox({
   linkInput,
   setLinkInput,
   handleAddLink,
+  onTextChange,
+  onTextKeyDown,
   company,
   setCompany,
   companyRef,
@@ -234,7 +245,13 @@ export default function LinkedInToolbox({
               onFocus={() => setActiveField("badge")}
               onSelect={() => setActiveField("badge")}
               onDoubleClick={() => setActiveField("badge")}
-              onChange={(e) => setBadgeText(e.target.value)}
+              onChange={(e) => {
+                if (onTextChange) {
+                  onTextChange("badge", e.target.value, e.target.selectionStart);
+                } else {
+                  setBadgeText(e.target.value);
+                }
+              }}
             />
           </div>
 
@@ -247,7 +264,13 @@ export default function LinkedInToolbox({
               onFocus={() => setActiveField("title")}
               onSelect={() => setActiveField("title")}
               onDoubleClick={() => setActiveField("title")}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                if (onTextChange) {
+                  onTextChange("title", e.target.value, e.target.selectionStart);
+                } else {
+                  setTitle(e.target.value);
+                }
+              }}
             />
           </div>
 
@@ -260,7 +283,13 @@ export default function LinkedInToolbox({
               onFocus={() => setActiveField("company")}
               onSelect={() => setActiveField("company")}
               onDoubleClick={() => setActiveField("company")}
-              onChange={(e) => setCompany(e.target.value)}
+              onChange={(e) => {
+                if (onTextChange) {
+                  onTextChange("company", e.target.value, e.target.selectionStart);
+                } else {
+                  setCompany(e.target.value);
+                }
+              }}
             />
           </div>
 
@@ -285,13 +314,20 @@ export default function LinkedInToolbox({
                 onFocus={() => setActiveField("body")}
                 onSelect={() => setActiveField("body")}
                 onDoubleClick={() => setActiveField("body")}
+                onKeyDown={(e) => onTextKeyDown?.("body", e)}
                 onScroll={(e) => {
                   if (bodyMirrorRef.current) {
                     bodyMirrorRef.current.scrollTop = e.currentTarget.scrollTop;
                     bodyMirrorRef.current.scrollLeft = e.currentTarget.scrollLeft;
                   }
                 }}
-                onChange={(e) => setBody(e.target.value)}
+                onChange={(e) => {
+                  if (onTextChange) {
+                    onTextChange("body", e.target.value, e.target.selectionStart);
+                  } else {
+                    setBody(e.target.value);
+                  }
+                }}
                 placeholder="Write the main body copy here"
                 rows={6}
               />
@@ -563,10 +599,17 @@ export default function LinkedInToolbox({
             ref={captionRef}
             className="editor-textarea"
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
+            onChange={(e) => {
+              if (onTextChange) {
+                onTextChange("caption", e.target.value, e.target.selectionStart);
+              } else {
+                setCaption(e.target.value);
+              }
+            }}
             onFocus={() => setActiveField("caption")}
             onSelect={() => setActiveField("caption")}
             onDoubleClick={() => setActiveField("caption")}
+            onKeyDown={(e) => onTextKeyDown?.("caption", e)}
             placeholder="Draft the supporting post caption"
             rows={6}
           />
@@ -591,7 +634,10 @@ export default function LinkedInToolbox({
       <div className="tb__actions">
         <button
           type="button"
-          onClick={(e) => downloadPDF(e)}
+          onClick={(e) => {
+            e.preventDefault();
+            downloadPDF(e);
+          }}
           disabled={loadingPdf}
           className="tb__action tb__action--primary"
         >
