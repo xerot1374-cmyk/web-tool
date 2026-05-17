@@ -51,6 +51,7 @@ type RichStyle = {
   fontSize?: number;
   color?: string;
   highlight?: boolean;
+  highlightColor?: string;
   fontWeight?: number | string;
   fontStyle?: "normal" | "italic";
 };
@@ -311,6 +312,11 @@ type TextStyle = {
   fontSize: number;
   color: string;
   highlight: boolean;
+  highlightColor?: string;
+  bold?: boolean;
+  italic?: boolean;
+  textAlign?: "left" | "center" | "right";
+  mixed?: Partial<Record<"fontFamily" | "fontSize" | "color" | "highlightColor", boolean>>;
 };
 
 type CanvasPresetKey = CanvasPreset;
@@ -359,6 +365,14 @@ type EditorTextField = "title" | "body" | "badge" | "company" | "caption";
 type EditField = Exclude<EditorTextField, "caption"> | null;
 
 type RichEditField = "title" | "body" | "company" | "badge";
+
+type FloatingTextToolbarState = {
+  visible: boolean;
+  x: number;
+  y: number;
+  placement: "above" | "below";
+  activeField: RichEditField | null;
+};
 
 type DragMode =
   | "frame-swap"
@@ -655,6 +669,14 @@ export default function TemplateAClient({
 
   const [editField, setEditField] = useState<EditField>(null);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
+  const [floatingTextToolbar, setFloatingTextToolbar] = useState<FloatingTextToolbarState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    placement: "above",
+    activeField: null,
+  });
+  const floatingTextToolbarRef = useRef<HTMLDivElement | null>(null);
   const titleEditRef = useRef<HTMLDivElement | null>(null);
   const bodyEditRef = useRef<HTMLDivElement | null>(null);
   const companyEditRef = useRef<HTMLDivElement | null>(null);
@@ -794,30 +816,35 @@ export default function TemplateAClient({
       fontSize: 20,
       color: "#ffffff",
       highlight: false,
+      textAlign: "left",
     },
     title: {
       fontFamily: "system-ui",
       fontSize: 34,
       color: "#111827",
       highlight: false,
+      textAlign: "left",
     },
     company: {
       fontFamily: "system-ui",
       fontSize: 18,
       color: "#111827",
       highlight: false,
+      textAlign: "left",
     },
     body: {
       fontFamily: "system-ui",
       fontSize: 14,
       color: "#111827",
       highlight: false,
+      textAlign: "left",
     },
     caption: {
       fontFamily: "system-ui",
       fontSize: 14,
       color: "#111827",
       highlight: false,
+      textAlign: "left",
     },
   });
   const [pendingTextStyles, setPendingTextStyles] = useState<Record<EditorTextField, RichStyle>>({
@@ -1368,6 +1395,7 @@ export default function TemplateAClient({
     setSelectedId(null);
     setSelectedRect(null);
     setEditField(null);
+    setFloatingTextToolbar((prev) => ({...prev, visible: false, activeField: null}));
     setSelectedImageId(null);
     setSelectedFrameSlotId(null);
   }
@@ -1579,8 +1607,17 @@ export default function TemplateAClient({
       });
     }, [editField]);
 
-    function onEditBlur() {
+    function onEditBlur(e: React.FocusEvent<HTMLElement>) {
+      const nextTarget = e.relatedTarget;
+      if (
+        nextTarget instanceof Node &&
+        floatingTextToolbarRef.current?.contains(nextTarget)
+      ) {
+        return;
+      }
+
       setEditField(null);
+      setFloatingTextToolbar((prev) => ({...prev, visible: false, activeField: null}));
     }
 
     function onEditKeyDown(e: React.KeyboardEvent<HTMLElement>) {
@@ -2125,6 +2162,88 @@ export default function TemplateAClient({
       selection.addRange(domRange);
     }
 
+    function hideFloatingTextToolbar() {
+      setFloatingTextToolbar((prev) =>
+        prev.visible ? {...prev, visible: false, activeField: null} : prev
+      );
+    }
+
+    function updateFloatingTextToolbar(field: RichEditField) {
+      const root = getRichEditRoot(field);
+      const selection = window.getSelection();
+      if (!root || !selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        hideFloatingTextToolbar();
+        return;
+      }
+
+      const range = selection.getRangeAt(0);
+      if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) {
+        hideFloatingTextToolbar();
+        return;
+      }
+
+      const selectionRange = readContentEditableSelection(field, root);
+      if (selectionRange.start === selectionRange.end) {
+        hideFloatingTextToolbar();
+        return;
+      }
+      const selectionFormatting = getSelectionFormatting(field, selectionRange);
+
+      const rect = range.getBoundingClientRect();
+      const fallbackRect = range.getClientRects()[0];
+      const targetRect =
+        rect.width || rect.height
+          ? rect
+          : fallbackRect;
+
+      if (!targetRect) {
+        hideFloatingTextToolbar();
+        return;
+      }
+
+      const stage = stageRef.current;
+      if (!stage) {
+        hideFloatingTextToolbar();
+        return;
+      }
+
+      const stageRect = stage.getBoundingClientRect();
+      const selectionCenterX =
+        (targetRect.left + targetRect.width / 2 - stageRect.left) / previewScale;
+      const selectionTop = (targetRect.top - stageRect.top) / previewScale;
+      const selectionBottom = (targetRect.bottom - stageRect.top) / previewScale;
+      const estimatedWidth = Math.min(560, Math.max(220, currentCanvas.w - 24));
+      const estimatedHeight = 52;
+      const margin = 12;
+      const minX = estimatedWidth / 2 + margin;
+      const maxX = currentCanvas.w - estimatedWidth / 2 - margin;
+      const x =
+        maxX > minX
+          ? Math.min(Math.max(selectionCenterX, minX), maxX)
+          : currentCanvas.w / 2;
+      const hasSpaceAbove = selectionTop >= estimatedHeight + margin * 2;
+      const placement: FloatingTextToolbarState["placement"] = hasSpaceAbove
+        ? "above"
+        : "below";
+      const rawY = hasSpaceAbove ? selectionTop - margin : selectionBottom + margin;
+      const y = hasSpaceAbove
+        ? Math.max(estimatedHeight + margin, rawY)
+        : Math.min(currentCanvas.h - estimatedHeight - margin, rawY);
+
+      setFloatingTextToolbar({
+        visible: true,
+        x,
+        y,
+        placement,
+        activeField: field,
+      });
+      setActiveField(field);
+      setToolbarStyles((prev) => ({
+        ...prev,
+        [field]: selectionFormatting,
+      }));
+    }
+
     function getContentEditablePlainText(root: HTMLElement) {
       return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
     }
@@ -2135,6 +2254,7 @@ export default function TemplateAClient({
 
       const selection = readContentEditableSelection(field, root);
       handleTextChange(field, getContentEditablePlainText(root), selection.end);
+      if (selection.start === selection.end) hideFloatingTextToolbar();
       requestAnimationFrame(() => {
         if (field === "badge") remeasureBadgeSelection();
         richEditSelectionRef.current[field] = selection;
@@ -2173,7 +2293,9 @@ export default function TemplateAClient({
               color: mark.style.color,
               fontWeight: mark.style.fontWeight,
               fontStyle: mark.style.fontStyle,
-              background: mark.style.highlight ? "rgba(250,204,21,0.18)" : undefined,
+              background: mark.style.highlight
+                ? mark.style.highlightColor ?? "rgba(250,204,21,0.18)"
+                : undefined,
             }}
           >
             {t.slice(mark.start, mark.end)}
@@ -2498,6 +2620,34 @@ export default function TemplateAClient({
       }
     }
 
+    function getFieldBoxStyle(field: RichEditField): BoxTextStyle {
+      if (field === "title") return titleStyle;
+      if (field === "company") return companyStyle;
+      if (field === "badge") return badgeStyle;
+      return bodyBoxStyle;
+    }
+
+    function setFieldTextAlign(field: RichEditField, textAlign: BoxTextStyle["textAlign"]) {
+      if (field === "title") {
+        setTitleStyle((prev) => ({...prev, textAlign}));
+      } else if (field === "company") {
+        setCompanyStyle((prev) => ({...prev, textAlign}));
+      } else if (field === "badge") {
+        setBadgeStyle((prev) => ({...prev, textAlign}));
+      } else {
+        setBodyBoxStyle((prev) => ({...prev, textAlign}));
+      }
+
+      setActiveField(field);
+      setToolbarStyles((prev) => ({
+        ...prev,
+        [field]: {...prev[field], textAlign},
+      }));
+      if (editField === field) {
+        setEditStyle((prev) => ({...prev, textAlign}));
+      }
+    }
+
     function clampRange(start: number, end: number, max: number) {
       const s = Math.max(0, Math.min(start, max));
       const e = Math.max(0, Math.min(end, max));
@@ -2517,6 +2667,7 @@ export default function TemplateAClient({
       if (style.fontSize) next.fontSize = style.fontSize;
       if (style.color) next.color = style.color;
       if (style.highlight) next.highlight = true;
+      if (style.highlight && style.highlightColor) next.highlightColor = style.highlightColor;
       if (style.fontWeight && style.fontWeight !== "normal") {
         next.fontWeight = style.fontWeight;
       }
@@ -2687,19 +2838,21 @@ export default function TemplateAClient({
 
       const {setMarks, marks} = getActiveMarksState(field);
       const range = {start: s, end: e};
+      let nextMarks = marks;
       if (mode === "toggleHighlight") {
         const shouldRemove = selectionHasEveryStyle(
             marks,
             range,
             (style) => style.highlight === true
         );
-        setMarks(toggleStyleMarks(
+        nextMarks = toggleStyleMarks(
             marks,
             range,
             (style) => style.highlight === true,
             {highlight: true},
             {highlight: undefined}
-        ));
+        );
+        setMarks(nextMarks);
         setPendingStyle(field, {highlight: shouldRemove ? undefined : true});
       } else if (mode === "toggleBold") {
         const isBold = (style: RichStyle) =>
@@ -2707,13 +2860,14 @@ export default function TemplateAClient({
             style.fontWeight === "800" ||
             style.fontWeight === "bold";
         const shouldRemove = selectionHasEveryStyle(marks, range, isBold);
-        setMarks(toggleStyleMarks(
+        nextMarks = toggleStyleMarks(
             marks,
             range,
             isBold,
             {fontWeight: 800},
             {fontWeight: undefined}
-        ));
+        );
+        setMarks(nextMarks);
         setPendingStyle(field, {fontWeight: shouldRemove ? undefined : 800});
       } else if (mode === "toggleItalic") {
         const shouldRemove = selectionHasEveryStyle(
@@ -2721,20 +2875,113 @@ export default function TemplateAClient({
             range,
             (style) => style.fontStyle === "italic"
         );
-        setMarks(toggleStyleMarks(
+        nextMarks = toggleStyleMarks(
             marks,
             range,
             (style) => style.fontStyle === "italic",
             {fontStyle: "italic"},
             {fontStyle: undefined}
-        ));
+        );
+        setMarks(nextMarks);
         setPendingStyle(field, {fontStyle: shouldRemove ? undefined : "italic"});
       } else {
-        setMarks(applyStyleToMarks(marks, range, patch));
+        nextMarks = applyStyleToMarks(marks, range, patch);
+        setMarks(nextMarks);
         setPendingStyle(field, patch);
       }
 
+      if (isRichEditField(field)) {
+        syncFloatingToolbarFormatting(field, range, nextMarks);
+      }
       restoreSelection();
+    }
+
+    function getSelectionFormatting(
+      field: RichEditField,
+      range: { start: number; end: number },
+      marksOverride?: TextMark[],
+      baseOverride?: BoxTextStyle
+    ): TextStyle {
+      const base = baseOverride ?? getFieldBoxStyle(field);
+      const {marks: stateMarks} = getActiveMarksState(field);
+      const marks = marksOverride ?? stateMarks;
+      const boundaries = new Set<number>([range.start, range.end]);
+      for (const mark of marks) {
+        if (!overlaps(mark, range)) continue;
+        boundaries.add(Math.max(mark.start, range.start));
+        boundaries.add(Math.min(mark.end, range.end));
+      }
+
+      const points = [...boundaries].sort((a, b) => a - b);
+      const segments: RichStyle[] = [];
+      for (let i = 0; i < points.length - 1; i += 1) {
+        const start = points[i];
+        const end = points[i + 1];
+        if (end <= start) continue;
+        segments.push(styleForSegment(marks, start, end));
+      }
+
+      const valueFor = <T,>(resolve: (style: RichStyle) => T, fallback: T) => {
+        if (segments.length === 0) return {value: fallback, mixed: false};
+        const values = segments.map(resolve);
+        const first = values[0];
+        return {
+          value: first,
+          mixed: values.some((value) => value !== first),
+        };
+      };
+
+      const fontFamily = valueFor(
+        (style) => style.fontFamily ?? base.fontFamily,
+        base.fontFamily
+      );
+      const fontSize = valueFor((style) => style.fontSize ?? base.fontSize, base.fontSize);
+      const color = valueFor((style) => style.color ?? base.color, base.color);
+      const highlightColor = valueFor(
+        (style) => style.highlightColor ?? "rgba(250,204,21,0.18)",
+        "rgba(250,204,21,0.18)"
+      );
+
+      return {
+        fontFamily: String(fontFamily.value),
+        fontSize: Number(fontSize.value) || base.fontSize,
+        color: String(color.value),
+        highlight: selectionHasEveryStyle(marks, range, (style) => style.highlight === true),
+        highlightColor: String(highlightColor.value),
+        bold: selectionHasEveryStyle(
+          marks,
+          range,
+          (style) =>
+            style.fontWeight === 800 ||
+            style.fontWeight === "800" ||
+            style.fontWeight === "bold"
+        ),
+        italic: selectionHasEveryStyle(
+          marks,
+          range,
+          (style) => style.fontStyle === "italic"
+        ),
+        textAlign: base.textAlign,
+        mixed: {
+          fontFamily: fontFamily.mixed,
+          fontSize: fontSize.mixed,
+          color: color.mixed,
+          highlightColor: highlightColor.mixed,
+        },
+      };
+    }
+
+    function syncFloatingToolbarFormatting(
+      field: RichEditField,
+      range: { start: number; end: number },
+      marksOverride?: TextMark[],
+      baseOverride?: BoxTextStyle
+    ) {
+      setActiveField(field);
+      setToolbarStyles((prev) => ({
+        ...prev,
+        [field]: getSelectionFormatting(field, range, marksOverride, baseOverride),
+      }));
     }
 
     function applySelectionStyleForField(
@@ -3032,6 +3279,16 @@ export default function TemplateAClient({
       applyStyleSelection({}, "toggleHighlight");
     }
 
+    function applyHighlightColorSelection(color: string | null) {
+      if (color) {
+        applyStyleSelection({highlight: true, highlightColor: color});
+        setActiveTextStyle({highlight: true, highlightColor: color});
+      } else {
+        applyStyleSelection({highlight: undefined, highlightColor: undefined});
+        setActiveTextStyle({highlight: false, highlightColor: undefined});
+      }
+    }
+
     function applyColorSelection(color: string) {
       applyStyleSelection({color});
       setActiveTextStyle({color});
@@ -3047,6 +3304,17 @@ export default function TemplateAClient({
       setActiveTextStyle({fontFamily});
     }
 
+    function applyAlignSelection(textAlign: "left" | "center" | "right") {
+      const field = isRichEditField(editField) ? editField : activeField;
+      if (!isRichEditField(field)) return;
+      const nextBase = {...getFieldBoxStyle(field), textAlign};
+      setFieldTextAlign(field, textAlign);
+      const range = richEditSelectionRef.current[field];
+      if (range.start !== range.end) {
+        syncFloatingToolbarFormatting(field, range, undefined, nextBase);
+      }
+    }
+
     async function copyCaption() {
       const {text, ref} = getEditorFieldControl();
       const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
@@ -3059,7 +3327,17 @@ export default function TemplateAClient({
     function setActiveTextStyle(patch: Partial<TextStyle>) {
       setToolbarStyles((prev) => ({
         ...prev,
-        [activeField]: {...prev[activeField], ...patch},
+        [activeField]: {
+          ...prev[activeField],
+          ...patch,
+          mixed: {
+            ...prev[activeField].mixed,
+            ...(patch.fontFamily !== undefined ? {fontFamily: false} : null),
+            ...(patch.fontSize !== undefined ? {fontSize: false} : null),
+            ...(patch.color !== undefined ? {color: false} : null),
+            ...(patch.highlightColor !== undefined ? {highlightColor: false} : null),
+          },
+        },
       }));
     }
 
@@ -3892,10 +4170,10 @@ export default function TemplateAClient({
                             onInput={() => handleRichEditableInput(editField)}
                             onBlur={onEditBlur}
                             onKeyDown={onEditKeyDown}
-                            onKeyUp={() => readContentEditableSelection(editField, getRichEditRoot(editField))}
+                            onKeyUp={() => updateFloatingTextToolbar(editField)}
                             onPointerDown={(e) => e.stopPropagation()}
                             onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={() => readContentEditableSelection(editField, getRichEditRoot(editField))}
+                            onMouseUp={() => updateFloatingTextToolbar(editField)}
                             onClick={(e) => e.stopPropagation()}
                             onDoubleClick={(e) => e.stopPropagation()}
                             spellCheck={false}
@@ -3935,6 +4213,48 @@ export default function TemplateAClient({
                             )}
                           </div>
                         ) : null}
+                        {floatingTextToolbar.visible && floatingTextToolbar.activeField ? (
+                          <div
+                            ref={floatingTextToolbarRef}
+                            className={`editor-floatingTextToolbar editor-floatingTextToolbar--${floatingTextToolbar.placement}`}
+                            style={{
+                              left: floatingTextToolbar.x,
+                              top: floatingTextToolbar.y,
+                            }}
+                            onMouseDown={(e) => {
+                              const target = e.target;
+                              if (
+                                target instanceof HTMLElement &&
+                                !target.closest("select,input")
+                              ) {
+                                e.preventDefault();
+                              }
+                              e.stopPropagation();
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <TextToolbar
+                              variant="floating"
+                              activeField={floatingTextToolbar.activeField}
+                              copied={copied}
+                              applyUnicodeStyle={applyUnicodeStyle}
+                              applyBullet={applyBullet}
+                              applyNumbered={applyNumbered}
+                              applyHashtag={applyHashtag}
+                              copyActive={copyCaption}
+                              insertEmoji={insertEmoji}
+                              EMOJIS={EMOJIS}
+                              activeTextStyle={activeTextStyle}
+                              setActiveTextStyle={setActiveTextStyle}
+                              applyHighlightSelection={applyHighlightSelection}
+                              applyHighlightColorSelection={applyHighlightColorSelection}
+                              applyFontSelection={applyFontSelection}
+                              applySizeSelection={applySizeSelection}
+                              applyColorSelection={applyColorSelection}
+                              applyAlignSelection={applyAlignSelection}
+                            />
+                          </div>
+                        ) : null}
                         </div>
                       </div>
                     </div>
@@ -3948,7 +4268,8 @@ export default function TemplateAClient({
                 </>
               }
               toolbar={
-                <TextToolbar
+                floatingTextToolbar.visible ? null : (
+                  <TextToolbar
                     activeField={activeField}
                     copied={copied}
                     applyUnicodeStyle={applyUnicodeStyle}
@@ -3961,10 +4282,13 @@ export default function TemplateAClient({
                     activeTextStyle={activeTextStyle}
                     setActiveTextStyle={setActiveTextStyle}
                     applyHighlightSelection={applyHighlightSelection}
+                    applyHighlightColorSelection={applyHighlightColorSelection}
                     applyFontSelection={applyFontSelection}
                     applySizeSelection={applySizeSelection}
                     applyColorSelection={applyColorSelection}
-                />
+                    applyAlignSelection={applyAlignSelection}
+                  />
+                )
               }
               toolbox={
                 <LinkedInToolbox

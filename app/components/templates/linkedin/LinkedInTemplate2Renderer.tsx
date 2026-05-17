@@ -113,6 +113,7 @@ export type TextMark = {
     fontSize?: number;
     color?: string;
     highlight?: boolean;
+    highlightColor?: string;
     fontWeight?: number | string;
     fontStyle?: "normal" | "italic";
   };
@@ -222,7 +223,9 @@ function renderMarkedText(text: string, marks?: TextMark[]) {
       color: m.style.color,
       fontWeight: m.style.fontWeight,
       fontStyle: m.style.fontStyle,
-      background: m.style.highlight ? "rgba(250,204,21,0.18)" : undefined,
+      background: m.style.highlight
+        ? m.style.highlightColor ?? "rgba(250,204,21,0.18)"
+        : undefined,
     };
 
     out.push(

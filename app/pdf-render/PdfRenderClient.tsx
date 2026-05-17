@@ -12,6 +12,7 @@ type TextMark = {
     fontSize?: number;
     color?: string;
     highlight?: boolean;
+    highlightColor?: string;
     fontWeight?: number | string;
     fontStyle?: "normal" | "italic";
   };
