@@ -666,6 +666,11 @@ export default function TemplateAClient({
   const [selectedRect, setSelectedRect] = useState<DOMRect | null>(null);
   const [selectedFrameSlotId, setSelectedFrameSlotId] = useState<string | null>(null);
   const [hoverFrameSlotId, setHoverFrameSlotId] = useState<string | null>(null);
+  const [objectLayers, setObjectLayers] = useState({
+    images: {} as Record<string, number>,
+    video: 1,
+    next: 2,
+  });
 
   const [editField, setEditField] = useState<EditField>(null);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
@@ -919,8 +924,48 @@ export default function TemplateAClient({
   const previewViewportW = 560;
   const previewScale = previewViewportW / currentCanvas.w;
   const previewViewportH = Math.round(previewContentHeight * previewScale);
+  const videoPreviewZIndex = objectLayers.video;
+  const editorMediaImages = useMemo(
+    () =>
+      images.map((img, index) => {
+        const slot =
+          imageLayout === "frame" && img.frameSlotId
+            ? frameSlotsState.find((item) => item.id === img.frameSlotId)
+            : null;
+
+        return {
+          ...img,
+          radius: slot?.radius ?? 20,
+          clipPath: slot?.clipPath,
+          rotation: slot?.rotation ?? img.rotation ?? 0,
+          zIndex: objectLayers.images[img.id] ?? 2 + index,
+        };
+      }),
+    [frameSlotsState, imageLayout, images, objectLayers.images]
+  );
+
+  function bringImageObjectToFront(imageId: string) {
+    setObjectLayers((prev) => ({
+      ...prev,
+      images: {
+        ...prev.images,
+        [imageId]: prev.next,
+      },
+      next: prev.next + 1,
+    }));
+  }
+
+  function bringVideoObjectToFront() {
+    setObjectLayers((prev) => ({
+      ...prev,
+      video: prev.next,
+      next: prev.next + 1,
+    }));
+  }
+
   function getInitialVideoBox(): MediaBox {
     const source = images[0] ?? null;
+    const offset = 40;
 
     if (imageLayout === "frame") {
       const slot =
@@ -930,8 +975,8 @@ export default function TemplateAClient({
 
       if (slot) {
         return {
-          x: slot.x,
-          y: slot.y,
+          x: clamp(slot.x + offset, 0, Math.max(0, currentCanvas.w - slot.w)),
+          y: clamp(slot.y + offset, 0, Math.max(0, currentCanvas.h - slot.h)),
           w: slot.w,
           h: slot.h,
         };
@@ -941,8 +986,8 @@ export default function TemplateAClient({
     const box = source ?? mediaBox;
 
     return {
-      x: box.x,
-      y: box.y,
+      x: clamp(box.x + offset, 0, Math.max(0, currentCanvas.w - box.w)),
+      y: clamp(box.y + offset, 0, Math.max(0, currentCanvas.h - box.h)),
       w: box.w,
       h: box.h,
     };
@@ -1196,17 +1241,23 @@ export default function TemplateAClient({
     setSelectedImageId(nextImage.id);
     setSelectedFrameSlotId(targetFrameSlotId ?? null);
     setSelectedRect(targetFrameSlotId ? getFrameSlotRect(targetFrameSlotId) : null);
+    bringImageObjectToFront(nextImage.id);
   }
 
   function removeSelectedImage() {
     if (!selectedImageId) return;
+    const imageId = selectedImageId;
     setImages((prev) => {
       const next = applyImageLayout(
         imageLayout,
-        prev.filter((img) => img.id !== selectedImageId)
+        prev.filter((img) => img.id !== imageId)
       );
       syncLegacyFromFirstImage(next);
       return next;
+    });
+    setObjectLayers((prev) => {
+      const { [imageId]: _removed, ...imagesById } = prev.images;
+      return { ...prev, images: imagesById };
     });
     setSelectedImageId(null);
     setSelectedId(null);
@@ -1231,6 +1282,7 @@ export default function TemplateAClient({
     });
     setSelectedId("productImage");
     setSelectedImageId(dup.id);
+    bringImageObjectToFront(dup.id);
   }
 
   function copySelectedImageToClipboard() {
@@ -1266,6 +1318,7 @@ export default function TemplateAClient({
     });
     setSelectedId("productImage");
     setSelectedImageId(pasted.id);
+    bringImageObjectToFront(pasted.id);
   }
 
   function rotateSelectedImage(delta: number) {
@@ -1518,6 +1571,7 @@ export default function TemplateAClient({
     if (id === "productImage") {
       const imageId = t.getAttribute("data-image-id");
       if (imageId) {
+        bringImageObjectToFront(imageId);
         setSelectedImageId(imageId);
         const img = images.find((x) => x.id === imageId);
         if (img) {
@@ -1533,6 +1587,7 @@ export default function TemplateAClient({
         setSelectedRect(getFrameSlotRect(frameSlotId));
       }
     } else if (id === "video") {
+      bringVideoObjectToFront();
       const rect = computeRectRelativeToStage(t);
       setSelectedRect(rect);
       setSelectedImageId(null);
@@ -3598,6 +3653,7 @@ export default function TemplateAClient({
 
       const url = URL.createObjectURL(videoFile);
       setVideoBox(getInitialVideoBox());
+      bringVideoObjectToFront();
       setVideoPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return url;
@@ -4010,6 +4066,7 @@ export default function TemplateAClient({
                             canvasPreset={canvasPreset}
                             productImage={effective.productImage}
                             productImages={effective.productImages}
+                            editorHideProductMedia
                             productOrientation={effective.productOrientation}
                             productAlign={effective.productAlign}
                             imageLayout={effective.imageLayout}
@@ -4049,6 +4106,63 @@ export default function TemplateAClient({
                           />
                         </div>
 
+                        {editorMediaImages.map((img) => {
+                          const cropX = Number.isFinite(img.cropX) ? Number(img.cropX) : 50;
+                          const cropY = Number.isFinite(img.cropY) ? Number(img.cropY) : 50;
+                          const cropScale = Number.isFinite(img.cropScale)
+                            ? Number(img.cropScale)
+                            : 1;
+
+                          return (
+                            <div
+                              key={`editor-media-${img.id}`}
+                              data-select="productImage"
+                              data-image-id={img.id}
+                              data-frame-slot-id={img.frameSlotId}
+                              aria-label="Product image"
+                              style={{
+                                position: "absolute",
+                                left: img.x,
+                                top: img.y,
+                                width: img.w,
+                                height: img.h,
+                                zIndex: img.zIndex,
+                                overflow: "hidden",
+                                borderRadius: img.radius,
+                                clipPath: img.clipPath,
+                                transform: `rotate(${img.rotation}deg)`,
+                                transformOrigin: "center center",
+                                border: imageLayout === "collage"
+                                  ? "1px solid rgba(255,255,255,0.92)"
+                                  : "1px solid rgba(15,23,42,0.10)",
+                                background: imageLayout === "collage" ? "#ffffff" : "transparent",
+                                pointerEvents: "auto",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <img
+                                src={img.src}
+                                alt="product"
+                                draggable={false}
+                                style={{
+                                  position: "absolute",
+                                  left: `${cropX}%`,
+                                  top: `${cropY}%`,
+                                  width: `${cropScale * 100}%`,
+                                  height: `${cropScale * 100}%`,
+                                  maxWidth: "none",
+                                  maxHeight: "none",
+                                  transform: "translate(-50%, -50%)",
+                                  objectFit: "cover",
+                                  display: "block",
+                                  userSelect: "none",
+                                  pointerEvents: "none",
+                                }}
+                              />
+                            </div>
+                          );
+                        })}
+
                         {videoPreviewUrl ? (
                           <div
                             data-select="video"
@@ -4059,7 +4173,7 @@ export default function TemplateAClient({
                               top: videoBox.y,
                               width: videoBox.w,
                               height: videoBox.h,
-                              zIndex: 30,
+                              zIndex: videoPreviewZIndex,
                               overflow: "hidden",
                               borderRadius: 20,
                               transformOrigin: "center center",

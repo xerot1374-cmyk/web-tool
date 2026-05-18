@@ -34,6 +34,7 @@ export type LinkedInTemplate2Data = {
 
   productImage?: string;
   productImages?: ImageItem[];
+  editorHideProductMedia?: boolean;
 
   badgeText?: string;
   badgeMarks?: TextMark[];
@@ -294,6 +295,7 @@ export default function LinkedInTemplate2Renderer({
   }, [data.productImages, data.productImage, data.productOrientation, data.mediaBox]);
 
   const hasProductImage = images.length > 0 || data.imageLayout === "frame";
+  const hideProductMedia = isEdit && data.editorHideProductMedia;
   const frameSlots = useMemo(
     () =>
       data.imageLayout === "frame"
@@ -410,7 +412,8 @@ export default function LinkedInTemplate2Renderer({
                       width: slot.w,
                       height: slot.h,
                       zIndex: 12 + index,
-                      pointerEvents: "auto",
+                      pointerEvents: hideProductMedia && img ? "none" : "auto",
+                      visibility: hideProductMedia && img ? "hidden" : undefined,
                       right: "auto",
                       bottom: "auto",
                       margin: 0,
@@ -507,7 +510,8 @@ export default function LinkedInTemplate2Renderer({
                       width: img.w,
                       height: img.h,
                       zIndex: isCollage ? 10 + index : 2,
-                      pointerEvents: "auto",
+                      pointerEvents: hideProductMedia ? "none" : "auto",
+                      visibility: hideProductMedia ? "hidden" : undefined,
                       transform: "none",
                       right: "auto",
                       bottom: "auto",
