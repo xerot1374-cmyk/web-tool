@@ -35,6 +35,7 @@ export type LinkedInTemplate2Data = {
   productImage?: string;
   productImages?: ImageItem[];
   editorHideProductMedia?: boolean;
+  editorReserveProductMediaSlot?: boolean;
 
   badgeText?: string;
   badgeMarks?: TextMark[];
@@ -294,7 +295,10 @@ export default function LinkedInTemplate2Renderer({
     return [];
   }, [data.productImages, data.productImage, data.productOrientation, data.mediaBox]);
 
-  const hasProductImage = images.length > 0 || data.imageLayout === "frame";
+  const hasProductImage =
+    images.length > 0 ||
+    data.imageLayout === "frame" ||
+    (isEdit && Boolean(data.editorReserveProductMediaSlot));
   const hideProductMedia = isEdit && data.editorHideProductMedia;
   const frameSlots = useMemo(
     () =>

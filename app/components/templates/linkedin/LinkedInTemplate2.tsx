@@ -69,6 +69,7 @@ type Props = LinkedInTemplate2Data & {
   mediaBox?: MediaBox;
   productImages?: ImageItem[];
   editorHideProductMedia?: boolean;
+  editorReserveProductMediaSlot?: boolean;
   imageLayout?: ImageLayoutMode;
   framePresetId?: string;
   frameSlots?: FrameSlot[];
@@ -105,6 +106,7 @@ export default function LinkedInTemplate2(props: Props) {
     mediaBox,
     productImages,
     editorHideProductMedia,
+    editorReserveProductMediaSlot,
     imageLayout,
     framePresetId,
     frameSlots,
@@ -132,6 +134,7 @@ export default function LinkedInTemplate2(props: Props) {
         mediaBox,
         productImages,
         editorHideProductMedia,
+        editorReserveProductMediaSlot,
         imageLayout,
         framePresetId,
         frameSlots,

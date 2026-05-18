@@ -1536,6 +1536,17 @@ export default function TemplateAClient({
     return null;
   }
 
+  function isMediaSelectionUiTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) return false;
+
+    return Boolean(
+      target.closest('[data-media-selection-ui="true"]') ||
+      target.closest('[data-resize-handle="true"]') ||
+      target.closest('[data-select="productImage"]') ||
+      target.closest('[data-select="video"]')
+    );
+  }
+
   function getBadgeTextTargetAtPoint(clientX: number, clientY: number) {
     if (!badgeText.trim()) return null;
 
@@ -1554,6 +1565,10 @@ export default function TemplateAClient({
   }
 
   function onCanvasClick(e: React.MouseEvent) {
+    if (isMediaSelectionUiTarget(e.target)) {
+      return;
+    }
+
     const t = getBadgeTextTargetAtPoint(e.clientX, e.clientY) ?? getSelectableTarget(e.target);
 
     if (!t) {
@@ -1602,6 +1617,24 @@ export default function TemplateAClient({
     }
 
     if (editField && id !== editField) setEditField(null);
+  }
+
+  function selectImageObject(image: ImageItem) {
+    bringImageObjectToFront(image.id);
+    setSelectedId("productImage");
+    setSelectedImageId(image.id);
+    setSelectedFrameSlotId(image.frameSlotId ?? null);
+    setSelectedRect(new DOMRect(image.x, image.y, image.w, image.h));
+    if (editField) setEditField(null);
+  }
+
+  function selectVideoObject() {
+    bringVideoObjectToFront();
+    setSelectedId("video");
+    setSelectedImageId(null);
+    setSelectedFrameSlotId(null);
+    setSelectedRect(new DOMRect(videoBox.x, videoBox.y, videoBox.w, videoBox.h));
+    if (editField) setEditField(null);
   }
 
   function isRichEditField(field: EditorTextField | EditField | null): field is RichEditField {
@@ -1744,6 +1777,7 @@ export default function TemplateAClient({
 
       e.preventDefault();
       e.stopPropagation();
+      selectImageObject(current);
 
       if (imageLayout === "frame") {
         const selectedSlot = current.frameSlotId
@@ -1811,17 +1845,13 @@ export default function TemplateAClient({
       };
     }
 
-    function startVideoResizeInteraction(
+    function startVideoInteraction(
       e: React.MouseEvent<HTMLDivElement>,
       mode: DragMode
     ) {
       e.preventDefault();
       e.stopPropagation();
-      setSelectedId("video");
-      setSelectedImageId(null);
-      setSelectedFrameSlotId(null);
-      setEditField(null);
-      setSelectedRect(new DOMRect(videoBox.x, videoBox.y, videoBox.w, videoBox.h));
+      selectVideoObject();
 
       dragStateRef.current = {
         mode,
@@ -1869,6 +1899,23 @@ export default function TemplateAClient({
           let y = start.y;
           let w = start.w;
           let h = start.h;
+
+          if (drag.mode === "move") {
+            const fixed = clampImageBox(
+              {
+                x: Math.round(start.x + dx),
+                y: Math.round(start.y + dy),
+                w: start.w,
+                h: start.h,
+              },
+              currentCanvas.w,
+              currentCanvas.h
+            );
+
+            setVideoBox(fixed);
+            setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
+            return;
+          }
 
           if (
             drag.mode === "resize-e" ||
@@ -4150,6 +4197,7 @@ export default function TemplateAClient({
                             productImage={effective.productImage}
                             productImages={effective.productImages}
                             editorHideProductMedia
+                            editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
                             productOrientation={effective.productOrientation}
                             productAlign={effective.productAlign}
                             imageLayout={effective.imageLayout}
@@ -4222,6 +4270,7 @@ export default function TemplateAClient({
                                 pointerEvents: "auto",
                                 boxSizing: "border-box",
                               }}
+                              onMouseDown={(e) => startMediaInteraction(e, "move", img)}
                             >
                               <img
                                 src={img.src}
@@ -4265,6 +4314,7 @@ export default function TemplateAClient({
                               pointerEvents: "auto",
                               boxSizing: "border-box",
                             }}
+                            onMouseDown={(e) => startVideoInteraction(e, "move")}
                           >
                             <video
                               src={videoPreviewUrl}
@@ -4290,6 +4340,12 @@ export default function TemplateAClient({
                                 ? "editor-canvasSelection--text"
                                 : "editor-canvasSelection--media"
                             }`}
+                            data-selection-overlay="true"
+                            data-media-selection-ui="true"
+                            data-select={selectedId ?? undefined}
+                            data-image-id={
+                              selectedId === "productImage" ? selectedImageId ?? undefined : undefined
+                            }
                             data-active-element={selectedId ?? undefined}
                             style={{
                               position: "absolute",
@@ -4310,17 +4366,26 @@ export default function TemplateAClient({
                                   ? imageLayout === "frame"
                                     ? "grab"
                                     : "move"
+                                  : selectedId === "video"
+                                  ? "move"
                                   : "default",
                               zIndex: 9999,
 
                             }}
                             onMouseDown={
                               selectedId === "productImage"
-                                ? (e) =>
+                                ? (e) => {
+                                    e.stopPropagation();
                                     startMediaInteraction(
                                       e,
                                       imageLayout === "frame" ? "frame-image-pan" : "move"
-                                    )
+                                    );
+                                  }
+                                : selectedId === "video"
+                                ? (e) => {
+                                    e.stopPropagation();
+                                    startVideoInteraction(e, "move");
+                                  }
                                 : undefined
                             }
                           >
@@ -4331,6 +4396,7 @@ export default function TemplateAClient({
                                 {selectionHandles.map((h) => (
                                   <div
                                     key={h.key}
+                                    data-resize-handle="true"
                                     style={{
                                       position: "absolute",
                                       width: 16,
@@ -4347,10 +4413,11 @@ export default function TemplateAClient({
                                       transform: h.transform,
                                     }}
                                     onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
                                       if (selectedId === "video") {
-                                        startVideoResizeInteraction(e, h.mode);
+                                        startVideoInteraction(e, h.mode);
                                       } else if (imageLayout === "frame" && selectedId === "frameSlot") {
-                                        e.stopPropagation();
                                         const current = getSelectedFrameSlot();
                                         if (!current) return;
                                         dragStateRef.current = {
@@ -4677,11 +4744,16 @@ export default function TemplateAClient({
                         e.preventDefault();
                         downloadPDF(e);
                       }}
-                      disabled={loadingPdf}
+                      disabled={loadingPdf || hasVideo}
                       className="tb__action tb__action--primary"
                     >
                       {loadingPdf ? "Generating PDF..." : "Download PDF"}
                     </button>
+                    {hasVideo ? (
+                      <p className="export-actions-panel__hint">
+                        PDF export is disabled while a video object is on the canvas. Please use Generate final.mp4.
+                      </p>
+                    ) : null}
 
                     <button
                       type="button"
