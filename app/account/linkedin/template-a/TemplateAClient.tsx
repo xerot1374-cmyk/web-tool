@@ -349,6 +349,7 @@ const PREVIEW_SELECTABLE_IDS = new Set<SelectableId>([
   ...PREVIEW_TEXT_SELECTABLE_IDS,
   "productImage",
   "frameSlot",
+  "video",
 ]);
 
 function isPreviewTextSelectableId(id: SelectableId | null): id is "title" | "body" | "badge" | "company" {
@@ -870,6 +871,13 @@ export default function TemplateAClient({
 
   const [images, setImages] = useState<ImageItem[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
+  const [videoBox, setVideoBox] = useState<MediaBox>({
+    x: 420,
+    y: 240,
+    w: 240,
+    h: 240,
+  });
   const hasVideo = !!videoFile;
 
   function setBadgeTextValue(v: string) {
@@ -911,6 +919,34 @@ export default function TemplateAClient({
   const previewViewportW = 560;
   const previewScale = previewViewportW / currentCanvas.w;
   const previewViewportH = Math.round(previewContentHeight * previewScale);
+  function getInitialVideoBox(): MediaBox {
+    const source = images[0] ?? null;
+
+    if (imageLayout === "frame") {
+      const slot =
+        (source?.frameSlotId
+          ? frameSlotsState.find((item) => item.id === source.frameSlotId)
+          : null) ?? frameSlotsState[0];
+
+      if (slot) {
+        return {
+          x: slot.x,
+          y: slot.y,
+          w: slot.w,
+          h: slot.h,
+        };
+      }
+    }
+
+    const box = source ?? mediaBox;
+
+    return {
+      x: box.x,
+      y: box.y,
+      w: box.w,
+      h: box.h,
+    };
+  }
 
   function loadImageFromFile(file: File): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -1496,6 +1532,11 @@ export default function TemplateAClient({
         setSelectedFrameSlotId(frameSlotId);
         setSelectedRect(getFrameSlotRect(frameSlotId));
       }
+    } else if (id === "video") {
+      const rect = computeRectRelativeToStage(t);
+      setSelectedRect(rect);
+      setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
     } else {
       const rect = computeRectRelativeToStage(t);
       setSelectedRect(rect);
@@ -1961,6 +2002,14 @@ export default function TemplateAClient({
       const rect = getFrameSlotRect(selectedFrameSlotId);
       if (rect) setSelectedRect(rect);
     }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
+
+    useEffect(() => {
+      if (selectedId !== "video") return;
+      const videoEl = stageRef.current?.querySelector('[data-select="video"]') as HTMLElement | null;
+      if (!videoEl) return;
+      const rect = computeRectRelativeToStage(videoEl);
+      if (rect) setSelectedRect(rect);
+    }, [selectedId, videoPreviewUrl, videoBox, previewScale]);
 
     useEffect(() => {
       if (imageLayout === "manual") return;
@@ -3538,6 +3587,27 @@ export default function TemplateAClient({
       };
     }, [finalUrl]);
 
+    useEffect(() => {
+      if (!videoFile) {
+        setVideoPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return null;
+        });
+        return;
+      }
+
+      const url = URL.createObjectURL(videoFile);
+      setVideoBox(getInitialVideoBox());
+      setVideoPreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }, [videoFile]);
+
     function resetMessages() {
       setSuccessMsg("");
       setErrorMsg("");
@@ -3978,6 +4048,43 @@ export default function TemplateAClient({
                             }}
                           />
                         </div>
+
+                        {videoPreviewUrl ? (
+                          <div
+                            data-select="video"
+                            aria-label="Uploaded video preview"
+                            style={{
+                              position: "absolute",
+                              left: videoBox.x,
+                              top: videoBox.y,
+                              width: videoBox.w,
+                              height: videoBox.h,
+                              zIndex: 30,
+                              overflow: "hidden",
+                              borderRadius: 20,
+                              transformOrigin: "center center",
+                              border: "1px solid rgba(15,23,42,0.10)",
+                              background: "#111827",
+                              pointerEvents: "auto",
+                              boxSizing: "border-box",
+                            }}
+                          >
+                            <video
+                              src={videoPreviewUrl}
+                              muted
+                              playsInline
+                              preload="metadata"
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                                pointerEvents: "none",
+                                userSelect: "none",
+                              }}
+                            />
+                          </div>
+                        ) : null}
 
                         {selectedRect ? (
                           <div
