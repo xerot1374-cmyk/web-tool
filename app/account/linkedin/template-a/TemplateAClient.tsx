@@ -708,6 +708,8 @@ export default function TemplateAClient({
     startClientX: number;
     startClientY: number;
     startImage: ImageItem | null;
+    startVideoBox?: MediaBox | null;
+    mediaKind?: "image" | "video";
     startFrameSlot?: FrameSlot | null;
     startAngle: number;
     centerX: number;
@@ -1809,6 +1811,31 @@ export default function TemplateAClient({
       };
     }
 
+    function startVideoResizeInteraction(
+      e: React.MouseEvent<HTMLDivElement>,
+      mode: DragMode
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSelectedId("video");
+      setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
+      setEditField(null);
+      setSelectedRect(new DOMRect(videoBox.x, videoBox.y, videoBox.w, videoBox.h));
+
+      dragStateRef.current = {
+        mode,
+        mediaKind: "video",
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startImage: null,
+        startVideoBox: videoBox,
+        startAngle: 0,
+        centerX: 0,
+        centerY: 0,
+      };
+    }
+
     function startFrameImageDrag(
       imageId: string,
       e: React.MouseEvent<HTMLDivElement>
@@ -1831,11 +1858,67 @@ export default function TemplateAClient({
     useEffect(() => {
       function onWindowMove(e: MouseEvent) {
         const drag = dragStateRef.current;
-        if (!drag || !drag.mode || !drag.startImage) return;
+        if (!drag || !drag.mode || (!drag.startImage && !drag.startVideoBox)) return;
 
         const dx = (e.clientX - drag.startClientX) / previewScale;
         const dy = (e.clientY - drag.startClientY) / previewScale;
+
+        if (drag.mediaKind === "video" && drag.startVideoBox) {
+          const start = drag.startVideoBox;
+          let x = start.x;
+          let y = start.y;
+          let w = start.w;
+          let h = start.h;
+
+          if (
+            drag.mode === "resize-e" ||
+            drag.mode === "resize-ne" ||
+            drag.mode === "resize-se"
+          ) {
+            w = start.w + dx;
+          }
+          if (
+            drag.mode === "resize-s" ||
+            drag.mode === "resize-se" ||
+            drag.mode === "resize-sw"
+          ) {
+            h = start.h + dy;
+          }
+          if (
+            drag.mode === "resize-w" ||
+            drag.mode === "resize-nw" ||
+            drag.mode === "resize-sw"
+          ) {
+            x = start.x + dx;
+            w = start.w - dx;
+          }
+          if (
+            drag.mode === "resize-n" ||
+            drag.mode === "resize-ne" ||
+            drag.mode === "resize-nw"
+          ) {
+            y = start.y + dy;
+            h = start.h - dy;
+          }
+
+          const fixed = clampImageBox(
+            {
+              x: Math.round(x),
+              y: Math.round(y),
+              w: Math.round(w),
+              h: Math.round(h),
+            },
+            currentCanvas.w,
+            currentCanvas.h
+          );
+
+          setVideoBox(fixed);
+          setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
+          return;
+        }
+
         const start = drag.startImage;
+        if (!start) return;
 
         if (drag.mode === "frame-swap") {
           const stagePoint = clientPointToStage(e.clientX, e.clientY);
@@ -1865,12 +1948,12 @@ export default function TemplateAClient({
           if (!frameSlot) return;
 
           const nextCropX = clamp(
-            (drag.startImage.cropX ?? 50) - (dx / Math.max(frameSlot.w, 1)) * 100,
+            (start.cropX ?? 50) - (dx / Math.max(frameSlot.w, 1)) * 100,
             0,
             100
           );
           const nextCropY = clamp(
-            (drag.startImage.cropY ?? 50) - (dy / Math.max(frameSlot.h, 1)) * 100,
+            (start.cropY ?? 50) - (dy / Math.max(frameSlot.h, 1)) * 100,
             0,
             100
           );
@@ -4215,7 +4298,9 @@ export default function TemplateAClient({
                               width: selectedRect.width,
                               height: selectedRect.height,
                               pointerEvents:
-                                (selectedId === "productImage" || selectedId === "frameSlot") &&
+                                (selectedId === "productImage" ||
+                                  selectedId === "frameSlot" ||
+                                  selectedId === "video") &&
                                 !editField
                                   ? "auto"
                                   : "none",
@@ -4240,6 +4325,7 @@ export default function TemplateAClient({
                             }
                           >
                             {((selectedId === "productImage" && !editField && imageLayout !== "frame") ||
+                              (selectedId === "video" && !editField) ||
                               (imageLayout === "frame" && !editField && (selectedId === "productImage" || selectedId === "frameSlot"))) ? (
                               <>
                                 {selectionHandles.map((h) => (
@@ -4261,7 +4347,9 @@ export default function TemplateAClient({
                                       transform: h.transform,
                                     }}
                                     onMouseDown={(e) => {
-                                      if (imageLayout === "frame" && selectedId === "frameSlot") {
+                                      if (selectedId === "video") {
+                                        startVideoResizeInteraction(e, h.mode);
+                                      } else if (imageLayout === "frame" && selectedId === "frameSlot") {
                                         e.stopPropagation();
                                         const current = getSelectedFrameSlot();
                                         if (!current) return;
@@ -4282,7 +4370,7 @@ export default function TemplateAClient({
                                   />
                                 ))}
 
-                                {imageLayout !== "frame" ? (
+                                {imageLayout !== "frame" && selectedId === "productImage" ? (
                                   <div
                                     style={{
                                       position: "absolute",
@@ -4343,6 +4431,7 @@ export default function TemplateAClient({
                                   />
                                 ) : null}
 
+                                {selectedId === "productImage" ? (
                                 <button
                                   type="button"
                                   style={{
@@ -4365,6 +4454,7 @@ export default function TemplateAClient({
                                 >
                                   Remove
                                 </button>
+                                ) : null}
                               </>
                             ) : null}
                           </div>
