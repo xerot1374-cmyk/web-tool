@@ -629,6 +629,37 @@
   font-weight: 800;
 }
 
+.export-actions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.export-actions-panel__header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.export-actions-panel__header h3 {
+  margin: 0;
+  color: var(--brand-red);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.export-actions-panel__header p {
+  margin: 8px 0 0;
+  color: var(--brand-gray-dark);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.export-actions-panel__actions {
+  display: grid;
+  gap: 10px;
+}
+
 .tt {
   display: flex;
   flex-direction: column;

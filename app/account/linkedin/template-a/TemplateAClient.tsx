@@ -29,7 +29,6 @@ import {
   getCanvasFrame,
   type CanvasPreset,
 } from "@/app/lib/renderUtils";
-import PropertiesPanel from "@/app/components/templates/linkedin-shared/PropertiesPanel";
 
 type SessionUser = {
   name: string;
@@ -2201,26 +2200,25 @@ export default function TemplateAClient({
         return;
       }
 
-      const stage = stageRef.current;
-      if (!stage) {
+      const canvasWrap = canvasWrapRef.current;
+      if (!canvasWrap) {
         hideFloatingTextToolbar();
         return;
       }
 
-      const stageRect = stage.getBoundingClientRect();
-      const selectionCenterX =
-        (targetRect.left + targetRect.width / 2 - stageRect.left) / previewScale;
-      const selectionTop = (targetRect.top - stageRect.top) / previewScale;
-      const selectionBottom = (targetRect.bottom - stageRect.top) / previewScale;
-      const estimatedWidth = Math.min(560, Math.max(220, currentCanvas.w - 24));
+      const canvasRect = canvasWrap.getBoundingClientRect();
+      const selectionCenterX = targetRect.left + targetRect.width / 2 - canvasRect.left;
+      const selectionTop = targetRect.top - canvasRect.top;
+      const selectionBottom = targetRect.bottom - canvasRect.top;
+      const estimatedWidth = Math.min(560, Math.max(220, previewViewportW - 24));
       const estimatedHeight = 52;
       const margin = 12;
       const minX = estimatedWidth / 2 + margin;
-      const maxX = currentCanvas.w - estimatedWidth / 2 - margin;
+      const maxX = previewViewportW - estimatedWidth / 2 - margin;
       const x =
         maxX > minX
           ? Math.min(Math.max(selectionCenterX, minX), maxX)
-          : currentCanvas.w / 2;
+          : previewViewportW / 2;
       const hasSpaceAbove = selectionTop >= estimatedHeight + margin * 2;
       const placement: FloatingTextToolbarState["placement"] = hasSpaceAbove
         ? "above"
@@ -2228,7 +2226,7 @@ export default function TemplateAClient({
       const rawY = hasSpaceAbove ? selectionTop - margin : selectionBottom + margin;
       const y = hasSpaceAbove
         ? Math.max(estimatedHeight + margin, rawY)
-        : Math.min(currentCanvas.h - estimatedHeight - margin, rawY);
+        : Math.min(previewViewportH - estimatedHeight - margin, rawY);
 
       setFloatingTextToolbar({
         visible: true,
@@ -4213,6 +4211,7 @@ export default function TemplateAClient({
                             )}
                           </div>
                         ) : null}
+                        </div>
                         {floatingTextToolbar.visible && floatingTextToolbar.activeField ? (
                           <div
                             ref={floatingTextToolbarRef}
@@ -4255,7 +4254,6 @@ export default function TemplateAClient({
                             />
                           </div>
                         ) : null}
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -4268,27 +4266,25 @@ export default function TemplateAClient({
                 </>
               }
               toolbar={
-                floatingTextToolbar.visible ? null : (
-                  <TextToolbar
-                    activeField={activeField}
-                    copied={copied}
-                    applyUnicodeStyle={applyUnicodeStyle}
-                    applyBullet={applyBullet}
-                    applyNumbered={applyNumbered}
-                    applyHashtag={applyHashtag}
-                    copyActive={copyCaption}
-                    insertEmoji={insertEmoji}
-                    EMOJIS={EMOJIS}
-                    activeTextStyle={activeTextStyle}
-                    setActiveTextStyle={setActiveTextStyle}
-                    applyHighlightSelection={applyHighlightSelection}
-                    applyHighlightColorSelection={applyHighlightColorSelection}
-                    applyFontSelection={applyFontSelection}
-                    applySizeSelection={applySizeSelection}
-                    applyColorSelection={applyColorSelection}
-                    applyAlignSelection={applyAlignSelection}
-                  />
-                )
+                <TextToolbar
+                  activeField={activeField}
+                  copied={copied}
+                  applyUnicodeStyle={applyUnicodeStyle}
+                  applyBullet={applyBullet}
+                  applyNumbered={applyNumbered}
+                  applyHashtag={applyHashtag}
+                  copyActive={copyCaption}
+                  insertEmoji={insertEmoji}
+                  EMOJIS={EMOJIS}
+                  activeTextStyle={activeTextStyle}
+                  setActiveTextStyle={setActiveTextStyle}
+                  applyHighlightSelection={applyHighlightSelection}
+                  applyHighlightColorSelection={applyHighlightColorSelection}
+                  applyFontSelection={applyFontSelection}
+                  applySizeSelection={applySizeSelection}
+                  applyColorSelection={applyColorSelection}
+                  applyAlignSelection={applyAlignSelection}
+                />
               }
               toolbox={
                 <LinkedInToolbox
@@ -4357,48 +4353,41 @@ export default function TemplateAClient({
                 />
               }
               properties={
-                <PropertiesPanel
-                    selectedId={selectedId}
-                    applySelectionStylePatch={applySelectionStyleForField}
-                    title={title}
-                    setTitle={setTitleValue}
-                    titleStyle={titleStyle}
-                    setTitleStyle={setTitleStyle}
-                    body={body}
-                    setBody={setBody}
-                    bodyStyle={bodyBoxStyle}
-                    setBodyStyle={setBodyBoxStyle}
-                    badgeText={badgeText}
-                    setBadgeText={setBadgeTextValue}
-                    badgeStyle={badgeStyle}
-                    setBadgeStyle={setBadgeStyle}
-                    company={company}
-                    setCompany={setCompanyValue}
-                    companyStyle={companyStyle}
-                    setCompanyStyle={setCompanyStyle}
-                    headline={headline}
-                    setHeadline={setHeadline}
-                    headlineStyle={headlineStyle}
-                    setHeadlineStyle={setHeadlineStyle}
-                    subline={subline}
-                    setSubline={setSubline}
-                    sublineStyle={sublineStyle}
-                    setSublineStyle={setSublineStyle}
-                    productAlign={productAlign}
-                    setProductAlign={setProductAlignValue}
-                    imageLayout={imageLayout}
-                    setImageLayout={setImageLayoutMode}
-                    selectedImageRotation={selectedImage?.rotation ?? 0}
-                    setSelectedImageRotation={setSelectedImageRotation}
-                    selectedImageCropX={getCropX(selectedImage)}
-                    selectedImageCropY={getCropY(selectedImage)}
-                    selectedImageCropScale={getCropScale(selectedImage)}
-                    setSelectedImageCropX={setSelectedImageCropX}
-                    setSelectedImageCropY={setSelectedImageCropY}
-                    setSelectedImageCropScale={setSelectedImageCropScale}
-                    onDeleteSelectedImage={removeSelectedImage}
-                    onDuplicateSelectedImage={duplicateSelectedImage}
-                />
+                <div className="export-actions-panel">
+                  <div className="export-actions-panel__header">
+                    <h3>Export</h3>
+                    <p>Generate or download the final content.</p>
+                  </div>
+
+                  <div className="export-actions-panel__actions">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        downloadPDF(e);
+                      }}
+                      disabled={loadingPdf}
+                      className="tb__action tb__action--primary"
+                    >
+                      {loadingPdf ? "Generating PDF..." : "Download PDF"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={(e) => generateFinal(e)}
+                      disabled={finalLoading || !hasVideo}
+                      className="tb__action tb__action--dark"
+                    >
+                      {finalLoading ? "Generating..." : "Generate final.mp4"}
+                    </button>
+
+                    {finalUrl ? (
+                      <a href={finalUrl} download="final.mp4" className="tb__download">
+                        Download generated video
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
               }
           />
         </LinkedInEditorBaseClient>
