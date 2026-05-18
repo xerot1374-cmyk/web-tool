@@ -405,6 +405,18 @@ type ImageClipboardPayload = {
   image: ImageItem;
 };
 
+type VideoSnapshot = {
+  videoFile: File | null;
+  videoPreviewUrl: string | null;
+  videoBox: MediaBox;
+  videoZIndex: number;
+};
+
+type VideoClipboardPayload = {
+  type: "video";
+  snapshot: VideoSnapshot;
+} | null;
+
 function safePx(v: string | null | undefined, fallback: number) {
   const n = v ? parseFloat(v) : NaN;
   return Number.isFinite(n) ? n : fallback;
@@ -659,6 +671,9 @@ export default function TemplateAClient({
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const imageClipboardRef = useRef<ImageClipboardPayload | null>(null);
+  const videoClipboardRef = useRef<VideoClipboardPayload>(null);
+  const videoUndoStackRef = useRef<VideoSnapshot[]>([]);
+  const pendingVideoBoxRef = useRef<MediaBox | null>(null);
 
   const [canvasPreset, setCanvasPreset] = useState<CanvasPresetKey>("linkedin");
 
@@ -1637,6 +1652,130 @@ export default function TemplateAClient({
     if (editField) setEditField(null);
   }
 
+  function createVideoSnapshot(): VideoSnapshot {
+    return {
+      videoFile,
+      videoPreviewUrl,
+      videoBox: {...videoBox},
+      videoZIndex: objectLayers.video,
+    };
+  }
+
+  function pushVideoUndoSnapshot() {
+    videoUndoStackRef.current.push(createVideoSnapshot());
+    if (videoUndoStackRef.current.length > 30) {
+      videoUndoStackRef.current.shift();
+    }
+  }
+
+  function restoreVideoSnapshot(snapshot: VideoSnapshot) {
+    setVideoBox({...snapshot.videoBox});
+    setObjectLayers((prev) => ({
+      ...prev,
+      video: snapshot.videoZIndex,
+      next: Math.max(prev.next, snapshot.videoZIndex + 1),
+    }));
+
+    setVideoFile(snapshot.videoFile);
+
+    if (snapshot.videoFile) {
+      pendingVideoBoxRef.current = {...snapshot.videoBox};
+      setSelectedId("video");
+      setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
+      setSelectedRect(
+        new DOMRect(
+          snapshot.videoBox.x,
+          snapshot.videoBox.y,
+          snapshot.videoBox.w,
+          snapshot.videoBox.h
+        )
+      );
+      return;
+    }
+
+    pendingVideoBoxRef.current = null;
+    setVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (selectedId === "video") {
+      setSelectedId(null);
+      setSelectedRect(null);
+    }
+  }
+
+  function removeVideoObject() {
+    setVideoFile(null);
+    setVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setSelectedId(null);
+    setSelectedRect(null);
+    setSelectedImageId(null);
+    setSelectedFrameSlotId(null);
+  }
+
+  function copySelectedVideo() {
+    if (selectedId !== "video" || !videoFile) return;
+
+    imageClipboardRef.current = null;
+    videoClipboardRef.current = {
+      type: "video",
+      snapshot: createVideoSnapshot(),
+    };
+  }
+
+  function cutSelectedVideo() {
+    if (selectedId !== "video" || !videoFile) return;
+
+    pushVideoUndoSnapshot();
+    copySelectedVideo();
+    removeVideoObject();
+  }
+
+  function deleteSelectedVideo() {
+    if (selectedId !== "video" || !videoFile) return;
+
+    pushVideoUndoSnapshot();
+    removeVideoObject();
+  }
+
+  function pasteVideoFromClipboard() {
+    const item = videoClipboardRef.current;
+    if (!item || item.type !== "video" || !item.snapshot.videoFile) return;
+
+    pushVideoUndoSnapshot();
+
+    const snapshot = item.snapshot;
+    const nextBox = clampImageBox(
+      {
+        ...snapshot.videoBox,
+        x: snapshot.videoBox.x + 24,
+        y: snapshot.videoBox.y + 24,
+      },
+      currentCanvas.w,
+      currentCanvas.h
+    );
+
+    pendingVideoBoxRef.current = nextBox;
+    setVideoBox(nextBox);
+    setVideoFile(snapshot.videoFile);
+    bringVideoObjectToFront();
+    setSelectedId("video");
+    setSelectedImageId(null);
+    setSelectedFrameSlotId(null);
+    setSelectedRect(new DOMRect(nextBox.x, nextBox.y, nextBox.w, nextBox.h));
+  }
+
+  function undoVideoAction() {
+    const previous = videoUndoStackRef.current.pop();
+    if (!previous) return;
+
+    restoreVideoSnapshot(previous);
+  }
+
   function isRichEditField(field: EditorTextField | EditField | null): field is RichEditField {
     return field === "body" || field === "title" || field === "company" || field === "badge";
   }
@@ -1852,6 +1991,7 @@ export default function TemplateAClient({
       e.preventDefault();
       e.stopPropagation();
       selectVideoObject();
+      pushVideoUndoSnapshot();
 
       dragStateRef.current = {
         mode,
@@ -2223,9 +2363,53 @@ export default function TemplateAClient({
       function onWindowKeyDown(e: KeyboardEvent) {
         const metaOrCtrl = e.ctrlKey || e.metaKey;
 
+        if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedId === "video" && !editField) {
+          if (isEditableTarget(e.target)) return;
+          e.preventDefault();
+          copySelectedVideo();
+          return;
+        }
+
+        if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedId === "video" && !editField) {
+          if (isEditableTarget(e.target)) return;
+          e.preventDefault();
+          cutSelectedVideo();
+          return;
+        }
+
+        if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
+          if (isEditableTarget(e.target)) return;
+          if (videoClipboardRef.current?.type === "video") {
+            e.preventDefault();
+            pasteVideoFromClipboard();
+            return;
+          }
+        }
+
+        if (metaOrCtrl && e.key.toLowerCase() === "z" && !editField) {
+          if (isEditableTarget(e.target)) return;
+          if (videoUndoStackRef.current.length > 0) {
+            e.preventDefault();
+            undoVideoAction();
+            return;
+          }
+        }
+
+        if (
+            (e.key === "Delete" || e.key === "Backspace") &&
+            selectedId === "video" &&
+            !editField
+        ) {
+          if (isEditableTarget(e.target)) return;
+          e.preventDefault();
+          deleteSelectedVideo();
+          return;
+        }
+
         if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedImageId && !editField) {
           if (isEditableTarget(e.target)) return;
           e.preventDefault();
+          videoClipboardRef.current = null;
           copySelectedImageToClipboard();
           return;
         }
@@ -2233,6 +2417,7 @@ export default function TemplateAClient({
         if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedImageId && !editField) {
           if (isEditableTarget(e.target)) return;
           e.preventDefault();
+          videoClipboardRef.current = null;
           cutSelectedImageToClipboard();
           return;
         }
@@ -2258,7 +2443,19 @@ export default function TemplateAClient({
 
       window.addEventListener("keydown", onWindowKeyDown);
       return () => window.removeEventListener("keydown", onWindowKeyDown);
-    }, [selectedImageId, editField, images, canvasPreset]);
+    }, [
+      selectedId,
+      selectedImageId,
+      editField,
+      images,
+      canvasPreset,
+      videoFile,
+      videoPreviewUrl,
+      videoBox,
+      objectLayers.video,
+      currentCanvas.w,
+      currentCanvas.h,
+    ]);
 
     useEffect(() => {
       if (isPdf) return;
@@ -3782,8 +3979,12 @@ export default function TemplateAClient({
       }
 
       const url = URL.createObjectURL(videoFile);
-      setVideoBox(getInitialVideoBox());
-      bringVideoObjectToFront();
+      const pendingBox = pendingVideoBoxRef.current;
+      pendingVideoBoxRef.current = null;
+      setVideoBox(pendingBox ?? getInitialVideoBox());
+      if (!pendingBox) {
+        bringVideoObjectToFront();
+      }
       setVideoPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return url;
@@ -3976,6 +4177,15 @@ export default function TemplateAClient({
               framePresetId,
               frameSlots: frameSlotsState,
             })
+        );
+        form.append(
+          "videoBox",
+          JSON.stringify({
+            x: videoBox.x,
+            y: videoBox.y,
+            w: videoBox.w,
+            h: videoBox.h,
+          })
         );
         form.append("video", videoFile);
 

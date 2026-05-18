@@ -39,6 +39,12 @@ type Payload = {
     w: number;
     h: number;
   };
+  videoBox?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
 
   images?: unknown[];
   imageLayout?: "manual" | "collage" | "frame";
@@ -68,9 +74,12 @@ type TextMark = {
   end: number;
   style?: {
     fontFamily?: string;
-    fontSize?: number;
+    fontSize?: number | string;
     color?: string;
     highlight?: boolean;
+    highlightColor?: string;
+    fontWeight?: string | number;
+    fontStyle?: string;
   };
 };
 
@@ -115,27 +124,57 @@ function renderMarkedHtml(text: string, marks?: TextMark[]) {
     .filter((mark) => mark.end > mark.start)
     .sort((a, b) => a.start - b.start);
 
-  let out = "";
-  let pos = 0;
+  const boundaries = Array.from(
+    new Set([0, value.length, ...safeMarks.flatMap((mark) => [mark.start, mark.end])])
+  ).sort((a, b) => a - b);
 
-  for (const mark of safeMarks) {
-    if (mark.start > pos) {
-      out += escapeHtml(value.slice(pos, mark.start)).replace(/\n/g, "<br/>");
+  let out = "";
+
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const start = boundaries[i];
+    const end = boundaries[i + 1];
+    if (end <= start) continue;
+
+    const activeStyle = safeMarks
+      .filter((mark) => mark.start <= start && mark.end >= end)
+      .reduce<NonNullable<TextMark["style"]>>(
+        (acc, mark) => ({
+          ...acc,
+          ...mark.style,
+        }),
+        {}
+      );
+
+    const styles: string[] = [];
+    if (activeStyle.fontFamily) {
+      styles.push(`font-family:${escapeHtml(String(activeStyle.fontFamily))}`);
+    }
+    if (activeStyle.fontSize !== undefined && activeStyle.fontSize !== null) {
+      const rawSize = String(activeStyle.fontSize);
+      const size = typeof activeStyle.fontSize === "number" || !rawSize.endsWith("px")
+        ? `${rawSize}px`
+        : rawSize;
+      styles.push(`font-size:${escapeHtml(size)}`);
+    }
+    if (activeStyle.color) {
+      styles.push(`color:${escapeHtml(String(activeStyle.color))}`);
+    }
+    const highlightColor =
+      activeStyle.highlightColor || (activeStyle.highlight ? "#fff3a3" : "");
+    if (highlightColor) {
+      styles.push(`background-color:${escapeHtml(String(highlightColor))}`);
+    }
+    if (activeStyle.fontWeight) {
+      styles.push(`font-weight:${escapeHtml(String(activeStyle.fontWeight))}`);
+    }
+    if (activeStyle.fontStyle) {
+      styles.push(`font-style:${escapeHtml(String(activeStyle.fontStyle))}`);
     }
 
-    const style = [
-      mark.style.fontFamily ? `font-family:${mark.style.fontFamily};` : "",
-      mark.style.fontSize ? `font-size:${mark.style.fontSize}px;` : "",
-      mark.style.color ? `color:${mark.style.color};` : "",
-      mark.style.highlight ? "background:rgba(250,204,21,0.18);" : "",
-    ].join("");
+    const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+    const chunk = escapeHtml(value.slice(start, end)).replace(/\n/g, "<br/>");
 
-    out += `<span style="${style}">${escapeHtml(value.slice(mark.start, mark.end)).replace(/\n/g, "<br/>")}</span>`;
-    pos = mark.end;
-  }
-
-  if (pos < value.length) {
-    out += escapeHtml(value.slice(pos)).replace(/\n/g, "<br/>");
+    out += `<span${styleAttr}>${chunk}</span>`;
   }
 
   return out;
@@ -337,7 +376,7 @@ function renderVideoTemplateHtml(
               : ""
           }
           <div class="li2-badge" style="min-width:120px;${styleToInline(data.badgeStyle)}">
-            ${data.badgeText?.trim() ? renderMarkedHtml(data.badgeText.trim(), data.badgeMarks) : "&nbsp;"}
+            ${data.badgeText?.trim() ? renderMarkedHtml(data.badgeText, data.badgeMarks) : "&nbsp;"}
           </div>
           <div class="li2-userTop">
             <div class="li2-userTopMeta">
@@ -437,6 +476,41 @@ function getFormString(formData: FormData, key: string) {
   return typeof value === "string" ? value : undefined;
 }
 
+function parseVideoBox(raw: FormDataEntryValue | null): Payload["videoBox"] {
+  if (typeof raw !== "string" || !raw.trim()) return undefined;
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "x" in parsed &&
+      "y" in parsed &&
+      "w" in parsed &&
+      "h" in parsed
+    ) {
+      const box = parsed as { x: unknown; y: unknown; w: unknown; h: unknown };
+      if (
+        typeof box.x === "number" &&
+        typeof box.y === "number" &&
+        typeof box.w === "number" &&
+        typeof box.h === "number"
+      ) {
+        return {
+          x: box.x,
+          y: box.y,
+          w: box.w,
+          h: box.h,
+        };
+      }
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
+}
+
 async function persistUploadedFile(file: File, outputPath: string) {
   const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(outputPath, buffer);
@@ -451,7 +525,14 @@ async function screenshotCoverPng(
   const puppeteer = (await import("puppeteer")).default;
 
   const frame = getCanvasFrame(data.canvasPreset);
-  const box = getFinalVideoBox(data.canvasPreset, data.mediaBox);
+  const box = data.videoBox
+    ? {
+        x: Math.round(data.videoBox.x),
+        y: Math.round(data.videoBox.y),
+        w: Math.round(data.videoBox.w),
+        h: Math.round(data.videoBox.h),
+      }
+    : getFinalVideoBox(data.canvasPreset, data.mediaBox);
   const html = renderVideoTemplateHtml(req, data, box, mode);
 
   const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
@@ -567,7 +648,10 @@ export async function POST(req: Request) {
       );
     }
 
-    const data = normalizePayload(JSON.parse(rawData) as Payload);
+    const data = {
+      ...normalizePayload(JSON.parse(rawData) as Payload),
+      videoBox: parseVideoBox(formData.get("videoBox")),
+    };
     const videoField = formData.get("video");
 
     if (!(videoField instanceof File) || videoField.size === 0) {
