@@ -1866,6 +1866,9 @@ export default function TemplateAClient({
           const next = { start: text.length, end: text.length };
           richEditSelectionRef.current[editField] = next;
           const root = getRichEditRoot(editField);
+          if (root) {
+            root.textContent = text;
+          }
           root?.focus();
           restoreContentEditableSelection(root, next);
           return;
@@ -2684,11 +2687,10 @@ export default function TemplateAClient({
       const selection = readContentEditableSelection(field, root);
       handleTextChange(field, getContentEditablePlainText(root), selection.end);
       if (selection.start === selection.end) hideFloatingTextToolbar();
-      requestAnimationFrame(() => {
-        if (field === "badge") remeasureBadgeSelection();
-        richEditSelectionRef.current[field] = selection;
-        restoreContentEditableSelection(getRichEditRoot(field), selection);
-      });
+      richEditSelectionRef.current[field] = selection;
+      if (field === "badge") {
+        requestAnimationFrame(() => remeasureBadgeSelection());
+      }
     }
 
     function renderEditableMarkedText(text: string, marks?: TextMark[]) {
@@ -4792,12 +4794,7 @@ export default function TemplateAClient({
                                   }
                                 : null),
                             }}
-                          >
-                            {renderEditableMarkedText(
-                              getRichEditText(editField),
-                              getRichEditMarks(editField)
-                            )}
-                          </div>
+                          />
                         ) : null}
                         </div>
                         {floatingTextToolbar.visible && floatingTextToolbar.activeField ? (
