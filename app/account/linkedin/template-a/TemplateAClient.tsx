@@ -190,6 +190,14 @@ function getSelectedLineBlock(text: string, start: number, end: number) {
   return {lineStart, lineEnd};
 }
 
+function getLineBounds(text: string, index: number) {
+  const safeIndex = clamp(index, 0, text.length);
+  const start = text.lastIndexOf("\n", Math.max(0, safeIndex - 1)) + 1;
+  const next = text.indexOf("\n", safeIndex);
+  const end = next === -1 ? text.length : next;
+  return {start, end};
+}
+
 type LinePrefixChange = {
   oldLineStart: number;
   oldLineEnd: number;
@@ -2742,6 +2750,61 @@ export default function TemplateAClient({
       return out.length ? out : "\u00A0";
     }
 
+    function syncRichEditOverlayDom(
+      field: RichEditField,
+      marks: TextMark[],
+      range: { start: number; end: number },
+      textOverride?: string
+    ) {
+      const root = getRichEditRoot(field);
+      if (!root) return;
+
+      const text = textOverride ?? getRichEditText(field);
+      const safeMarks = marks
+        .map((m) => ({
+          start: Math.max(0, Math.min(m.start, text.length)),
+          end: Math.max(0, Math.min(m.end, text.length)),
+          style: m.style ?? {},
+        }))
+        .filter((m) => m.end > m.start)
+        .sort((a, b) => a.start - b.start);
+
+      const nodes: Node[] = [];
+      let pos = 0;
+
+      for (const mark of safeMarks) {
+        if (mark.start > pos) {
+          nodes.push(document.createTextNode(text.slice(pos, mark.start)));
+        }
+
+        const span = document.createElement("span");
+        if (mark.style.fontFamily) span.style.fontFamily = String(mark.style.fontFamily);
+        if (mark.style.fontSize) span.style.fontSize = `${mark.style.fontSize}px`;
+        if (mark.style.color) span.style.color = String(mark.style.color);
+        if (mark.style.fontWeight) span.style.fontWeight = String(mark.style.fontWeight);
+        if (mark.style.fontStyle) span.style.fontStyle = String(mark.style.fontStyle);
+        if (mark.style.highlight) {
+          span.style.background = mark.style.highlightColor ?? "rgba(250,204,21,0.18)";
+        }
+        span.textContent = text.slice(mark.start, mark.end);
+        nodes.push(span);
+        pos = mark.end;
+      }
+
+      if (pos < text.length) {
+        nodes.push(document.createTextNode(text.slice(pos)));
+      }
+
+      if (nodes.length === 0) {
+        nodes.push(document.createTextNode("\u00A0"));
+      }
+
+      root.replaceChildren(...nodes);
+      richEditSelectionRef.current[field] = range;
+      root.focus();
+      restoreContentEditableSelection(root, range);
+    }
+
     function getEditorFieldControl(
         field: EditorTextField = editField ?? activeField
     ): {
@@ -3323,6 +3386,9 @@ export default function TemplateAClient({
 
       if (isRichEditField(field)) {
         syncFloatingToolbarFormatting(field, range, nextMarks);
+        requestAnimationFrame(() => {
+          syncRichEditOverlayDom(field, nextMarks, range);
+        });
       }
       restoreSelection();
     }
@@ -3471,13 +3537,97 @@ export default function TemplateAClient({
       applyStyleSelection({}, style === "bold" ? "toggleBold" : "toggleItalic");
     }
 
-    function applyBullet() {
-      const {text, setText, ref} = getEditorFieldControl();
-      const el = ref.current;
-      if (!el) return;
+    function getListActionTarget() {
+      const field: EditorTextField = isRichEditField(editField) ? editField : activeField;
+      const {text, setText, ref} = getEditorFieldControl(field);
 
-      const s = el.selectionStart ?? 0;
-      const e = el.selectionEnd ?? 0;
+      if (isRichEditField(field)) {
+        const range = readContentEditableSelection(field, getRichEditRoot(field));
+        return {field, text, setText, ref, s: range.start, e: range.end};
+      }
+
+      const node = ref.current;
+      if (!node) return null;
+      return {
+        field,
+        text,
+        setText,
+        ref,
+        s: node.selectionStart ?? 0,
+        e: node.selectionEnd ?? node.selectionStart ?? 0,
+      };
+    }
+
+    function restoreListActionSelection(
+      field: EditorTextField,
+      ref: RefObject<HTMLInputElement | null> | RefObject<HTMLTextAreaElement | null>,
+      range: { start: number; end: number },
+      text: string,
+      marks: TextMark[]
+    ) {
+      requestAnimationFrame(() => {
+        if (isRichEditField(field)) {
+          syncRichEditOverlayDom(field, marks, range, text);
+          return;
+        }
+
+        const node = ref.current;
+        if (!node) return;
+        node.focus();
+        node.setSelectionRange(range.start, range.end);
+      });
+    }
+
+    function applyCollapsedListPrefix(kind: "bullet" | "numbered") {
+      const target = getListActionTarget();
+      if (!target) return true;
+
+      const {field, text, setText, ref, s} = target;
+      const {start: lineStart, end: lineEnd} = getLineBounds(text, s);
+      const line = text.slice(lineStart, lineEnd);
+      const oldMarker = line.match(/^\s*(?:\u2022|\d+\.)\s+/)?.[0] ?? "";
+      const hasTargetMarker =
+        kind === "bullet"
+          ? /^\s*\u2022\s+/.test(line)
+          : /^\s*\d+\.\s+/.test(line);
+      const newMarker = hasTargetMarker ? "" : kind === "bullet" ? "  \u2022 " : "  1. ";
+      const content = oldMarker ? line.slice(oldMarker.length) : line;
+      const nextLine = `${newMarker}${content}`;
+      const next = text.slice(0, lineStart) + nextLine + text.slice(lineEnd);
+      const cursorOffset = s - lineStart;
+      const markerDelta = newMarker.length - oldMarker.length;
+      const nextCursor = lineStart + clamp(cursorOffset + markerDelta, 0, nextLine.length);
+
+      if (next !== text) {
+        setText(next);
+        const {marks, setMarks} = getActiveMarksState(field);
+        const nextMarks = remapMarksForLinePrefixChanges(marks, [
+          {
+            oldLineStart: lineStart,
+            oldLineEnd: lineEnd,
+            oldPrefixLength: oldMarker.length,
+            newPrefixLength: newMarker.length,
+          },
+        ]);
+        setMarks(nextMarks);
+        restoreListActionSelection(
+          field,
+          ref,
+          {start: nextCursor, end: nextCursor},
+          next,
+          nextMarks
+        );
+      }
+
+      return true;
+    }
+
+    function applyBullet() {
+      const target = getListActionTarget();
+      if (!target) return;
+      const {field, text, setText, ref, s, e} = target;
+      if (s === e && applyCollapsedListPrefix("bullet")) return;
+
       const {lineStart, lineEnd} = getSelectedLineBlock(text, s, e);
       const block = text.slice(lineStart, lineEnd);
       const lines = block.split("\n");
@@ -3518,25 +3668,34 @@ export default function TemplateAClient({
 
       if (next !== text) {
         setText(next);
-        const {marks, setMarks} = getActiveMarksState();
-        setMarks(remapMarksForLinePrefixChanges(marks, changes));
+        const {marks, setMarks} = getActiveMarksState(field);
+        const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
+        setMarks(nextMarks);
+        restoreListActionSelection(
+          field,
+          ref,
+          {start: lineStart, end: lineStart + replacedBlock.length},
+          next,
+          nextMarks
+        );
+        return;
       }
 
-      requestAnimationFrame(() => {
-        const node = ref.current;
-        if (!node) return;
-        node.focus();
-        node.setSelectionRange(lineStart, lineStart + replacedBlock.length);
-      });
+      restoreListActionSelection(
+        field,
+        ref,
+        {start: lineStart, end: lineStart + replacedBlock.length},
+        text,
+        getActiveMarksState(field).marks
+      );
     }
 
     function applyNumbered() {
-      const {text, setText, ref} = getEditorFieldControl();
-      const el = ref.current;
-      if (!el) return;
+      const target = getListActionTarget();
+      if (!target) return;
+      const {field, text, setText, ref, s, e} = target;
+      if (s === e && applyCollapsedListPrefix("numbered")) return;
 
-      const s = el.selectionStart ?? 0;
-      const e = el.selectionEnd ?? 0;
       const {lineStart, lineEnd} = getSelectedLineBlock(text, s, e);
       const block = text.slice(lineStart, lineEnd);
       const lines = block.split("\n");
@@ -3578,16 +3737,26 @@ export default function TemplateAClient({
 
       if (next !== text) {
         setText(next);
-        const {marks, setMarks} = getActiveMarksState();
-        setMarks(remapMarksForLinePrefixChanges(marks, changes));
+        const {marks, setMarks} = getActiveMarksState(field);
+        const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
+        setMarks(nextMarks);
+        restoreListActionSelection(
+          field,
+          ref,
+          {start: lineStart, end: lineStart + replacedBlock.length},
+          next,
+          nextMarks
+        );
+        return;
       }
 
-      requestAnimationFrame(() => {
-        const node = ref.current;
-        if (!node) return;
-        node.focus();
-        node.setSelectionRange(lineStart, lineStart + replacedBlock.length);
-      });
+      restoreListActionSelection(
+        field,
+        ref,
+        {start: lineStart, end: lineStart + replacedBlock.length},
+        text,
+        getActiveMarksState(field).marks
+      );
     }
 
     function handleNumberedListEnter(
