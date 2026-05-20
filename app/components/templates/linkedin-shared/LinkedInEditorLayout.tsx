@@ -16,8 +16,14 @@ export default function LinkedInEditorLayout({
   properties,
 }: Props) {
   return (
-    <div className="editor-layout-4col">
-      <aside className="editor-toolbar editor-shell-card">{toolbar}</aside>
+    <div
+      className={`editor-layout-4col${
+        toolbar ? "" : " editor-layout-4col--noToolbar"
+      }`}
+    >
+      {toolbar ? (
+        <aside className="editor-toolbar editor-shell-card">{toolbar}</aside>
+      ) : null}
       <aside className="editor-panel editor-panel--sticky editor-shell-card">
         {toolbox}
       </aside>

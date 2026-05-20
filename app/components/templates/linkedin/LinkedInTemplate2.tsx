@@ -53,6 +53,7 @@ export type ImageLayoutMode = "manual" | "collage" | "frame";
 type Props = LinkedInTemplate2Data & {
   scale?: number;
   mode?: "edit" | "preview" | "export";
+  editorActiveField?: "badge" | "title" | "body" | "company" | null;
 
   bodyStyle?: BoxTextStyle;
   bodyMarks?: TextMark[];
@@ -114,6 +115,7 @@ export default function LinkedInTemplate2(props: Props) {
     onStartFrameImageDrag,
     onSelectableClick,
     onSelectableDoubleClick,
+    editorActiveField,
     ...rest
   } = props;
 
@@ -142,6 +144,7 @@ export default function LinkedInTemplate2(props: Props) {
       }}
       mode={mode}
       scale={scale}
+      editorActiveField={editorActiveField}
       onStartFrameImageDrag={onStartFrameImageDrag}
       onSelectableClick={onSelectableClick}
       onSelectableDoubleClick={onSelectableDoubleClick}

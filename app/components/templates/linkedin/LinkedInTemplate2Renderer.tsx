@@ -2,6 +2,7 @@
 
 import React, { useMemo, useRef, useCallback } from "react";
 import { resolveFrameSlots, type FrameSlot } from "@/app/lib/imageLayouts";
+import LexicalInlineEditor from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 export type MediaBox = {
   x: number;
@@ -125,6 +126,24 @@ export type LinkedInTemplate2RendererProps = {
   data: LinkedInTemplate2Data;
   mode: "edit" | "preview" | "export";
   scale?: number;
+  activeRichTextEditor?: {
+    field: "badge" | "title" | "body" | "company";
+    editorRef: React.Ref<unknown>;
+    text: string;
+    marks: TextMark[];
+    multiline: boolean;
+    className?: string;
+    style?: React.CSSProperties;
+    onBlur: (event: React.FocusEvent<HTMLElement>) => void;
+    onKeyDown: (event: React.KeyboardEvent<HTMLElement>) => void;
+    onKeyUp: () => void;
+    onMouseUp: () => void;
+    onPointerDown: (event: React.PointerEvent<HTMLElement>) => void;
+    onMouseDown: (event: React.MouseEvent<HTMLElement>) => void;
+    onClick: (event: React.MouseEvent<HTMLElement>) => void;
+    onDoubleClick: (event: React.MouseEvent<HTMLElement>) => void;
+    onChange: (payload: { text: string; marks: TextMark[] }) => void;
+  } | null;
 
   onFieldChange?: (key: keyof LinkedInTemplate2Data, value: string) => void;
   onPickProductImage?: (file: File) => void;
@@ -266,6 +285,7 @@ export default function LinkedInTemplate2Renderer({
   data,
   mode,
   scale = 1,
+  activeRichTextEditor = null,
   onFieldChange,
   onPickProductImage,
   onStartFrameImageDrag,
@@ -277,6 +297,31 @@ export default function LinkedInTemplate2Renderer({
 
   const isEdit = mode === "edit";
   const isPreviewLike = mode === "preview" || mode === "edit";
+  const renderActiveRichTextEditor = (
+    field: "badge" | "title" | "body" | "company",
+  ) => {
+    if (activeRichTextEditor?.field !== field) return null;
+
+    return (
+      <LexicalInlineEditor
+        ref={activeRichTextEditor.editorRef}
+        text={activeRichTextEditor.text}
+        marks={activeRichTextEditor.marks}
+        multiline={activeRichTextEditor.multiline}
+        className={activeRichTextEditor.className}
+        style={activeRichTextEditor.style}
+        onBlur={activeRichTextEditor.onBlur}
+        onKeyDown={activeRichTextEditor.onKeyDown}
+        onKeyUp={activeRichTextEditor.onKeyUp}
+        onMouseUp={activeRichTextEditor.onMouseUp}
+        onPointerDown={activeRichTextEditor.onPointerDown}
+        onMouseDown={activeRichTextEditor.onMouseDown}
+        onClick={activeRichTextEditor.onClick}
+        onDoubleClick={activeRichTextEditor.onDoubleClick}
+        onChange={activeRichTextEditor.onChange}
+      />
+    );
+  };
 
   const images = useMemo<ImageItem[]>(() => {
     if (Array.isArray(data.productImages) && data.productImages.length) {
@@ -643,7 +688,8 @@ export default function LinkedInTemplate2Renderer({
               }
               style={{ cursor: isEdit ? "pointer" : undefined }}
             >
-              {vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0"}
+              {renderActiveRichTextEditor("badge") ??
+                (vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0")}
             </span>
           </div>
 
@@ -688,7 +734,8 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.titleStyle?.textAlign,
               }}
             >
-              {vTitle ? renderMarkedText(vTitle, data.titleMarks) : "\u00A0"}
+              {renderActiveRichTextEditor("title") ??
+                (vTitle ? renderMarkedText(vTitle, data.titleMarks) : "\u00A0")}
             </div>
           ) : null}
 
@@ -707,7 +754,8 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.companyStyle?.textAlign,
               }}
             >
-              {renderMarkedText(vCompany, data.companyMarks)}
+              {renderActiveRichTextEditor("company") ??
+                renderMarkedText(vCompany, data.companyMarks)}
             </div>
           ) : null}
 
@@ -792,7 +840,8 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.bodyStyle?.textAlign,
               }}
             >
-              {renderMarkedText(vBody, data.bodyMarks)}
+              {renderActiveRichTextEditor("body") ??
+                renderMarkedText(vBody, data.bodyMarks)}
             </div>
           ) : null}
 

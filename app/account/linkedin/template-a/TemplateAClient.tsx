@@ -10,10 +10,12 @@ import {
   useState,
   type RefObject,
   type CSSProperties,
-  type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
 import TextToolbar from "@/app/components/templates/linkedin-shared/TextToolbar";
+import LexicalInlineEditor, {
+  type LexicalInlineEditorHandle,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
 import {
@@ -810,10 +812,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       activeField: null,
     });
   const floatingTextToolbarRef = useRef<HTMLDivElement | null>(null);
-  const titleEditRef = useRef<HTMLDivElement | null>(null);
-  const bodyEditRef = useRef<HTMLDivElement | null>(null);
-  const companyEditRef = useRef<HTMLDivElement | null>(null);
-  const badgeEditRef = useRef<HTMLDivElement | null>(null);
+  const titleEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const bodyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const companyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const badgeEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const richEditSelectionRef = useRef<
     Record<RichEditField, { start: number; end: number }>
   >({
@@ -890,20 +892,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const companyRef = useRef<HTMLInputElement | null>(null);
   const captionRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const [bodyStyle] = useState<TextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 14,
-    color: "#111827",
-    highlight: false,
-  });
-
-  const [captionStyle] = useState<TextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 14,
-    color: "#111827",
-    highlight: false,
-  });
 
   const [titleStyle, setTitleStyle] = useState<BoxTextStyle>({
     fontFamily: "system-ui",
@@ -1292,27 +1280,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     });
   }
 
-  function setProductAlignValue(nextAlign: "left" | "center" | "right") {
-    setProductAlign(nextAlign);
-
-    if (imageLayout === "collage") {
-      setImages((prev) => {
-        const next = applyImageLayout(imageLayout, prev, nextAlign);
-        syncLegacyFromFirstImage(next);
-        return next;
-      });
-      return;
-    }
-
-    if (imageLayout === "frame") {
-      return;
-    }
-
-    if (selectedImageId) {
-      updateSelectedImageAlign(nextAlign);
-    }
-  }
-
   async function onPickProductImage(file: File | null) {
     if (!file) return;
 
@@ -1409,27 +1376,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setSelectedRect(null);
   }
 
-  function duplicateSelectedImage() {
-    const current = getSelectedImage();
-    if (!current) return;
-
-    const dup: ImageItem = {
-      ...current,
-      id: uid(),
-      x: clamp(current.x + 24, 0, Math.max(0, currentCanvas.w - current.w)),
-      y: clamp(current.y + 24, 0, Math.max(0, currentCanvas.h - current.h)),
-    };
-
-    setImages((prev) => {
-      const next = applyImageLayout(imageLayout, [...prev, dup]);
-      syncLegacyFromFirstImage(next);
-      return next;
-    });
-    setSelectedId("productImage");
-    setSelectedImageId(dup.id);
-    bringImageObjectToFront(dup.id);
-  }
-
   function copySelectedImageToClipboard() {
     const current = getSelectedImage();
     if (!current) return;
@@ -1464,56 +1410,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setSelectedId("productImage");
     setSelectedImageId(pasted.id);
     bringImageObjectToFront(pasted.id);
-  }
-
-  function rotateSelectedImage(delta: number) {
-    updateSelectedImage((prev) => ({
-      ...prev,
-      rotation: normalizeAngle(prev.rotation + delta),
-    }));
-  }
-
-  function setSelectedImageRotation(rotation: number) {
-    updateSelectedImage((prev) => ({
-      ...prev,
-      rotation: normalizeAngle(rotation),
-    }));
-  }
-
-  function setSelectedImageCropX(v: number) {
-    updateSelectedImage((prev) => ({
-      ...prev,
-      cropX: clamp(v, 0, 100),
-    }));
-  }
-
-  function setSelectedImageCropY(v: number) {
-    updateSelectedImage((prev) => ({
-      ...prev,
-      cropY: clamp(v, 0, 100),
-    }));
-  }
-
-  function setSelectedImageCropScale(v: number) {
-    updateSelectedImage((prev) => ({
-      ...prev,
-      cropScale: clamp(v, 1, 3),
-    }));
-  }
-
-  function updateSelectedImageAlign(dir: "left" | "center" | "right") {
-    const current = getSelectedImage();
-    if (!current) return;
-
-    let x = current.x;
-    if (dir === "left") x = 24;
-    if (dir === "center") x = Math.round((currentCanvas.w - current.w) / 2);
-    if (dir === "right") x = Math.round(currentCanvas.w - current.w - 24);
-
-    updateSelectedImage((prev) => ({
-      ...prev,
-      x: clamp(x, 0, Math.max(0, currentCanvas.w - prev.w)),
-    }));
   }
 
   function getFrameSlotRect(slotId: string) {
@@ -2029,11 +1925,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         const text = getRichEditText(editField);
         const next = { start: text.length, end: text.length };
         richEditSelectionRef.current[editField] = next;
+        const editor = getRichEditEditor(editField);
+        editor?.syncContent(text, getRichEditMarks(editField));
+        editor?.focus();
         const root = getRichEditRoot(editField);
-        if (root) {
-          root.textContent = text;
-        }
-        root?.focus();
         restoreContentEditableSelection(root, next);
         return;
       }
@@ -2787,15 +2682,19 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
+  function getRichEditEditor(field: RichEditField) {
+    if (field === "title") return titleEditRef.current;
+    if (field === "company") return companyEditRef.current;
+    if (field === "badge") return badgeEditRef.current;
+    return bodyEditRef.current;
+  }
+
   function getNodeTextLength(node: Node | null) {
     return node?.textContent?.length ?? 0;
   }
 
   function getRichEditRoot(field: RichEditField) {
-    if (field === "title") return titleEditRef.current;
-    if (field === "company") return companyEditRef.current;
-    if (field === "badge") return badgeEditRef.current;
-    return bodyEditRef.current;
+    return getRichEditEditor(field)?.getRootElement() ?? null;
   }
 
   function getRichEditMarks(field: RichEditField) {
@@ -2988,66 +2887,31 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
   }
 
-  function handleRichEditableInput(field: RichEditField) {
-    const root = getRichEditRoot(field);
-    if (!root) return;
+  function handleRichEditableInput(
+    field: RichEditField,
+    payload: { text: string; marks: TextMark[] },
+  ) {
+    const currentText = getRichEditText(field);
+    const { marks: currentMarks, setMarks } = getActiveMarksState(field);
+    const nextMarksSerialized = JSON.stringify(payload.marks);
+    const currentMarksSerialized = JSON.stringify(currentMarks);
 
+    if (payload.text !== currentText) {
+      setFieldTextRaw(field, payload.text);
+    }
+
+    if (nextMarksSerialized !== currentMarksSerialized) {
+      setMarks(payload.marks);
+    }
+
+    const root = getRichEditRoot(field);
     const selection = readContentEditableSelection(field, root);
-    handleTextChange(field, getContentEditablePlainText(root), selection.end);
     if (selection.start === selection.end) hideFloatingTextToolbar();
     richEditSelectionRef.current[field] = selection;
+
     if (field === "badge") {
       requestAnimationFrame(() => remeasureBadgeSelection());
     }
-  }
-
-  function renderEditableMarkedText(text: string, marks?: TextMark[]) {
-    const t = String(text ?? "");
-    if (!marks || marks.length === 0) return t || "\u00A0";
-
-    const safeMarks = marks
-      .map((m) => ({
-        start: Math.max(0, Math.min(m.start, t.length)),
-        end: Math.max(0, Math.min(m.end, t.length)),
-        style: m.style ?? {},
-      }))
-      .filter((m) => m.end > m.start)
-      .sort((a, b) => a.start - b.start);
-
-    const out: ReactNode[] = [];
-    let pos = 0;
-
-    for (let i = 0; i < safeMarks.length; i += 1) {
-      const mark = safeMarks[i];
-      if (mark.start > pos) {
-        out.push(<span key={`t-${pos}`}>{t.slice(pos, mark.start)}</span>);
-      }
-
-      out.push(
-        <span
-          key={`m-${mark.start}-${mark.end}-${i}`}
-          style={{
-            fontFamily: mark.style.fontFamily,
-            fontSize: mark.style.fontSize,
-            color: mark.style.color,
-            fontWeight: mark.style.fontWeight,
-            fontStyle: mark.style.fontStyle,
-            background: mark.style.highlight
-              ? (mark.style.highlightColor ?? "rgba(250,204,21,0.18)")
-              : undefined,
-          }}
-        >
-          {t.slice(mark.start, mark.end)}
-        </span>,
-      );
-      pos = mark.end;
-    }
-
-    if (pos < t.length) {
-      out.push(<span key={`t-${pos}-end`}>{t.slice(pos)}</span>);
-    }
-
-    return out.length ? out : "\u00A0";
   }
 
   function syncRichEditOverlayDom(
@@ -3056,56 +2920,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     range: { start: number; end: number },
     textOverride?: string,
   ) {
-    const root = getRichEditRoot(field);
-    if (!root) return;
-
     const text = textOverride ?? getRichEditText(field);
-    const safeMarks = marks
-      .map((m) => ({
-        start: Math.max(0, Math.min(m.start, text.length)),
-        end: Math.max(0, Math.min(m.end, text.length)),
-        style: m.style ?? {},
-      }))
-      .filter((m) => m.end > m.start)
-      .sort((a, b) => a.start - b.start);
-
-    const nodes: Node[] = [];
-    let pos = 0;
-
-    for (const mark of safeMarks) {
-      if (mark.start > pos) {
-        nodes.push(document.createTextNode(text.slice(pos, mark.start)));
-      }
-
-      const span = document.createElement("span");
-      if (mark.style.fontFamily)
-        span.style.fontFamily = String(mark.style.fontFamily);
-      if (mark.style.fontSize) span.style.fontSize = `${mark.style.fontSize}px`;
-      if (mark.style.color) span.style.color = String(mark.style.color);
-      if (mark.style.fontWeight)
-        span.style.fontWeight = String(mark.style.fontWeight);
-      if (mark.style.fontStyle)
-        span.style.fontStyle = String(mark.style.fontStyle);
-      if (mark.style.highlight) {
-        span.style.background =
-          mark.style.highlightColor ?? "rgba(250,204,21,0.18)";
-      }
-      span.textContent = text.slice(mark.start, mark.end);
-      nodes.push(span);
-      pos = mark.end;
-    }
-
-    if (pos < text.length) {
-      nodes.push(document.createTextNode(text.slice(pos)));
-    }
-
-    if (nodes.length === 0) {
-      nodes.push(document.createTextNode("\u00A0"));
-    }
-
-    root.replaceChildren(...nodes);
+    const editor = getRichEditEditor(field);
+    editor?.syncContent(text, marks, range);
     richEditSelectionRef.current[field] = range;
-    root.focus();
+    const root = getRichEditRoot(field);
+    editor?.focus();
     restoreContentEditableSelection(root, range);
   }
 
@@ -3823,71 +3643,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         baseOverride,
       ),
     }));
-  }
-
-  function applySelectionStyleForField(
-    field: "title" | "body" | "badge" | "company",
-    patch: RichStyle,
-    mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set",
-  ) {
-    const { text, ref } = getEditorFieldControl(field);
-    const el = ref.current;
-    if (!el) return false;
-
-    const { s, e } = clampRange(
-      el.selectionStart ?? 0,
-      el.selectionEnd ?? 0,
-      text.length,
-    );
-    if (s === e) return false;
-
-    const { setMarks, marks } = getActiveMarksState(field);
-
-    const range = { start: s, end: e };
-    if (mode === "toggleHighlight") {
-      setMarks(
-        toggleStyleMarks(
-          marks,
-          range,
-          (style) => style.highlight === true,
-          { highlight: true },
-          { highlight: undefined },
-        ),
-      );
-    } else if (mode === "toggleBold") {
-      setMarks(
-        toggleStyleMarks(
-          marks,
-          range,
-          (style) =>
-            style.fontWeight === 800 ||
-            style.fontWeight === "800" ||
-            style.fontWeight === "bold",
-          { fontWeight: 800 },
-          { fontWeight: undefined },
-        ),
-      );
-    } else if (mode === "toggleItalic") {
-      setMarks(
-        toggleStyleMarks(
-          marks,
-          range,
-          (style) => style.fontStyle === "italic",
-          { fontStyle: "italic" },
-          { fontStyle: undefined },
-        ),
-      );
-    } else {
-      setMarks(applyStyleToMarks(marks, range, patch));
-    }
-
-    setActiveField(field);
-    setToolbarStyles((prev) => ({
-      ...prev,
-      [field]: { ...prev[field], ...patch },
-    }));
-
-    return true;
   }
 
   function applyUnicodeStyle(style: UnicodeStyle) {
@@ -4948,6 +4703,9 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                       <LinkedInTemplate2
                         scale={1}
                         mode="edit"
+                        editorActiveField={
+                          isRichEditField(editField) ? editField : null
+                        }
                         canvasPreset={canvasPreset}
                         productImage={effective.productImage}
                         productImages={effective.productImages}
@@ -5098,7 +4856,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                       </div>
                     ) : null}
 
-                    {selectedRect ? (
+                    {selectedRect &&
+                    !(editField && isPreviewTextSelectableId(selectedId)) ? (
                       <div
                         className={`editor-canvasSelection ${
                           isPreviewTextSelectableId(selectedId)
@@ -5313,7 +5072,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                     ) : null}
 
                     {isRichEditField(editField) && selectedRect ? (
-                      <div
+                      <LexicalInlineEditor
                         ref={
                           editField === "title"
                             ? titleEditRef
@@ -5323,12 +5082,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                                 ? companyEditRef
                                 : bodyEditRef
                         }
-                        contentEditable
-                        suppressContentEditableWarning
-                        role="textbox"
-                        aria-multiline={editField === "badge" ? false : true}
-                        tabIndex={0}
-                        onInput={() => handleRichEditableInput(editField)}
+                        text={getRichEditText(editField)}
+                        marks={getRichEditMarks(editField)}
+                        multiline={editField !== "badge"}
+                        onChange={(payload) =>
+                          handleRichEditableInput(editField, payload)
+                        }
                         onBlur={onEditBlur}
                         onKeyDown={onEditKeyDown}
                         onKeyUp={() => updateFloatingTextToolbar(editField)}
@@ -5337,7 +5096,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                         onMouseUp={() => updateFloatingTextToolbar(editField)}
                         onClick={(e) => e.stopPropagation()}
                         onDoubleClick={(e) => e.stopPropagation()}
-                        spellCheck={false}
+                        className="template-inline-editor"
                         style={{
                           position: "absolute",
                           left: selectedRect.x,
@@ -5347,11 +5106,15 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                             editField === "badge"
                               ? selectedRect.height
                               : Math.max(selectedRect.height, 140),
-                          border: "1px dashed rgba(59,130,246,0.85)",
+                          border:
+                            editField === "badge"
+                              ? "1px solid rgba(255,255,255,0.26)"
+                              : "1px solid rgba(255,255,255,0.66)",
                           outline: "none",
                           resize: "none",
                           overflow: editField === "badge" ? "visible" : "auto",
-                          padding: editField === "badge" ? "0" : "6px 8px",
+                          padding:
+                            editField === "badge" ? "0 6px" : "18px 18px 16px",
                           caretColor: "#111",
                           whiteSpace:
                             editField === "badge" ? "nowrap" : "pre-wrap",
@@ -5359,15 +5122,24 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                             editField === "badge" ? "normal" : "break-word",
                           boxSizing: "border-box",
                           zIndex: 10000,
+                          boxShadow:
+                            editField === "badge"
+                              ? "0 10px 24px rgba(15,23,42,0.12)"
+                              : "0 24px 60px rgba(15,23,42,0.18)",
                           ...editStyle,
                           ...(editField === "badge"
                             ? {
-                                background: "transparent",
-                                backgroundColor: "transparent",
+                                background: "rgba(255,255,255,0.08)",
+                                backgroundColor: "rgba(255,255,255,0.08)",
                                 minHeight: selectedRect.height,
                                 lineHeight: editStyle.lineHeight,
+                                borderRadius: 999,
                               }
-                            : null),
+                            : {
+                                background: "rgba(255,255,255,0.94)",
+                                backdropFilter: "blur(14px)",
+                                borderRadius: 20,
+                              }),
                         }}
                       />
                     ) : null}
@@ -5433,27 +5205,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             ) : null}
           </>
         }
-        toolbar={
-          <TextToolbar
-            activeField={activeField}
-            copied={copied}
-            applyUnicodeStyle={applyUnicodeStyle}
-            applyBullet={applyBullet}
-            applyNumbered={applyNumbered}
-            applyHashtag={applyHashtag}
-            copyActive={copyCaption}
-            insertEmoji={insertEmoji}
-            EMOJIS={EMOJIS}
-            activeTextStyle={activeTextStyle}
-            setActiveTextStyle={setActiveTextStyle}
-            applyHighlightSelection={applyHighlightSelection}
-            applyHighlightColorSelection={applyHighlightColorSelection}
-            applyFontSelection={applyFontSelection}
-            applySizeSelection={applySizeSelection}
-            applyColorSelection={applyColorSelection}
-            applyAlignSelection={applyAlignSelection}
-          />
-        }
         toolbox={
           <LinkedInToolbox
             badgeText={badgeText}
@@ -5465,25 +5216,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             body={body}
             setBody={setBody}
             bodyRef={bodyRef}
-            bodyStyle={bodyStyle}
-            bodyMarks={bodyMarks}
             caption={caption}
             setCaption={setCaption}
             captionRef={captionRef}
-            captionStyle={captionStyle}
             captionMarks={captionMarks}
             activeField={activeField}
             setActiveField={setActiveField}
-            activeTextStyle={activeTextStyle}
-            setActiveTextStyle={setActiveTextStyle}
             copied={copied}
-            applyUnicodeStyle={applyUnicodeStyle}
-            applyBullet={applyBullet}
-            applyNumbered={applyNumbered}
-            applyHashtag={applyHashtag}
             copyCaption={copyCaption}
-            insertEmoji={insertEmoji}
-            EMOJIS={EMOJIS}
             link={link}
             setLink={setLink}
             linkInput={linkInput}
@@ -5495,8 +5235,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             setCompany={setCompanyValue}
             companyRef={companyRef}
             onPickProductImage={onPickProductImage}
-            productAlign={productAlign}
-            setProductAlign={setProductAlignValue}
             imageLayout={imageLayout}
             setImageLayout={setImageLayoutMode}
             framePresetId={framePresetId}
@@ -5505,19 +5243,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             selectedFrameSlotId={selectedFrameSlotId}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
             setVideoFile={setVideoFile}
-            loadingPdf={loadingPdf}
-            downloadPDF={downloadPDF}
-            finalLoading={finalLoading}
-            hasVideo={hasVideo}
-            generateFinal={generateFinal}
-            finalUrl={finalUrl}
-            selectedImageId={selectedImageId}
-            selectedImageRotation={selectedImage?.rotation ?? 0}
-            onRotateSelectedImage={rotateSelectedImage}
-            onSetSelectedImageRotation={setSelectedImageRotation}
-            imageCount={images.length}
-            onDeleteSelectedImage={removeSelectedImage}
-            onDuplicateSelectedImage={duplicateSelectedImage}
           />
         }
         properties={

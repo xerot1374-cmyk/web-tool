@@ -139,6 +139,20 @@ export default function TextToolbar({
   applyHighlightColorSelection,
 }: Props) {
   const isFloating = variant === "floating";
+  const canUseBlockControls =
+    activeField === "body" || activeField === "caption";
+
+  const floatingFormatActions = FORMAT_ACTIONS.filter((item) => {
+    if (item.action === "bold" || item.action === "italic") return true;
+    if (item.action === "highlight") return true;
+    if (
+      canUseBlockControls &&
+      (item.action === "bullet" || item.action === "numbered")
+    ) {
+      return true;
+    }
+    return false;
+  });
 
   const runFormatAction = (
     action: (typeof FORMAT_ACTIONS)[number]["action"],
@@ -154,9 +168,7 @@ export default function TextToolbar({
   };
 
   const visibleFormatActions = isFloating
-    ? FORMAT_ACTIONS.filter(
-        (item) => item.action === "bold" || item.action === "italic",
-      )
+    ? floatingFormatActions
     : FORMAT_ACTIONS;
   const fontValue = activeTextStyle.mixed?.fontFamily
     ? "__mixed"
@@ -164,27 +176,206 @@ export default function TextToolbar({
   const sizeValue = activeTextStyle.mixed?.fontSize
     ? "__mixed"
     : String(activeTextStyle.fontSize);
+  const floatingFieldLabel =
+    activeField === "body"
+      ? "Body"
+      : activeField === "caption"
+        ? "Caption"
+        : activeField === "badge"
+          ? "Badge"
+          : activeField === "title"
+            ? "Title"
+            : "Company";
+
+  if (isFloating) {
+    return (
+      <div className="tt tt--floating">
+        <div className="tt__context">{floatingFieldLabel}</div>
+
+        <div className="tt__group tt__group--font">
+          <select
+            className="tt__select"
+            value={fontValue}
+            onChange={(e) => {
+              if (e.target.value === "__mixed") return;
+              setActiveTextStyle({ fontFamily: e.target.value });
+              applyFontSelection(e.target.value);
+            }}
+            aria-label="Font family"
+          >
+            {activeTextStyle.mixed?.fontFamily ? (
+              <option value="__mixed" disabled>
+                Mixed
+              </option>
+            ) : null}
+            {FONT_OPTIONS.map((font) => (
+              <option key={font.value} value={font.value}>
+                {font.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="tt__group tt__group--size">
+          <select
+            className="tt__select"
+            value={sizeValue}
+            onChange={(e) => {
+              if (e.target.value === "__mixed") return;
+              const next = Number(e.target.value);
+              setActiveTextStyle({ fontSize: next });
+              applySizeSelection(next);
+            }}
+            aria-label="Font size"
+          >
+            {activeTextStyle.mixed?.fontSize ? (
+              <option value="__mixed" disabled>
+                Mixed
+              </option>
+            ) : null}
+            {SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="tt__divider" />
+
+        <div className="tt__buttonGrid">
+          {visibleFormatActions.map((item) => (
+            <button
+              key={item.action}
+              className={`tt__btn tt__formatBtn${
+                item.variant === "strong" ? " tt__btn--strong" : ""
+              }${
+                (item.action === "bold" && activeTextStyle.bold) ||
+                (item.action === "italic" && activeTextStyle.italic) ||
+                (item.action === "highlight" && activeTextStyle.highlight)
+                  ? " tt__formatBtn--active"
+                  : ""
+              }`}
+              type="button"
+              title={item.title}
+              aria-label={item.title}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => runFormatAction(item.action)}
+            >
+              <span className="tt__formatIcon" aria-hidden="true">
+                {item.icon}
+              </span>
+              <span className="tt__formatText">{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="tt__divider" />
+
+        <label className="tt__colorControl" title="Text color">
+          <span
+            className={`tt__colorPreview${
+              activeTextStyle.mixed?.color ? " tt__colorPreview--mixed" : ""
+            }`}
+            style={{ background: activeTextStyle.color }}
+            aria-hidden="true"
+          />
+          <input
+            className="tt__colorInput"
+            type="color"
+            value={activeTextStyle.color}
+            onChange={(e) => {
+              setActiveTextStyle({ color: e.target.value });
+              applyColorSelection(e.target.value);
+            }}
+            aria-label="Text color"
+          />
+        </label>
+
+        {applyHighlightColorSelection ? (
+          <details className="tt__highlightPicker">
+            <summary
+              className={`tt__highlightSummary${
+                activeTextStyle.highlight ? " tt__highlightSummary--active" : ""
+              }`}
+              title="Highlight"
+              aria-label="Highlight"
+            >
+              <span
+                className={`tt__highlightPreview${
+                  activeTextStyle.mixed?.highlightColor
+                    ? " tt__colorPreview--mixed"
+                    : ""
+                }`}
+                style={{
+                  background: activeTextStyle.highlight
+                    ? (activeTextStyle.highlightColor ?? "rgba(250,204,21,0.28)")
+                    : "transparent",
+                }}
+                aria-hidden="true"
+              />
+            </summary>
+            <div className="tt__highlightMenu">
+              {HIGHLIGHT_OPTIONS.map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  className="tt__highlightOption"
+                  title={option.label}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
+                    const details = e.currentTarget.closest("details");
+                    applyHighlightColorSelection(option.value || null);
+                    if (details) details.open = false;
+                  }}
+                >
+                  {option.value ? (
+                    <span style={{ background: option.value }} aria-hidden="true" />
+                  ) : (
+                    <span className="tt__highlightNone" aria-hidden="true" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </details>
+        ) : null}
+
+        {applyAlignSelection ? (
+          <select
+            className="tt__select tt__alignSelect"
+            value={activeTextStyle.textAlign ?? "left"}
+            aria-label="Text alignment"
+            onChange={(e) =>
+              applyAlignSelection(e.target.value as "left" | "center" | "right")
+            }
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
-    <div className={`tt${isFloating ? " tt--floating" : ""}`}>
-      {!isFloating ? (
-        <div className="tt__header">
-          <div className="tt__eyebrow">Text tools</div>
-          <div className="tt__title">Formatting</div>
-          <div className="tt__sub">
-            Applying changes to{" "}
-            {activeField === "body"
-              ? "body copy"
-              : activeField === "caption"
-                ? "caption"
-                : activeField === "badge"
-                  ? "eye-catcher"
-                  : activeField === "title"
-                    ? "title"
-                    : "company"}
-          </div>
+    <div className="tt">
+      <div className="tt__header">
+        <div className="tt__eyebrow">Text tools</div>
+        <div className="tt__title">Formatting</div>
+        <div className="tt__sub">
+          Applying changes to{" "}
+          {activeField === "body"
+            ? "body copy"
+            : activeField === "caption"
+              ? "caption"
+              : activeField === "badge"
+                ? "eye-catcher"
+                : activeField === "title"
+                  ? "title"
+                  : "company"}
         </div>
-      ) : null}
+      </div>
 
       <div className="tt__group tt__group--font">
         <div className="tt__label">Font</div>
@@ -310,98 +501,23 @@ export default function TextToolbar({
         ))}
       </div>
 
-      {isFloating && applyAlignSelection ? (
-        <select
-          className="tt__select tt__alignSelect"
-          value={activeTextStyle.textAlign ?? "left"}
-          aria-label="Text alignment"
-          onChange={(e) =>
-            applyAlignSelection(e.target.value as "left" | "center" | "right")
-          }
-        >
-          <option value="left">Left</option>
-          <option value="center">Center</option>
-          <option value="right">Right</option>
-        </select>
-      ) : null}
+      <button className="tt__btn tt__btn--primary" type="button" onClick={copyActive}>
+        {copied ? "Copied" : "Copy text"}
+      </button>
 
-      {isFloating && applyHighlightColorSelection ? (
-        <details className="tt__highlightPicker">
-          <summary
-            className={`tt__highlightSummary${
-              activeTextStyle.highlight ? " tt__highlightSummary--active" : ""
-            }`}
-            title="Highlight"
-            aria-label="Highlight"
-          >
-            <span
-              className={`tt__highlightPreview${
-                activeTextStyle.mixed?.highlightColor
-                  ? " tt__colorPreview--mixed"
-                  : ""
-              }`}
-              style={{
-                background: activeTextStyle.highlight
-                  ? (activeTextStyle.highlightColor ?? "rgba(250,204,21,0.28)")
-                  : "transparent",
-              }}
-              aria-hidden="true"
-            />
-            H
-          </summary>
-          <div className="tt__highlightMenu">
-            {HIGHLIGHT_OPTIONS.map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                className="tt__highlightOption"
-                title={option.label}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={(e) => {
-                  const details = e.currentTarget.closest("details");
-                  applyHighlightColorSelection(option.value || null);
-                  if (details) details.open = false;
-                }}
-              >
-                {option.value ? (
-                  <span
-                    style={{ background: option.value }}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <span className="tt__highlightNone" aria-hidden="true" />
-                )}
-              </button>
-            ))}
-          </div>
-        </details>
-      ) : null}
-
-      {!isFloating ? (
-        <>
+      <div className="tt__label">Emoji</div>
+      <div className="tt__emoji">
+        {EMOJIS.map((em) => (
           <button
-            className="tt__btn tt__btn--primary"
+            key={em}
             type="button"
-            onClick={copyActive}
+            className="tt__emojiBtn"
+            onClick={() => insertEmoji(em)}
           >
-            {copied ? "Copied" : "Copy text"}
+            {em}
           </button>
-
-          <div className="tt__label">Emoji</div>
-          <div className="tt__emoji">
-            {EMOJIS.map((em) => (
-              <button
-                key={em}
-                type="button"
-                className="tt__emojiBtn"
-                onClick={() => insertEmoji(em)}
-              >
-                {em}
-              </button>
-            ))}
-          </div>
-        </>
-      ) : null}
+        ))}
+      </div>
     </div>
   );
 }

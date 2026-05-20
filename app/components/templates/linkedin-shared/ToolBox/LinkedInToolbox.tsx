@@ -3,13 +3,6 @@
 import React from "react";
 import { FRAME_PRESETS, type FrameSlot } from "@/app/lib/imageLayouts";
 
-type TextStyle = {
-  fontFamily: string;
-  fontSize: number;
-  color: string;
-  highlight: boolean;
-};
-
 type TextMark = {
   start: number;
   end: number;
@@ -38,30 +31,18 @@ type Props = {
   body: string;
   setBody: (v: string) => void;
   bodyRef: React.RefObject<HTMLTextAreaElement | null>;
-  bodyStyle: TextStyle;
-  bodyMarks?: TextMark[];
 
   caption: string;
   setCaption: (v: string) => void;
   captionRef: React.RefObject<HTMLTextAreaElement | null>;
-  captionStyle: TextStyle;
   captionMarks?: TextMark[];
 
   activeField: EditorTextField;
   setActiveField: React.Dispatch<React.SetStateAction<EditorTextField>>;
 
-  activeTextStyle: TextStyle;
-  setActiveTextStyle: (patch: Partial<TextStyle>) => void;
-
   copied: boolean;
 
-  applyUnicodeStyle: (style: "bold" | "italic") => void;
-  applyBullet: () => void;
-  applyNumbered: () => void;
-  applyHashtag: () => void;
   copyCaption: () => void;
-  insertEmoji: (emoji: string) => void;
-  EMOJIS: string[];
 
   link: string[];
   setLink: React.Dispatch<React.SetStateAction<string[]>>;
@@ -85,8 +66,6 @@ type Props = {
   companyRef: React.RefObject<HTMLInputElement | null>;
 
   onPickProductImage: (file: File | null) => void;
-  productAlign: "left" | "center" | "right";
-  setProductAlign: (value: "left" | "center" | "right") => void;
   imageLayout: ImageLayoutMode;
   setImageLayout: (mode: ImageLayoutMode) => void;
   framePresetId: string;
@@ -96,24 +75,6 @@ type Props = {
   onAssignImageToFrameSlot: (slotId: string) => void;
 
   setVideoFile: (file: File | null) => void;
-
-  loadingPdf: boolean;
-  downloadPDF: (e?: React.MouseEvent<HTMLButtonElement>) => void;
-
-  finalLoading: boolean;
-  hasVideo: boolean;
-  generateFinal: (e?: React.MouseEvent<HTMLButtonElement>) => void;
-
-  finalUrl: string | null;
-
-  selectedImageId?: string | null;
-  selectedImageRotation?: number;
-  onRotateSelectedImage?: (delta: number) => void;
-  onSetSelectedImageRotation?: (deg: number) => void;
-  imageCount?: number;
-
-  onDeleteSelectedImage?: () => void;
-  onDuplicateSelectedImage?: () => void;
 };
 
 function renderMarkedText(text: string, marks: TextMark[] = []) {
@@ -180,7 +141,6 @@ export default function LinkedInToolbox({
   body,
   setBody,
   bodyRef,
-  bodyMarks = [],
   caption,
   setCaption,
   captionRef,
@@ -199,8 +159,6 @@ export default function LinkedInToolbox({
   setCompany,
   companyRef,
   onPickProductImage,
-  productAlign,
-  setProductAlign,
   imageLayout,
   setImageLayout,
   framePresetId,
@@ -210,16 +168,7 @@ export default function LinkedInToolbox({
   onAssignImageToFrameSlot,
   setVideoFile,
   copyCaption,
-  selectedImageId,
-  selectedImageRotation = 0,
-  onRotateSelectedImage,
-  onSetSelectedImageRotation,
-  imageCount = 0,
-  onDeleteSelectedImage,
-  onDuplicateSelectedImage,
 }: Props) {
-  const bodyMirrorRef = React.useRef<HTMLDivElement | null>(null);
-
   return (
     <aside className="tb">
       <div className="tb__header">
@@ -309,48 +258,28 @@ export default function LinkedInToolbox({
 
           <div className="editor-field">
             <label className="editor-label">Body</label>
-            <div className="editor-richTextarea">
-              {body && bodyMarks.length ? (
-                <div
-                  ref={bodyMirrorRef}
-                  className="editor-richTextarea__mirror"
-                  aria-hidden="true"
-                >
-                  {renderMarkedText(body, bodyMarks)}
-                </div>
-              ) : null}
-              <textarea
-                className={`editor-textarea${
-                  body && bodyMarks.length ? " editor-textarea--richMirror" : ""
-                }`}
-                value={body}
-                ref={bodyRef}
-                onFocus={() => setActiveField("body")}
-                onSelect={() => setActiveField("body")}
-                onDoubleClick={() => setActiveField("body")}
-                onKeyDown={(e) => onTextKeyDown?.("body", e)}
-                onScroll={(e) => {
-                  if (bodyMirrorRef.current) {
-                    bodyMirrorRef.current.scrollTop = e.currentTarget.scrollTop;
-                    bodyMirrorRef.current.scrollLeft =
-                      e.currentTarget.scrollLeft;
-                  }
-                }}
-                onChange={(e) => {
-                  if (onTextChange) {
-                    onTextChange(
-                      "body",
-                      e.target.value,
-                      e.target.selectionStart,
-                    );
-                  } else {
-                    setBody(e.target.value);
-                  }
-                }}
-                placeholder="Write the main body copy here"
-                rows={6}
-              />
-            </div>
+            <textarea
+              className="editor-textarea"
+              value={body}
+              ref={bodyRef}
+              onFocus={() => setActiveField("body")}
+              onSelect={() => setActiveField("body")}
+              onDoubleClick={() => setActiveField("body")}
+              onKeyDown={(e) => onTextKeyDown?.("body", e)}
+              onChange={(e) => {
+                if (onTextChange) {
+                  onTextChange(
+                    "body",
+                    e.target.value,
+                    e.target.selectionStart,
+                  );
+                } else {
+                  setBody(e.target.value);
+                }
+              }}
+              placeholder="Write the main body copy here"
+              rows={6}
+            />
           </div>
         </section>
 
