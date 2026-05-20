@@ -710,6 +710,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     centerY: number;
     hoverFrameSlotId?: string | null;
   } | null>(null);
+  const suppressNextCanvasClickRef = useRef(false);
 
   const [previewContentHeight, setPreviewContentHeight] = useState<number>(
     getCanvasFrame("linkedin").h,
@@ -1425,6 +1426,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   function onCanvasClick(e: React.MouseEvent) {
+    if (suppressNextCanvasClickRef.current) {
+      suppressNextCanvasClickRef.current = false;
+      return;
+    }
+
     if (isMediaSelectionUiTarget(e.target)) {
       return;
     }
@@ -3821,11 +3827,26 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                           onMouseDown={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            suppressNextCanvasClickRef.current = true;
+                            if (
+                              selectedId === "productImage" &&
+                              selectedImageId === img.id
+                            ) {
+                              startMediaInteraction(
+                                e,
+                                imageLayout === "frame"
+                                  ? "frame-image-pan"
+                                  : "move",
+                                img,
+                              );
+                              return;
+                            }
                             selectImageObject(img);
                           }}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            suppressNextCanvasClickRef.current = true;
                             selectImageObject(img);
                           }}
                         >
@@ -3874,11 +3895,17 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          suppressNextCanvasClickRef.current = true;
+                          if (selectedId === "video") {
+                            startVideoInteraction(e, "move");
+                            return;
+                          }
                           selectVideoObject();
                         }}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
+                          suppressNextCanvasClickRef.current = true;
                           selectVideoObject();
                         }}
                       >
