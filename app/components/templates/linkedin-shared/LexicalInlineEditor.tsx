@@ -21,8 +21,17 @@ import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalErrorBoundary } from "@lexical/react/LexicalErrorBoundary";
 import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { HistoryPlugin } from "@lexical/react/LexicalHistoryPlugin";
+import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
+import {
+  $isListNode,
+  INSERT_ORDERED_LIST_COMMAND,
+  INSERT_UNORDERED_LIST_COMMAND,
+  ListItemNode,
+  ListNode,
+  REMOVE_LIST_COMMAND,
+} from "@lexical/list";
 import {
   $createLineBreakNode,
   $createParagraphNode,
@@ -126,10 +135,10 @@ type NativeToolbarState = {
   fontSize: number;
   color: string;
   highlightColor: string;
-  highlight: boolean;
   bold: boolean;
   italic: boolean;
   textAlign: "left" | "center" | "right";
+  listType: "bullet" | "number" | null;
   canUndo: boolean;
   canRedo: boolean;
 };
@@ -366,6 +375,7 @@ function NativeToolbarPlugin({
   onAlignChange?: (align: "left" | "center" | "right") => void;
 }) {
   const [editor] = useLexicalComposerContext();
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
   const [toolbar, setToolbar] = useState<NativeToolbarState>({
     visible: false,
     x: 0,
@@ -375,10 +385,10 @@ function NativeToolbarPlugin({
     fontSize: 16,
     color: "#111827",
     highlightColor: "rgba(250,204,21,0.28)",
-    highlight: false,
     bold: false,
     italic: false,
     textAlign: "left",
+    listType: null,
     canUndo: false,
     canRedo: false,
   });
@@ -386,7 +396,12 @@ function NativeToolbarPlugin({
   const updateToolbar = useCallback(() => {
     const root = editor.getRootElement();
     const domSelection = window.getSelection();
+    const activeElement = document.activeElement;
+    const focusIsInToolbar = Boolean(
+      activeElement instanceof Node && toolbarRef.current?.contains(activeElement),
+    );
     if (!root || !domSelection || domSelection.rangeCount === 0) {
+      if (focusIsInToolbar) return;
       setToolbar((prev) => ({ ...prev, visible: false }));
       return;
     }
@@ -396,6 +411,7 @@ function NativeToolbarPlugin({
       !root.contains(domRange.startContainer) ||
       !root.contains(domRange.endContainer)
     ) {
+      if (focusIsInToolbar) return;
       setToolbar((prev) => ({ ...prev, visible: false }));
       return;
     }
@@ -433,6 +449,17 @@ function NativeToolbarPlugin({
         : "";
       const textAlign: "left" | "center" | "right" =
         format === "center" || format === "right" ? format : "left";
+      let listType: "bullet" | "number" | null = null;
+      let currentNode = anchorNode;
+      while (currentNode) {
+        if ($isListNode(currentNode)) {
+          const type = currentNode.getListType();
+          listType =
+            type === "bullet" ? "bullet" : type === "number" ? "number" : null;
+          break;
+        }
+        currentNode = currentNode.getParent();
+      }
 
       const rect = selection.isCollapsed()
         ? root.getBoundingClientRect()
@@ -465,11 +492,11 @@ function NativeToolbarPlugin({
         fontFamily,
         fontSize: Number.isFinite(parsedFontSize) ? parsedFontSize : 16,
         color,
-        highlight: highlightColor !== "" && highlightColor !== "transparent",
         highlightColor,
         bold: selection.hasFormat("bold"),
         italic: selection.hasFormat("italic"),
         textAlign,
+        listType,
       }));
     });
   }, [editor]);
@@ -541,12 +568,28 @@ function NativeToolbarPlugin({
     [editor, onAlignChange, updateToolbar],
   );
 
+  const toggleList = useCallback(
+    (nextType: "bullet" | "number") => {
+      if (toolbar.listType === nextType) {
+        editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+      } else if (nextType === "bullet") {
+        editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+      } else {
+        editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+      }
+      requestAnimationFrame(updateToolbar);
+    },
+    [editor, toolbar.listType, updateToolbar],
+  );
+
   if (!toolbar.visible || typeof document === "undefined") {
     return null;
   }
 
   return createPortal(
     <div
+      ref={toolbarRef}
+      data-lexical-toolbar="true"
       style={{
         position: "fixed",
         left: toolbar.x,
@@ -567,7 +610,13 @@ function NativeToolbarPlugin({
         boxShadow: "0 18px 40px rgba(15,23,42,0.16)",
       }}
       onMouseDown={(event) => {
-        event.preventDefault();
+        const target = event.target;
+        if (
+          !(target instanceof HTMLElement) ||
+          !target.closest("select,input,button,option")
+        ) {
+          event.preventDefault();
+        }
         event.stopPropagation();
       }}
     >
@@ -634,23 +683,31 @@ function NativeToolbarPlugin({
       />
       <input
         type="color"
-        value={rgbaToHex(toolbar.highlight ? toolbar.highlightColor : "rgba(250,204,21,0.28)")}
+        value={rgbaToHex(toolbar.highlightColor)}
         onChange={(event) =>
           patchSelectionStyle({
             "background-color": hexToRgba(event.target.value, 0.28),
           })
         }
       />
-      <button
-        type="button"
-        onClick={() =>
-          patchSelectionStyle({
-            "background-color": toolbar.highlight ? "" : "rgba(250,204,21,0.28)",
-          })
-        }
-      >
-        Highlight
-      </button>
+      {multiline ? (
+        <button
+          type="button"
+          onClick={() => toggleList("bullet")}
+          style={{ fontWeight: toolbar.listType === "bullet" ? 800 : 500 }}
+        >
+          • List
+        </button>
+      ) : null}
+      {multiline ? (
+        <button
+          type="button"
+          onClick={() => toggleList("number")}
+          style={{ fontWeight: toolbar.listType === "number" ? 800 : 500 }}
+        >
+          1. List
+        </button>
+      ) : null}
       <select
         value={toolbar.textAlign}
         onChange={(event) =>
@@ -661,7 +718,6 @@ function NativeToolbarPlugin({
         <option value="center">Center</option>
         <option value="right">Right</option>
       </select>
-      {multiline ? <span style={{ fontSize: 12, color: "#6b7280" }}>Lexical</span> : null}
     </div>,
     document.body,
   );
@@ -757,7 +813,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         namespace: "template-inline-editor",
         editable: true,
         theme: {},
-        nodes: [ParagraphNode, TextNode, LineBreakNode],
+        nodes: [ParagraphNode, TextNode, LineBreakNode, ListNode, ListItemNode],
         onError(error: Error) {
           throw error;
         },
@@ -773,6 +829,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
           multiline={multiline}
           onAlignChange={onAlignChange}
         />
+        <ListPlugin />
         <RichTextPlugin
           contentEditable={
             <ContentEditable

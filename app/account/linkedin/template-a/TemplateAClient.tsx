@@ -115,85 +115,8 @@ function normalizeUrl(raw: string): string | undefined {
   return `https://${v}`;
 }
 
-type UnicodeStyle = "bold" | "italic";
-
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
-}
-
-function applyOnSelection(
-  text: string,
-  selStart: number,
-  selEnd: number,
-  transform: (selected: string) => string,
-) {
-  const start = clamp(Math.min(selStart, selEnd), 0, text.length);
-  const end = clamp(Math.max(selStart, selEnd), 0, text.length);
-
-  const selected = text.slice(start, end);
-  const replaced = transform(selected);
-
-  const next = text.slice(0, start) + replaced + text.slice(end);
-  const nextSelStart = start;
-  const nextSelEnd = start + replaced.length;
-
-  return {
-    next,
-    nextSelStart,
-    nextSelEnd,
-    replaceStart: start,
-    replaceEnd: end,
-  };
-}
-
-function isFormattingWordChar(ch: string) {
-  return /[\p{L}\p{N}_#]/u.test(ch);
-}
-
-function expandSelectionToWord(text: string, selStart: number, selEnd: number) {
-  let start = clamp(Math.min(selStart, selEnd), 0, text.length);
-  let end = clamp(Math.max(selStart, selEnd), 0, text.length);
-
-  if (start !== end) return { start, end };
-
-  while (start > 0 && isFormattingWordChar(text[start - 1])) {
-    start -= 1;
-  }
-  while (end < text.length && isFormattingWordChar(text[end])) {
-    end += 1;
-  }
-
-  return { start, end };
-}
-
-function applyOnSelectionOrWord(
-  text: string,
-  selStart: number,
-  selEnd: number,
-  transform: (selected: string) => string,
-) {
-  const { start, end } = expandSelectionToWord(text, selStart, selEnd);
-  return applyOnSelection(text, start, end, transform);
-}
-
-function getSelectedLineBlock(text: string, start: number, end: number) {
-  const effectiveEnd =
-    start !== end && end > start && text[end - 1] === "\n" ? end - 1 : end;
-  const rangeStart =
-    start === end ? text.lastIndexOf("\n", start - 1) + 1 : start;
-  const rangeEnd =
-    start === end
-      ? (() => {
-          const n = text.indexOf("\n", effectiveEnd);
-          return n === -1 ? text.length : n;
-        })()
-      : effectiveEnd;
-
-  const lineStart = text.lastIndexOf("\n", rangeStart - 1) + 1;
-  const after = text.indexOf("\n", rangeEnd);
-  const lineEnd = after === -1 ? text.length : after;
-
-  return { lineStart, lineEnd };
 }
 
 function getLineBounds(text: string, index: number) {
@@ -210,18 +133,6 @@ type LinePrefixChange = {
   oldPrefixLength: number;
   newPrefixLength: number;
 };
-
-function toHashtag(s: string) {
-  const cleaned = s
-    .trim()
-    .replace(/[\u200c]/g, "")
-    .replace(/^#+/, "")
-    .replace(/[^\p{L}\p{N}\s_]+/gu, "")
-    .replace(/\s+/g, "");
-
-  if (!cleaned) return "";
-  return `#${cleaned}`;
-}
 
 async function copyTextToClipboard(
   text: string,
@@ -242,21 +153,6 @@ async function copyTextToClipboard(
     }
   }
 }
-
-const EMOJIS = [
-  "🔥",
-  "✅",
-  "🚀",
-  "💡",
-  "🎯",
-  "📌",
-  "🤝",
-  "📈",
-  "🧠",
-  "✨",
-  "💬",
-  "🧩",
-];
 
 type BoxTextStyle = {
   fontFamily: string;
@@ -324,20 +220,6 @@ function getPdfModeAndPayload(): {
   return { isPdf, payload };
 }
 
-type TextStyle = {
-  fontFamily: string;
-  fontSize: number;
-  color: string;
-  highlight: boolean;
-  highlightColor?: string;
-  bold?: boolean;
-  italic?: boolean;
-  textAlign?: "left" | "center" | "right";
-  mixed?: Partial<
-    Record<"fontFamily" | "fontSize" | "color" | "highlightColor", boolean>
-  >;
-};
-
 type CanvasPresetKey = CanvasPreset;
 
 const CANVAS_LABELS: Record<CanvasPresetKey, string> = {
@@ -387,14 +269,6 @@ type EditorTextField = "title" | "body" | "badge" | "company" | "caption";
 type EditField = Exclude<EditorTextField, "caption"> | null;
 
 type RichEditField = "title" | "body" | "company" | "badge";
-
-type FloatingTextToolbarState = {
-  visible: boolean;
-  x: number;
-  y: number;
-  placement: "above" | "below";
-  activeField: RichEditField | null;
-};
 
 type DragMode =
   | "frame-swap"
@@ -874,15 +748,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   const [activeField, setActiveField] = useState<EditorTextField>("caption");
   const [copied, setCopied] = useState(false);
-  const [floatingTextToolbar, setFloatingTextToolbar] =
-    useState<FloatingTextToolbarState>({
-      visible: false,
-      x: 0,
-      y: 0,
-      placement: "above",
-      activeField: null,
-    });
-  const floatingTextToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const badgeRef = useRef<HTMLInputElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
@@ -931,56 +796,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     color: "#374151",
     textAlign: "left",
   });
-  const [toolbarStyles, setToolbarStyles] = useState<
-    Record<EditorTextField, TextStyle>
-  >({
-    badge: {
-      fontFamily: "system-ui",
-      fontSize: 20,
-      color: "#ffffff",
-      highlight: false,
-      textAlign: "left",
-    },
-    title: {
-      fontFamily: "system-ui",
-      fontSize: 34,
-      color: "#111827",
-      highlight: false,
-      textAlign: "left",
-    },
-    company: {
-      fontFamily: "system-ui",
-      fontSize: 18,
-      color: "#111827",
-      highlight: false,
-      textAlign: "left",
-    },
-    body: {
-      fontFamily: "system-ui",
-      fontSize: 14,
-      color: "#111827",
-      highlight: false,
-      textAlign: "left",
-    },
-    caption: {
-      fontFamily: "system-ui",
-      fontSize: 14,
-      color: "#111827",
-      highlight: false,
-      textAlign: "left",
-    },
-  });
-
-  const [pendingTextStyles, setPendingTextStyles] = useState<
-    Record<EditorTextField, RichStyle>
-  >({
-    badge: {},
-    title: {},
-    company: {},
-    body: {},
-    caption: {},
-  });
-  const pendingTextStylesRef = useRef(pendingTextStyles);
 
   const [productImage, setProductImage] = useState<string>("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
@@ -1527,11 +1342,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setSelectedId(null);
     setSelectedRect(null);
     setEditField(null);
-    setFloatingTextToolbar((prev) => ({
-      ...prev,
-      visible: false,
-      activeField: null,
-    }));
     setSelectedImageId(null);
     setSelectedFrameSlotId(null);
   }
@@ -1591,9 +1401,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
     return Boolean(
       target.closest('[data-media-selection-ui="true"]') ||
-      target.closest('[data-resize-handle="true"]') ||
-      target.closest('[data-select="productImage"]') ||
-      target.closest('[data-select="video"]'),
+      target.closest('[data-resize-handle="true"]'),
     );
   }
 
@@ -1936,6 +1744,15 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }, [editField]);
 
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
+    const nextTarget = e.relatedTarget;
+    if (
+      nextTarget instanceof Node &&
+      document
+        .querySelector('[data-lexical-toolbar="true"]')
+        ?.contains(nextTarget)
+    ) {
+      return;
+    }
     setEditField(null);
   }
 
@@ -2778,137 +2595,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     selection.addRange(domRange);
   }
 
-  function hideFloatingTextToolbar() {
-    setFloatingTextToolbar((prev) =>
-      prev.visible ? { ...prev, visible: false, activeField: null } : prev,
-    );
-  }
-
-  function getCollapsedFormatting(
-    field: RichEditField,
-    caretPosition: number,
-  ): TextStyle {
-    const base = getFieldBoxStyle(field);
-    const { marks } = getActiveMarksState(field);
-    const text = getRichEditText(field);
-    const sampleStart =
-      text.length === 0
-        ? 0
-        : Math.max(0, Math.min(caretPosition, text.length) - (caretPosition >= text.length ? 1 : 0));
-    const sampleEnd = text.length === 0 ? 0 : Math.min(text.length, sampleStart + 1);
-    const inlineStyle =
-      sampleEnd > sampleStart
-        ? styleForSegment(marks, sampleStart, sampleEnd)
-        : {};
-
-    return {
-      fontFamily: String(inlineStyle.fontFamily ?? base.fontFamily),
-      fontSize: Number(inlineStyle.fontSize ?? base.fontSize) || base.fontSize,
-      color: String(inlineStyle.color ?? base.color),
-      highlight: inlineStyle.highlight === true,
-      highlightColor: String(
-        inlineStyle.highlightColor ?? "rgba(250,204,21,0.18)",
-      ),
-      bold:
-        inlineStyle.fontWeight === 800 ||
-        inlineStyle.fontWeight === "800" ||
-        inlineStyle.fontWeight === "bold",
-      italic: inlineStyle.fontStyle === "italic",
-      textAlign: base.textAlign,
-      mixed: {
-        fontFamily: false,
-        fontSize: false,
-        color: false,
-        highlightColor: false,
-      },
-    };
-  }
-
-  function updateFloatingTextToolbar(
-    field: RichEditField,
-    showForCollapsedSelection = false,
-  ) {
-    const root = getRichEditRoot(field);
-    const selection = window.getSelection();
-    if (!root || !selection || selection.rangeCount === 0) {
-      hideFloatingTextToolbar();
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    if (
-      !root.contains(range.startContainer) ||
-      !root.contains(range.endContainer)
-    ) {
-      hideFloatingTextToolbar();
-      return;
-    }
-
-    const selectionRange = readContentEditableSelection(field, root);
-    const isCollapsed = selectionRange.start === selectionRange.end;
-    if (isCollapsed && !showForCollapsedSelection) {
-      hideFloatingTextToolbar();
-      return;
-    }
-
-    const selectionFormatting = isCollapsed
-      ? getCollapsedFormatting(field, selectionRange.start)
-      : getSelectionFormatting(field, selectionRange);
-
-    const rect = isCollapsed ? root.getBoundingClientRect() : range.getBoundingClientRect();
-    const fallbackRect = isCollapsed ? rect : range.getClientRects()[0];
-    const targetRect = rect.width || rect.height ? rect : fallbackRect;
-
-    if (!targetRect) {
-      hideFloatingTextToolbar();
-      return;
-    }
-
-    const canvasWrap = canvasWrapRef.current;
-    if (!canvasWrap) {
-      hideFloatingTextToolbar();
-      return;
-    }
-
-    const canvasRect = canvasWrap.getBoundingClientRect();
-    const selectionCenterX =
-      targetRect.left + targetRect.width / 2 - canvasRect.left;
-    const selectionTop = targetRect.top - canvasRect.top;
-    const selectionBottom = targetRect.bottom - canvasRect.top;
-    const estimatedWidth = Math.min(560, Math.max(220, previewViewportW - 24));
-    const estimatedHeight = 52;
-    const margin = 12;
-    const minX = estimatedWidth / 2 + margin;
-    const maxX = previewViewportW - estimatedWidth / 2 - margin;
-    const x =
-      maxX > minX
-        ? Math.min(Math.max(selectionCenterX, minX), maxX)
-        : previewViewportW / 2;
-    const hasSpaceAbove = selectionTop >= estimatedHeight + margin * 2;
-    const placement: FloatingTextToolbarState["placement"] = hasSpaceAbove
-      ? "above"
-      : "below";
-    const rawY = hasSpaceAbove
-      ? selectionTop - margin
-      : selectionBottom + margin;
-    const y = hasSpaceAbove
-      ? Math.max(estimatedHeight + margin, rawY)
-      : Math.min(previewViewportH - estimatedHeight - margin, rawY);
-
-    setFloatingTextToolbar({
-      visible: true,
-      x,
-      y,
-      placement,
-      activeField: field,
-    });
-    setActiveField(field);
-    setToolbarStyles((prev) => ({
-      ...prev,
-      [field]: selectionFormatting,
-    }));
-  }
-
   function getContentEditablePlainText(root: HTMLElement) {
     return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
   }
@@ -3038,50 +2724,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     return { start, prevEnd, nextEnd };
   }
 
-  function togglePendingStyle(
-    field: EditorTextField,
-    mode: "toggleHighlight" | "toggleBold" | "toggleItalic",
-  ) {
-    setPendingTextStyles((prev) => {
-      const current = prev[field] ?? {};
-      let next: RichStyle = current;
-
-      if (mode === "toggleHighlight") {
-        next = current.highlight
-          ? { ...current, highlight: undefined }
-          : { ...current, highlight: true };
-      } else if (mode === "toggleBold") {
-        const isBold =
-          current.fontWeight === 800 ||
-          current.fontWeight === "800" ||
-          current.fontWeight === "bold";
-        next = isBold
-          ? { ...current, fontWeight: undefined }
-          : { ...current, fontWeight: 800 };
-      } else {
-        next =
-          current.fontStyle === "italic"
-            ? { ...current, fontStyle: undefined }
-            : { ...current, fontStyle: "italic" };
-      }
-
-      const updated = { ...prev, [field]: cleanStyle(next) };
-      pendingTextStylesRef.current = updated;
-      return updated;
-    });
-  }
-
-  function setPendingStyle(field: EditorTextField, patch: RichStyle) {
-    setPendingTextStyles((prev) => {
-      const updated = {
-        ...prev,
-        [field]: cleanStyle({ ...prev[field], ...patch }),
-      };
-      pendingTextStylesRef.current = updated;
-      return updated;
-    });
-  }
-
   function handleTextChange(
     field: EditorTextField,
     next: string,
@@ -3093,7 +2735,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     const { start, prevEnd, nextEnd } = getTextChangeRange(text, next);
     const insertedLength = Math.max(0, nextEnd - start);
     const delta = next.length - text.length;
-    const pendingStyle = cleanStyle(pendingTextStylesRef.current[field] ?? {});
+    const pendingStyle = {};
 
     setFieldTextRaw(field, next);
 
@@ -3121,61 +2763,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       const node = getEditorFieldControl(field).ref.current;
       if (!node || selectionStart == null) return;
       node.setSelectionRange(selectionStart, selectionStart);
-    });
-  }
-
-  function withActiveSelection(
-    fn: (
-      text: string,
-      s: number,
-      e: number,
-    ) => {
-      next: string;
-      nextSelStart: number;
-      nextSelEnd: number;
-      replaceStart?: number;
-      replaceEnd?: number;
-      preserveReplacementMarks?: boolean;
-    },
-  ) {
-    const { text, setText, ref } = getEditorFieldControl();
-    const el = ref.current;
-    if (!el) return;
-
-    const s = el.selectionStart ?? 0;
-    const e = el.selectionEnd ?? 0;
-
-    const {
-      next,
-      nextSelStart,
-      nextSelEnd,
-      replaceStart,
-      replaceEnd,
-      preserveReplacementMarks,
-    } = fn(text, s, e);
-    if (next !== text) {
-      setText(next);
-    }
-
-    if (next !== text && replaceStart != null && replaceEnd != null) {
-      const delta = next.length - text.length;
-      const { marks, setMarks } = getActiveMarksState();
-      setMarks(
-        shiftMarksAfterTextChange(
-          marks,
-          replaceStart,
-          replaceEnd,
-          delta,
-          preserveReplacementMarks ? nextSelEnd - nextSelStart : 0,
-        ),
-      );
-    }
-
-    requestAnimationFrame(() => {
-      const node = ref.current;
-      if (!node) return;
-      node.focus();
-      node.setSelectionRange(nextSelStart, nextSelEnd);
     });
   }
 
@@ -3283,13 +2870,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
-  function getFieldBoxStyle(field: RichEditField): BoxTextStyle {
-    if (field === "title") return titleStyle;
-    if (field === "company") return companyStyle;
-    if (field === "badge") return badgeStyle;
-    return bodyBoxStyle;
-  }
-
   function setFieldTextAlign(
     field: RichEditField,
     textAlign: BoxTextStyle["textAlign"],
@@ -3308,12 +2888,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     if (editField === field) {
       setEditStyle((prev) => ({ ...prev, textAlign }));
     }
-  }
-
-  function clampRange(start: number, end: number, max: number) {
-    const s = Math.max(0, Math.min(start, max));
-    const e = Math.max(0, Math.min(end, max));
-    return s <= e ? { s, e } : { s: e, e: s };
   }
 
   function overlaps(
@@ -3372,535 +2946,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       if (!overlaps(mark, { start, end })) return style;
       return { ...style, ...(mark.style ?? {}) };
     }, {});
-  }
-
-  function updateMarksInRange(
-    prev: TextMark[],
-    range: { start: number; end: number },
-    transform: (style: RichStyle) => RichStyle,
-  ) {
-    const next: TextMark[] = [];
-    const boundaries = new Set<number>([range.start, range.end]);
-
-    for (const mark of prev) {
-      if (!overlaps(mark, range)) {
-        next.push(mark);
-        continue;
-      }
-
-      if (mark.start < range.start) {
-        next.push({ ...mark, end: range.start });
-      }
-      if (range.end < mark.end) {
-        next.push({ ...mark, start: range.end });
-      }
-
-      boundaries.add(Math.max(mark.start, range.start));
-      boundaries.add(Math.min(mark.end, range.end));
-    }
-
-    const points = [...boundaries].sort((a, b) => a - b);
-    for (let i = 0; i < points.length - 1; i += 1) {
-      const start = points[i];
-      const end = points[i + 1];
-      if (end <= start) continue;
-
-      const style = cleanStyle(transform(styleForSegment(prev, start, end)));
-      if (hasStyle(style)) {
-        next.push({ start, end, style });
-      }
-    }
-
-    return mergeMarks(next);
-  }
-
-  function applyStyleToMarks(
-    prev: TextMark[],
-    range: { start: number; end: number },
-    patch: RichStyle,
-  ) {
-    return updateMarksInRange(prev, range, (style) => ({ ...style, ...patch }));
-  }
-
-  function selectionHasEveryStyle(
-    prev: TextMark[],
-    range: { start: number; end: number },
-    predicate: (style: RichStyle) => boolean,
-  ) {
-    const boundaries = new Set<number>([range.start, range.end]);
-    for (const mark of prev) {
-      if (!overlaps(mark, range)) continue;
-      boundaries.add(Math.max(mark.start, range.start));
-      boundaries.add(Math.min(mark.end, range.end));
-    }
-
-    const points = [...boundaries].sort((a, b) => a - b);
-    for (let i = 0; i < points.length - 1; i += 1) {
-      const start = points[i];
-      const end = points[i + 1];
-      if (end > start && !predicate(styleForSegment(prev, start, end)))
-        return false;
-    }
-
-    return true;
-  }
-
-  function toggleStyleMarks(
-    prev: TextMark[],
-    range: { start: number; end: number },
-    active: (style: RichStyle) => boolean,
-    add: RichStyle,
-    remove: RichStyle,
-  ) {
-    const shouldRemove = selectionHasEveryStyle(prev, range, active);
-    return updateMarksInRange(prev, range, (style) => ({
-      ...style,
-      ...(shouldRemove ? remove : add),
-    }));
-  }
-
-  function applyStyleSelection(
-    patch: RichStyle,
-    mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set",
-  ) {
-    const field: EditorTextField = isRichEditField(editField)
-      ? editField
-      : activeField;
-    const { text, ref } = getEditorFieldControl(field);
-    const editableSelection = isRichEditField(editField)
-      ? readContentEditableSelection(editField, getRichEditRoot(editField))
-      : null;
-    const el = ref.current;
-    const rawStart = editableSelection?.start ?? el?.selectionStart ?? 0;
-    const rawEnd = editableSelection?.end ?? el?.selectionEnd ?? rawStart;
-    const { s, e } = clampRange(rawStart, rawEnd, text.length);
-    const restoreSelection = () => {
-      requestAnimationFrame(() => {
-        if (isRichEditField(editField)) {
-          const range = { start: s, end: e };
-          richEditSelectionRef.current[editField] = range;
-          const root = getRichEditRoot(editField);
-          root?.focus();
-          restoreContentEditableSelection(root, range);
-          return;
-        }
-        const node = ref.current;
-        if (!node) return;
-        node.focus();
-        node.setSelectionRange(s, e);
-      });
-    };
-
-    if (s === e) {
-      if (mode === "set") {
-        setPendingStyle(field, patch);
-      } else {
-        togglePendingStyle(field, mode);
-      }
-      restoreSelection();
-      return;
-    }
-
-    const { setMarks, marks } = getActiveMarksState(field);
-    const range = { start: s, end: e };
-    let nextMarks = marks;
-    if (mode === "toggleHighlight") {
-      const shouldRemove = selectionHasEveryStyle(
-        marks,
-        range,
-        (style) => style.highlight === true,
-      );
-      nextMarks = toggleStyleMarks(
-        marks,
-        range,
-        (style) => style.highlight === true,
-        { highlight: true },
-        { highlight: undefined },
-      );
-      setMarks(nextMarks);
-      setPendingStyle(field, { highlight: shouldRemove ? undefined : true });
-    } else if (mode === "toggleBold") {
-      const isBold = (style: RichStyle) =>
-        style.fontWeight === 800 ||
-        style.fontWeight === "800" ||
-        style.fontWeight === "bold";
-      const shouldRemove = selectionHasEveryStyle(marks, range, isBold);
-      nextMarks = toggleStyleMarks(
-        marks,
-        range,
-        isBold,
-        { fontWeight: 800 },
-        { fontWeight: undefined },
-      );
-      setMarks(nextMarks);
-      setPendingStyle(field, { fontWeight: shouldRemove ? undefined : 800 });
-    } else if (mode === "toggleItalic") {
-      const shouldRemove = selectionHasEveryStyle(
-        marks,
-        range,
-        (style) => style.fontStyle === "italic",
-      );
-      nextMarks = toggleStyleMarks(
-        marks,
-        range,
-        (style) => style.fontStyle === "italic",
-        { fontStyle: "italic" },
-        { fontStyle: undefined },
-      );
-      setMarks(nextMarks);
-      setPendingStyle(field, {
-        fontStyle: shouldRemove ? undefined : "italic",
-      });
-    } else {
-      nextMarks = applyStyleToMarks(marks, range, patch);
-      setMarks(nextMarks);
-      setPendingStyle(field, patch);
-    }
-
-    if (isRichEditField(field)) {
-      syncFloatingToolbarFormatting(field, range, nextMarks);
-      requestAnimationFrame(() => {
-        syncRichEditOverlayDom(field, nextMarks, range);
-      });
-    }
-    restoreSelection();
-  }
-
-  function getSelectionFormatting(
-    field: RichEditField,
-    range: { start: number; end: number },
-    marksOverride?: TextMark[],
-    baseOverride?: BoxTextStyle,
-  ): TextStyle {
-    const base = baseOverride ?? getFieldBoxStyle(field);
-    const { marks: stateMarks } = getActiveMarksState(field);
-    const marks = marksOverride ?? stateMarks;
-    const boundaries = new Set<number>([range.start, range.end]);
-    for (const mark of marks) {
-      if (!overlaps(mark, range)) continue;
-      boundaries.add(Math.max(mark.start, range.start));
-      boundaries.add(Math.min(mark.end, range.end));
-    }
-
-    const points = [...boundaries].sort((a, b) => a - b);
-    const segments: RichStyle[] = [];
-    for (let i = 0; i < points.length - 1; i += 1) {
-      const start = points[i];
-      const end = points[i + 1];
-      if (end <= start) continue;
-      segments.push(styleForSegment(marks, start, end));
-    }
-
-    const valueFor = <T,>(resolve: (style: RichStyle) => T, fallback: T) => {
-      if (segments.length === 0) return { value: fallback, mixed: false };
-      const values = segments.map(resolve);
-      const first = values[0];
-      return {
-        value: first,
-        mixed: values.some((value) => value !== first),
-      };
-    };
-
-    const fontFamily = valueFor(
-      (style) => style.fontFamily ?? base.fontFamily,
-      base.fontFamily,
-    );
-    const fontSize = valueFor(
-      (style) => style.fontSize ?? base.fontSize,
-      base.fontSize,
-    );
-    const color = valueFor((style) => style.color ?? base.color, base.color);
-    const highlightColor = valueFor(
-      (style) => style.highlightColor ?? "rgba(250,204,21,0.18)",
-      "rgba(250,204,21,0.18)",
-    );
-
-    return {
-      fontFamily: String(fontFamily.value),
-      fontSize: Number(fontSize.value) || base.fontSize,
-      color: String(color.value),
-      highlight: selectionHasEveryStyle(
-        marks,
-        range,
-        (style) => style.highlight === true,
-      ),
-      highlightColor: String(highlightColor.value),
-      bold: selectionHasEveryStyle(
-        marks,
-        range,
-        (style) =>
-          style.fontWeight === 800 ||
-          style.fontWeight === "800" ||
-          style.fontWeight === "bold",
-      ),
-      italic: selectionHasEveryStyle(
-        marks,
-        range,
-        (style) => style.fontStyle === "italic",
-      ),
-      textAlign: base.textAlign,
-      mixed: {
-        fontFamily: fontFamily.mixed,
-        fontSize: fontSize.mixed,
-        color: color.mixed,
-        highlightColor: highlightColor.mixed,
-      },
-    };
-  }
-
-  function syncFloatingToolbarFormatting(
-    field: RichEditField,
-    range: { start: number; end: number },
-    marksOverride?: TextMark[],
-    baseOverride?: BoxTextStyle,
-  ) {
-    setActiveField(field);
-    setToolbarStyles((prev) => ({
-      ...prev,
-      [field]: getSelectionFormatting(
-        field,
-        range,
-        marksOverride,
-        baseOverride,
-      ),
-    }));
-  }
-
-  function applyUnicodeStyle(style: UnicodeStyle) {
-    applyStyleSelection({}, style === "bold" ? "toggleBold" : "toggleItalic");
-  }
-
-  function getListActionTarget() {
-    const field: EditorTextField = isRichEditField(editField)
-      ? editField
-      : activeField;
-    const { text, setText, ref } = getEditorFieldControl(field);
-
-    if (isRichEditField(field)) {
-      const range = readContentEditableSelection(field, getRichEditRoot(field));
-      return { field, text, setText, ref, s: range.start, e: range.end };
-    }
-
-    const node = ref.current;
-    if (!node) return null;
-    return {
-      field,
-      text,
-      setText,
-      ref,
-      s: node.selectionStart ?? 0,
-      e: node.selectionEnd ?? node.selectionStart ?? 0,
-    };
-  }
-
-  function restoreListActionSelection(
-    field: EditorTextField,
-    ref:
-      | RefObject<HTMLInputElement | null>
-      | RefObject<HTMLTextAreaElement | null>,
-    range: { start: number; end: number },
-    text: string,
-    marks: TextMark[],
-  ) {
-    requestAnimationFrame(() => {
-      if (isRichEditField(field)) {
-        syncRichEditOverlayDom(field, marks, range, text);
-        return;
-      }
-
-      const node = ref.current;
-      if (!node) return;
-      node.focus();
-      node.setSelectionRange(range.start, range.end);
-    });
-  }
-
-  function applyCollapsedListPrefix(kind: "bullet" | "numbered") {
-    const target = getListActionTarget();
-    if (!target) return true;
-
-    const { field, text, setText, ref, s } = target;
-    const { start: lineStart, end: lineEnd } = getLineBounds(text, s);
-    const line = text.slice(lineStart, lineEnd);
-    const oldMarker = line.match(/^\s*(?:\u2022|\d+\.)\s+/)?.[0] ?? "";
-    const hasTargetMarker =
-      kind === "bullet"
-        ? /^\s*\u2022\s+/.test(line)
-        : /^\s*\d+\.\s+/.test(line);
-    const newMarker = hasTargetMarker
-      ? ""
-      : kind === "bullet"
-        ? "  \u2022 "
-        : "  1. ";
-    const content = oldMarker ? line.slice(oldMarker.length) : line;
-    const nextLine = `${newMarker}${content}`;
-    const next = text.slice(0, lineStart) + nextLine + text.slice(lineEnd);
-    const cursorOffset = s - lineStart;
-    const markerDelta = newMarker.length - oldMarker.length;
-    const nextCursor =
-      lineStart + clamp(cursorOffset + markerDelta, 0, nextLine.length);
-
-    if (next !== text) {
-      setText(next);
-      const { marks, setMarks } = getActiveMarksState(field);
-      const nextMarks = remapMarksForLinePrefixChanges(marks, [
-        {
-          oldLineStart: lineStart,
-          oldLineEnd: lineEnd,
-          oldPrefixLength: oldMarker.length,
-          newPrefixLength: newMarker.length,
-        },
-      ]);
-      setMarks(nextMarks);
-      restoreListActionSelection(
-        field,
-        ref,
-        { start: nextCursor, end: nextCursor },
-        next,
-        nextMarks,
-      );
-    }
-
-    return true;
-  }
-
-  function applyBullet() {
-    const target = getListActionTarget();
-    if (!target) return;
-    const { field, text, setText, ref, s, e } = target;
-    if (s === e && applyCollapsedListPrefix("bullet")) return;
-
-    const { lineStart, lineEnd } = getSelectedLineBlock(text, s, e);
-    const block = text.slice(lineStart, lineEnd);
-    const lines = block.split("\n");
-    const contentLines = lines.filter((line) => line.trim());
-    const removeBullets =
-      contentLines.length > 0 &&
-      contentLines.every((line) => /^\s*\u2022\s+/.test(line));
-
-    let offset = lineStart;
-    const changes: LinePrefixChange[] = [];
-
-    const replacedLines = lines.map((line) => {
-      const oldLineStart = offset;
-      const oldLineEnd = oldLineStart + line.length;
-      offset = oldLineEnd + 1;
-
-      const trimmed = line.trim();
-      if (!trimmed) return line;
-
-      const indent = line.match(/^\s*/)?.[0] ?? "";
-      const contentWithMarker = line.slice(indent.length);
-      const oldMarker =
-        contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
-      const content = contentWithMarker.slice(oldMarker.length);
-      const newMarker = removeBullets ? "" : "\u2022 ";
-
-      changes.push({
-        oldLineStart: oldLineStart + indent.length,
-        oldLineEnd,
-        oldPrefixLength: oldMarker.length,
-        newPrefixLength: newMarker.length,
-      });
-
-      return `${indent}${newMarker}${content}`;
-    });
-
-    const replacedBlock = replacedLines.join("\n");
-    const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-
-    if (next !== text) {
-      setText(next);
-      const { marks, setMarks } = getActiveMarksState(field);
-      const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
-      setMarks(nextMarks);
-      restoreListActionSelection(
-        field,
-        ref,
-        { start: lineStart, end: lineStart + replacedBlock.length },
-        next,
-        nextMarks,
-      );
-      return;
-    }
-
-    restoreListActionSelection(
-      field,
-      ref,
-      { start: lineStart, end: lineStart + replacedBlock.length },
-      text,
-      getActiveMarksState(field).marks,
-    );
-  }
-
-  function applyNumbered() {
-    const target = getListActionTarget();
-    if (!target) return;
-    const { field, text, setText, ref, s, e } = target;
-    if (s === e && applyCollapsedListPrefix("numbered")) return;
-
-    const { lineStart, lineEnd } = getSelectedLineBlock(text, s, e);
-    const block = text.slice(lineStart, lineEnd);
-    const lines = block.split("\n");
-    const contentLines = lines.filter((line) => line.trim());
-    const removeNumbers =
-      contentLines.length > 0 &&
-      contentLines.every((line) => /^\s*\d+\.\s+/.test(line));
-
-    let offset = lineStart;
-    let nonEmptyIdx = 0;
-    const changes: LinePrefixChange[] = [];
-
-    const replacedLines = lines.map((line) => {
-      const oldLineStart = offset;
-      const oldLineEnd = oldLineStart + line.length;
-      offset = oldLineEnd + 1;
-
-      const trimmed = line.trim();
-      if (!trimmed) return line;
-
-      const indent = line.match(/^\s*/)?.[0] ?? "";
-      const contentWithMarker = line.slice(indent.length);
-      const oldMarker =
-        contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
-      const content = contentWithMarker.slice(oldMarker.length);
-      const newMarker = removeNumbers ? "" : `${(nonEmptyIdx += 1)}. `;
-
-      changes.push({
-        oldLineStart: oldLineStart + indent.length,
-        oldLineEnd,
-        oldPrefixLength: oldMarker.length,
-        newPrefixLength: newMarker.length,
-      });
-
-      return `${indent}${newMarker}${content}`;
-    });
-
-    const replacedBlock = replacedLines.join("\n");
-    const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-
-    if (next !== text) {
-      setText(next);
-      const { marks, setMarks } = getActiveMarksState(field);
-      const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
-      setMarks(nextMarks);
-      restoreListActionSelection(
-        field,
-        ref,
-        { start: lineStart, end: lineStart + replacedBlock.length },
-        next,
-        nextMarks,
-      );
-      return;
-    }
-
-    restoreListActionSelection(
-      field,
-      ref,
-      { start: lineStart, end: lineStart + replacedBlock.length },
-      text,
-      getActiveMarksState(field).marks,
-    );
   }
 
   function handleNumberedListEnter(
@@ -3983,76 +3028,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     });
   }
 
-  function applyHashtag() {
-    withActiveSelection((text, s, e) => {
-      const result = applyOnSelectionOrWord(text, s, e, (selected) => {
-        if (!selected.trim()) return selected;
-        if (/^#\S+$/.test(selected.trim())) {
-          const leading = selected.match(/^\s*/)?.[0] ?? "";
-          const trailing = selected.match(/\s*$/)?.[0] ?? "";
-          const inner = selected.trim().replace(/^#+/, "");
-          return `${leading}${inner}${trailing}`;
-        }
-        const tag = toHashtag(selected);
-        return tag || selected;
-      });
-
-      return {
-        ...result,
-        preserveReplacementMarks: result.replaceEnd > result.replaceStart,
-      };
-    });
-  }
-
-  function insertEmoji(emoji: string) {
-    withActiveSelection((text, s, e) =>
-      applyOnSelection(text, s, e, (selected) => {
-        if (!selected) return `${emoji} `;
-        return `${emoji} ${selected}`;
-      }),
-    );
-  }
-
-  function applyHighlightSelection() {
-    applyStyleSelection({}, "toggleHighlight");
-  }
-
-  function applyHighlightColorSelection(color: string | null) {
-    if (color) {
-      applyStyleSelection({ highlight: true, highlightColor: color });
-      setActiveTextStyle({ highlight: true, highlightColor: color });
-    } else {
-      applyStyleSelection({ highlight: undefined, highlightColor: undefined });
-      setActiveTextStyle({ highlight: false, highlightColor: undefined });
-    }
-  }
-
-  function applyColorSelection(color: string) {
-    applyStyleSelection({ color });
-    setActiveTextStyle({ color });
-  }
-
-  function applySizeSelection(size: number) {
-    applyStyleSelection({ fontSize: size });
-    setActiveTextStyle({ fontSize: size });
-  }
-
-  function applyFontSelection(fontFamily: string) {
-    applyStyleSelection({ fontFamily });
-    setActiveTextStyle({ fontFamily });
-  }
-
-  function applyAlignSelection(textAlign: "left" | "center" | "right") {
-    const field = isRichEditField(editField) ? editField : activeField;
-    if (!isRichEditField(field)) return;
-    const nextBase = { ...getFieldBoxStyle(field), textAlign };
-    setFieldTextAlign(field, textAlign);
-    const range = richEditSelectionRef.current[field];
-    if (range.start !== range.end) {
-      syncFloatingToolbarFormatting(field, range, undefined, nextBase);
-    }
-  }
-
   async function copyCaption() {
     const { text, ref } = getEditorFieldControl();
     const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
@@ -4061,27 +3036,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-
-  function setActiveTextStyle(patch: Partial<TextStyle>) {
-    setToolbarStyles((prev) => ({
-      ...prev,
-      [activeField]: {
-        ...prev[activeField],
-        ...patch,
-        mixed: {
-          ...prev[activeField].mixed,
-          ...(patch.fontFamily !== undefined ? { fontFamily: false } : null),
-          ...(patch.fontSize !== undefined ? { fontSize: false } : null),
-          ...(patch.color !== undefined ? { color: false } : null),
-          ...(patch.highlightColor !== undefined
-            ? { highlightColor: false }
-            : null),
-        },
-      },
-    }));
-  }
-
-  const activeTextStyle = toolbarStyles[activeField];
   const activeRichTextEditor = isRichEditField(editField)
     ? {
         field: editField,

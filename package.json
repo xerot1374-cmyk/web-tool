@@ -13,6 +13,7 @@
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffprobe-installer/ffprobe": "^2.1.2",
     "@lexical/plain-text": "^0.44.0",
+    "@lexical/list": "^0.44.0",
     "@lexical/react": "^0.44.0",
     "@lexical/rich-text": "^0.44.0",
     "@lexical/selection": "^0.44.0",
