@@ -59,7 +59,6 @@ services:
     volumes:
       - .:/app
       - node-modules:/app/node_modules
-      -
       - next-cache:/app/.next
     depends_on:
       db:
