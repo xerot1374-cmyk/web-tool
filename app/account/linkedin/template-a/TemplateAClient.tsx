@@ -1900,6 +1900,78 @@ export default function TemplateAClient({
       setFloatingTextToolbar((prev) => ({...prev, visible: false, activeField: null}));
     }
 
+    function handleBodyBulletEnter(e: React.KeyboardEvent<HTMLElement>) {
+      if (
+        e.key !== "Enter" ||
+        e.shiftKey ||
+        e.altKey ||
+        e.ctrlKey ||
+        e.metaKey ||
+        editField !== "body"
+      ) {
+        return false;
+      }
+
+      const root = getRichEditRoot("body");
+      if (!root) return false;
+
+      const selection = readContentEditableSelection("body", root);
+      if (selection.start !== selection.end) return false;
+
+      const text = getContentEditablePlainText(root);
+      const {start: lineStart, end: lineEnd} = getLineBounds(text, selection.start);
+      const line = text.slice(lineStart, lineEnd);
+      const prefixMatch = line.match(/^(\s*\u2022\s?)/);
+      if (!prefixMatch) return false;
+
+      e.preventDefault();
+
+      const prefix = prefixMatch[1] || "  \u2022 ";
+      const content = line.slice(prefix.length);
+      const {marks, setMarks} = getActiveMarksState("body");
+
+      if (!content.trim()) {
+        const markerEnd = lineStart + prefix.length;
+        const next = text.slice(0, lineStart) + text.slice(markerEnd);
+        const nextMarks = remapMarksForLinePrefixChanges(marks, [
+          {
+            oldLineStart: lineStart,
+            oldLineEnd: lineEnd,
+            oldPrefixLength: prefix.length,
+            newPrefixLength: 0,
+          },
+        ]);
+        setFieldTextRaw("body", next);
+        setMarks(nextMarks);
+        syncRichEditOverlayDom(
+          "body",
+          nextMarks,
+          {start: lineStart, end: lineStart},
+          next
+        );
+        return true;
+      }
+
+      const insert = `\n${prefix}`;
+      const next = text.slice(0, selection.start) + insert + text.slice(selection.end);
+      const nextCaret = selection.start + insert.length;
+      const nextMarks = shiftMarksAfterTextChange(
+        marks,
+        selection.start,
+        selection.end,
+        insert.length
+      );
+      setFieldTextRaw("body", next);
+      setMarks(nextMarks);
+      syncRichEditOverlayDom(
+        "body",
+        nextMarks,
+        {start: nextCaret, end: nextCaret},
+        next
+      );
+      return true;
+    }
+
     function onEditKeyDown(e: React.KeyboardEvent<HTMLElement>) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -1909,6 +1981,10 @@ export default function TemplateAClient({
 
       if (editField === "badge" && e.key === "Enter") {
         e.preventDefault();
+        return;
+      }
+
+      if (handleBodyBulletEnter(e)) {
         return;
       }
 
