@@ -37,7 +37,9 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      const body = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
       setError(body?.message ?? "Registration failed");
       return;
     }
@@ -47,14 +49,19 @@ export default function RegisterPage() {
 
   return (
     <div style={{ maxWidth: 420, margin: "64px auto", padding: 16 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Register</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>
+        Register
+      </h1>
 
       <p style={{ marginBottom: 12, color: "#555" }}>
-        Registration is only available for team emails ending with @protos-3d.de.
+        Registration is only available for team emails ending with
+        @protos-3d.de.
       </p>
 
       {error && (
-        <div style={{ padding: 10, border: "1px solid #f99", marginBottom: 12 }}>
+        <div
+          style={{ padding: 10, border: "1px solid #f99", marginBottom: 12 }}
+        >
           {error}
         </div>
       )}
@@ -109,7 +116,11 @@ export default function RegisterPage() {
           />
         </div>
 
-        <button type="submit" disabled={loading} style={{ width: "100%", padding: 10 }}>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ width: "100%", padding: 10 }}
+        >
           {loading ? "..." : "Create account"}
         </button>
       </form>

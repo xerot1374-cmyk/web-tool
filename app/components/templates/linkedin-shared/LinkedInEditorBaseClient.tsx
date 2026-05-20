@@ -29,8 +29,12 @@ export default function LinkedInEditorBaseClient({
         </div>
       </div>
 
-      {successMsg ? <div className="editor-msg editor-msg--success">{successMsg}</div> : null}
-      {errorMsg ? <div className="editor-msg editor-msg--error">{errorMsg}</div> : null}
+      {successMsg ? (
+        <div className="editor-msg editor-msg--success">{successMsg}</div>
+      ) : null}
+      {errorMsg ? (
+        <div className="editor-msg editor-msg--error">{errorMsg}</div>
+      ) : null}
 
       {children}
     </main>

@@ -77,15 +77,15 @@ type Props = LinkedInTemplate2Data & {
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
   onStartFrameImageDrag?: (
     imageId: string,
-    event: React.MouseEvent<HTMLDivElement>
+    event: React.MouseEvent<HTMLDivElement>,
   ) => void;
   onSelectableClick?: (
     field: "badge" | "title" | "body" | "company",
-    event: React.MouseEvent<HTMLElement>
+    event: React.MouseEvent<HTMLElement>,
   ) => void;
   onSelectableDoubleClick?: (
     field: "badge" | "title" | "body" | "company",
-    event: React.MouseEvent<HTMLElement>
+    event: React.MouseEvent<HTMLElement>,
   ) => void;
 };
 

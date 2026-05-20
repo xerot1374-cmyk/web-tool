@@ -38,10 +38,12 @@ export default async function AnalyticsPage() {
         <div className="portal-header-row">
           <div>
             <p className="portal-eyebrow">Data Analysis</p>
-            <h1 className="main-heading portal-heading">Activities and insights</h1>
+            <h1 className="main-heading portal-heading">
+              Activities and insights
+            </h1>
             <p className="description portal-description">
-              Review all activity types in one place and open the insight area for your
-              reporting workflow.
+              Review all activity types in one place and open the insight area
+              for your reporting workflow.
             </p>
           </div>
 

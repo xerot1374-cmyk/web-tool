@@ -20,7 +20,7 @@ type Props = {
       fontSize?: number;
       color?: string;
       highlight?: boolean;
-    }
+    },
   ) => boolean;
 
   title: string;
@@ -124,7 +124,10 @@ function TextControls({
   applySelectionStylePatch?: Props["applySelectionStylePatch"];
 }) {
   const supportsSelectionPatch =
-    field === "title" || field === "body" || field === "badge" || field === "company";
+    field === "title" ||
+    field === "body" ||
+    field === "badge" ||
+    field === "company";
 
   return (
     <div className="properties-panel">
@@ -132,7 +135,11 @@ function TextControls({
         {showTextInput && setText ? (
           <div className="properties-panel__field">
             <label>Text</label>
-            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} />
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+            />
           </div>
         ) : null}
 
@@ -308,10 +315,7 @@ export default function PropertiesPanel({
 }: Props) {
   if (!selectedId) {
     return (
-      <EmptyState
-        imageLayout={imageLayout}
-        setImageLayout={setImageLayout}
-      />
+      <EmptyState imageLayout={imageLayout} setImageLayout={setImageLayout} />
     );
   }
 
@@ -429,7 +433,9 @@ export default function PropertiesPanel({
             <label>Layout</label>
             <select
               value={imageLayout}
-              onChange={(e) => setImageLayout(e.target.value as ImageLayoutMode)}
+              onChange={(e) =>
+                setImageLayout(e.target.value as ImageLayoutMode)
+              }
             >
               <option value="manual">Manual Layout</option>
               <option value="collage">Collage Layout</option>
@@ -445,7 +451,9 @@ export default function PropertiesPanel({
               max={360}
               step={1}
               value={selectedImageRotation}
-              onChange={(e) => setSelectedImageRotation?.(Number(e.target.value))}
+              onChange={(e) =>
+                setSelectedImageRotation?.(Number(e.target.value))
+              }
             />
             <input
               type="number"
@@ -453,7 +461,9 @@ export default function PropertiesPanel({
               max={360}
               step={1}
               value={selectedImageRotation}
-              onChange={(e) => setSelectedImageRotation?.(Number(e.target.value) || 0)}
+              onChange={(e) =>
+                setSelectedImageRotation?.(Number(e.target.value) || 0)
+              }
             />
           </div>
 
@@ -489,7 +499,9 @@ export default function PropertiesPanel({
               max={3}
               step={0.01}
               value={selectedImageCropScale}
-              onChange={(e) => setSelectedImageCropScale?.(Number(e.target.value))}
+              onChange={(e) =>
+                setSelectedImageCropScale?.(Number(e.target.value))
+              }
             />
             <input
               type="number"

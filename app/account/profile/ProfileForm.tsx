@@ -54,7 +54,9 @@ export default function ProfileForm({ initialUser }: ProfileFormProps) {
     setLoading(false);
 
     if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
+      const body = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
       setError(body?.message ?? "Profile update failed");
       return;
     }
@@ -80,30 +82,34 @@ export default function ProfileForm({ initialUser }: ProfileFormProps) {
           <p className="portal-eyebrow">Profile</p>
           <h1 className="portal-profile__title">Edit your account details</h1>
           <p className="portal-profile__text">
-            Keep your public role, contact details, and profile image up to date across the
-            workspace.
+            Keep your public role, contact details, and profile image up to date
+            across the workspace.
           </p>
         </div>
       </div>
 
       <div className="portal-profile__card">
         <div className="portal-profile__identity">
-        <Image
-          src={previewUrl}
-          alt="Profile"
-          width={88}
-          height={88}
-          className="portal-profile__avatar"
-        />
+          <Image
+            src={previewUrl}
+            alt="Profile"
+            width={88}
+            height={88}
+            className="portal-profile__avatar"
+          />
           <div>
             <div className="portal-profile__name">{name || "Your name"}</div>
             <div className="portal-profile__role">{role || "Your role"}</div>
           </div>
         </div>
 
-        {error ? <div className="portal-alert portal-alert--error">{error}</div> : null}
+        {error ? (
+          <div className="portal-alert portal-alert--error">{error}</div>
+        ) : null}
 
-        {success ? <div className="portal-alert portal-alert--success">{success}</div> : null}
+        {success ? (
+          <div className="portal-alert portal-alert--success">{success}</div>
+        ) : null}
 
         <form onSubmit={onSubmit} className="portal-form">
           <div className="portal-form__grid">
@@ -166,7 +172,11 @@ export default function ProfileForm({ initialUser }: ProfileFormProps) {
             </label>
           </div>
 
-          <button type="submit" disabled={loading} className="portal-form__submit">
+          <button
+            type="submit"
+            disabled={loading}
+            className="portal-form__submit"
+          >
             {loading ? "Saving..." : "Save profile"}
           </button>
         </form>

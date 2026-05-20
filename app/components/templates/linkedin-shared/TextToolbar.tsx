@@ -11,7 +11,9 @@ type TextStyle = {
   bold?: boolean;
   italic?: boolean;
   textAlign?: "left" | "center" | "right";
-  mixed?: Partial<Record<"fontFamily" | "fontSize" | "color" | "highlightColor", boolean>>;
+  mixed?: Partial<
+    Record<"fontFamily" | "fontSize" | "color" | "highlightColor", boolean>
+  >;
 };
 
 type Props = {
@@ -66,12 +68,44 @@ const FORMAT_ACTIONS: Array<{
   variant?: "strong";
   action: "bold" | "italic" | "bullet" | "numbered" | "hashtag" | "highlight";
 }> = [
-  { label: "Bold", icon: "B", title: "Bold selected text", variant: "strong", action: "bold" },
-  { label: "Italic", icon: "I", title: "Italicize selected text", variant: "strong", action: "italic" },
-  { label: "Bullet", icon: "\u2022", title: "Toggle bullet list", action: "bullet" },
-  { label: "Numbered", icon: "1.", title: "Toggle numbered list", action: "numbered" },
-  { label: "Hashtag", icon: "#", title: "Convert selection to hashtag", action: "hashtag" },
-  { label: "Highlight", icon: "H", title: "Highlight selected text", action: "highlight" },
+  {
+    label: "Bold",
+    icon: "B",
+    title: "Bold selected text",
+    variant: "strong",
+    action: "bold",
+  },
+  {
+    label: "Italic",
+    icon: "I",
+    title: "Italicize selected text",
+    variant: "strong",
+    action: "italic",
+  },
+  {
+    label: "Bullet",
+    icon: "\u2022",
+    title: "Toggle bullet list",
+    action: "bullet",
+  },
+  {
+    label: "Numbered",
+    icon: "1.",
+    title: "Toggle numbered list",
+    action: "numbered",
+  },
+  {
+    label: "Hashtag",
+    icon: "#",
+    title: "Convert selection to hashtag",
+    action: "hashtag",
+  },
+  {
+    label: "Highlight",
+    icon: "H",
+    title: "Highlight selected text",
+    action: "highlight",
+  },
 ];
 
 const HIGHLIGHT_OPTIONS = [
@@ -106,7 +140,9 @@ export default function TextToolbar({
 }: Props) {
   const isFloating = variant === "floating";
 
-  const runFormatAction = (action: (typeof FORMAT_ACTIONS)[number]["action"]) => {
+  const runFormatAction = (
+    action: (typeof FORMAT_ACTIONS)[number]["action"],
+  ) => {
     if (action === "bold" || action === "italic") {
       applyUnicodeStyle(action);
       return;
@@ -118,13 +154,16 @@ export default function TextToolbar({
   };
 
   const visibleFormatActions = isFloating
-    ? FORMAT_ACTIONS.filter((item) =>
-        item.action === "bold" ||
-        item.action === "italic"
+    ? FORMAT_ACTIONS.filter(
+        (item) => item.action === "bold" || item.action === "italic",
       )
     : FORMAT_ACTIONS;
-  const fontValue = activeTextStyle.mixed?.fontFamily ? "__mixed" : activeTextStyle.fontFamily;
-  const sizeValue = activeTextStyle.mixed?.fontSize ? "__mixed" : String(activeTextStyle.fontSize);
+  const fontValue = activeTextStyle.mixed?.fontFamily
+    ? "__mixed"
+    : activeTextStyle.fontFamily;
+  const sizeValue = activeTextStyle.mixed?.fontSize
+    ? "__mixed"
+    : String(activeTextStyle.fontSize);
 
   return (
     <div className={`tt${isFloating ? " tt--floating" : ""}`}>
@@ -137,12 +176,12 @@ export default function TextToolbar({
             {activeField === "body"
               ? "body copy"
               : activeField === "caption"
-              ? "caption"
-              : activeField === "badge"
-              ? "eye-catcher"
-              : activeField === "title"
-              ? "title"
-              : "company"}
+                ? "caption"
+                : activeField === "badge"
+                  ? "eye-catcher"
+                  : activeField === "title"
+                    ? "title"
+                    : "company"}
           </div>
         </div>
       ) : null}
@@ -297,11 +336,13 @@ export default function TextToolbar({
           >
             <span
               className={`tt__highlightPreview${
-                activeTextStyle.mixed?.highlightColor ? " tt__colorPreview--mixed" : ""
+                activeTextStyle.mixed?.highlightColor
+                  ? " tt__colorPreview--mixed"
+                  : ""
               }`}
               style={{
                 background: activeTextStyle.highlight
-                  ? activeTextStyle.highlightColor ?? "rgba(250,204,21,0.28)"
+                  ? (activeTextStyle.highlightColor ?? "rgba(250,204,21,0.28)")
                   : "transparent",
               }}
               aria-hidden="true"
@@ -323,7 +364,10 @@ export default function TextToolbar({
                 }}
               >
                 {option.value ? (
-                  <span style={{ background: option.value }} aria-hidden="true" />
+                  <span
+                    style={{ background: option.value }}
+                    aria-hidden="true"
+                  />
                 ) : (
                   <span className="tt__highlightNone" aria-hidden="true" />
                 )}
@@ -335,7 +379,11 @@ export default function TextToolbar({
 
       {!isFloating ? (
         <>
-          <button className="tt__btn tt__btn--primary" type="button" onClick={copyActive}>
+          <button
+            className="tt__btn tt__btn--primary"
+            type="button"
+            onClick={copyActive}
+          >
             {copied ? "Copied" : "Copy text"}
           </button>
 

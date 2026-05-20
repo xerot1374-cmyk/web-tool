@@ -34,7 +34,11 @@ function getPuppeteerLaunchOptions() {
 
   return {
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
     ...(executablePath ? { executablePath } : {}),
   };
 }
@@ -139,8 +143,8 @@ function renderCoverHtml(req: Request, data: Payload) {
             linkHref
               ? `<div class="li2-linkRow">
                    <a class="li2-link" href="${escapeHtml(linkHref)}" target="_blank" rel="noreferrer">${escapeHtml(
-                  linkLabel
-                )}</a>
+                     linkLabel,
+                   )}</a>
                  </div>`
               : ``
           }
@@ -163,7 +167,11 @@ function renderCoverHtml(req: Request, data: Payload) {
 </html>`;
 }
 
-async function screenshotCoverPng(req: Request, data: Payload, outPngPath: string) {
+async function screenshotCoverPng(
+  req: Request,
+  data: Payload,
+  outPngPath: string,
+) {
   const puppeteer = (await import("puppeteer")).default;
 
   const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
@@ -191,16 +199,19 @@ async function screenshotCoverPng(req: Request, data: Payload, outPngPath: strin
     await page.waitForSelector("#videoBox", { timeout: 60000 });
 
     // Ensure all images are fully loaded.
-    await page.waitForFunction(async () => {
-      const fontsReady =
-        "fonts" in document
-          ? (document as Document & { fonts: FontFaceSet }).fonts.ready
-          : Promise.resolve();
-      await fontsReady;
+    await page.waitForFunction(
+      async () => {
+        const fontsReady =
+          "fonts" in document
+            ? (document as Document & { fonts: FontFaceSet }).fonts.ready
+            : Promise.resolve();
+        await fontsReady;
 
-      const imgs = Array.from(document.images);
-      return imgs.every((img) => img.complete);
-    }, { timeout: 60000 });
+        const imgs = Array.from(document.images);
+        return imgs.every((img) => img.complete);
+      },
+      { timeout: 60000 },
+    );
 
     const buffer = await page.screenshot({ type: "png" });
     await fs.writeFile(outPngPath, buffer);
@@ -247,7 +258,8 @@ export async function POST(req: Request) {
       },
     });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "cover video failed";
+    const message =
+      error instanceof Error ? error.message : "cover video failed";
     return NextResponse.json({ error: message }, { status: 500 });
   } finally {
     try {

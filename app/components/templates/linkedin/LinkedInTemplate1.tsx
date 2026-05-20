@@ -35,7 +35,8 @@ export default function LinkedInTemplate1({
           display: "flex",
           flexDirection: "column",
           justifyContent: "flex-start",
-          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+          fontFamily:
+            "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
           borderRadius: 16,
           border: "1px solid #ddd",
           boxSizing: "border-box",

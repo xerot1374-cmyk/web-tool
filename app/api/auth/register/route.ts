@@ -5,11 +5,19 @@ import { NextResponse } from "next/server";
 import { getProfileImage, hashPassword, setSessionCookie } from "@/lib/auth";
 import { isConfiguredAdminName } from "@/lib/adminAccess";
 import { prisma } from "@/lib/prisma";
-import { getTeamEmailRejectedMessage, isAllowedTeamEmail } from "@/lib/teamEmail";
+import {
+  getTeamEmailRejectedMessage,
+  isAllowedTeamEmail,
+} from "@/lib/teamEmail";
 
 export const runtime = "nodejs";
 
-const uploadDirectory = path.join(process.cwd(), "public", "uploads", "profiles");
+const uploadDirectory = path.join(
+  process.cwd(),
+  "public",
+  "uploads",
+  "profiles",
+);
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -31,28 +39,31 @@ export async function POST(req: Request) {
   if (!name || !role || !email || !password) {
     return NextResponse.json(
       { message: "Name, role, email, and password are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   if (!isAllowedTeamEmail(email)) {
     return NextResponse.json(
       { message: getTeamEmailRejectedMessage() },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
   if (password.length < 8) {
     return NextResponse.json(
       { message: "Password must be at least 8 characters" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
 
   if (existingUser) {
-    return NextResponse.json({ message: "Email is already registered" }, { status: 409 });
+    return NextResponse.json(
+      { message: "Email is already registered" },
+      { status: 409 },
+    );
   }
 
   let profileImage: string | null = null;

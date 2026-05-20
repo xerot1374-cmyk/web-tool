@@ -104,7 +104,11 @@ const PDF_EMOJI_FONT_FALLBACK =
 function withPdfEmojiFallback(fontFamily?: string) {
   const value = fontFamily?.trim();
   if (!value) return PDF_EMOJI_FONT_FALLBACK;
-  if (/Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji|Segoe UI Symbol/i.test(value)) {
+  if (
+    /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji|Segoe UI Symbol/i.test(
+      value,
+    )
+  ) {
     return value;
   }
   return `${value}, ${PDF_EMOJI_FONT_FALLBACK}`;
@@ -146,7 +150,9 @@ function resolvePdfImageSrc(src?: string) {
 
 function getPayload(): Payload | null {
   if (typeof window === "undefined") return null;
-  return ((window as Window & { __PDF_PAYLOAD__?: Payload }).__PDF_PAYLOAD__ ?? null);
+  return (
+    (window as Window & { __PDF_PAYLOAD__?: Payload }).__PDF_PAYLOAD__ ?? null
+  );
 }
 
 export default function PdfRenderClient() {
@@ -159,7 +165,8 @@ export default function PdfRenderClient() {
       profileImage: resolvePdfImageSrc(payload.profileImage),
       name: payload.name || "—",
       role: payload.role || "—",
-      productImage: payload.productImageBase64 ?? payload.productImage ?? undefined,
+      productImage:
+        payload.productImageBase64 ?? payload.productImage ?? undefined,
       productImages:
         payload.images?.map((img) => ({
           id: img.id,
@@ -182,7 +189,9 @@ export default function PdfRenderClient() {
       framePresetId: payload.framePresetId,
       frameSlots: payload.frameSlots,
       mediaBox: payload.mediaBox,
-      badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
+      badgeText: payload.badgeText?.trim()
+        ? payload.badgeText.trim()
+        : undefined,
       badgeMarks: withPdfEmojiMarks(payload.badgeMarks),
       linkTitle: payload.linkTitle ?? payload.title ?? "",
       titleMarks: withPdfEmojiMarks(payload.titleMarks),
@@ -190,11 +199,13 @@ export default function PdfRenderClient() {
       companyMarks: withPdfEmojiMarks(payload.companyMarks),
       bodyText: payload.bodyText ?? payload.body ?? "",
       bodyMarks: withPdfEmojiMarks(payload.bodyMarks),
-      linkUrl: payload.linkUrl ?? (payload.link?.trim() ? payload.link : undefined),
+      linkUrl:
+        payload.linkUrl ?? (payload.link?.trim() ? payload.link : undefined),
       linkUrls: payload.linkUrls,
       headline: payload.headline?.trim() ? payload.headline.trim() : undefined,
       subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
-      companyLogo: payload.companyLogoBase64 ?? payload.companyLogo ?? "/logo.png",
+      companyLogo:
+        payload.companyLogoBase64 ?? payload.companyLogo ?? "/logo.png",
       titleStyle: withPdfEmojiStyle(payload.titleStyle),
       bodyStyle: withPdfEmojiStyle(payload.bodyStyle),
       badgeStyle: withPdfEmojiStyle(payload.badgeStyle),

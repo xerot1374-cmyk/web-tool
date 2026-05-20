@@ -16,7 +16,10 @@ const baseNavItems = [
   { href: "/account/linkedin/template-a", label: "Template Editor" },
 ];
 
-export default function PortalNav({ isAuthenticated, isAdmin = false }: PortalNavProps) {
+export default function PortalNav({
+  isAuthenticated,
+  isAdmin = false,
+}: PortalNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,7 +89,11 @@ export default function PortalNav({ isAuthenticated, isAdmin = false }: PortalNa
         onClick={handleAuthAction}
         disabled={isSubmitting}
       >
-        {isAuthenticated ? (isSubmitting ? "Signing out..." : "Sign out") : "Sign in"}
+        {isAuthenticated
+          ? isSubmitting
+            ? "Signing out..."
+            : "Sign out"
+          : "Sign in"}
       </button>
     </nav>
   );

@@ -31,7 +31,7 @@ export default function TemplateBase({
         <div className="template-top-left">
           <div className="logo-row">
             <Image
-              src="/protos-logo.png"   // public/protos-logo.png
+              src="/protos-logo.png" // public/protos-logo.png
               alt="Protos 3D"
               width={120}
               height={26}

@@ -20,7 +20,7 @@ function createPrismaClient() {
 // Creating a fresh client avoids validation errors for newly added fields.
 export const prisma =
   process.env.NODE_ENV === "production"
-    ? globalForPrisma.prisma ?? createPrismaClient()
+    ? (globalForPrisma.prisma ?? createPrismaClient())
     : createPrismaClient();
 
 if (process.env.NODE_ENV === "production") {

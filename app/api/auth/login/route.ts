@@ -11,20 +11,27 @@ export async function POST(req: Request) {
   if (!email || !password) {
     return NextResponse.json(
       { ok: false, message: "Email and password are required" },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
   const user = await prisma.user.findUnique({ where: { email } });
 
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return NextResponse.json({ ok: false, message: "Invalid credentials" }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, message: "Invalid credentials" },
+      { status: 401 },
+    );
   }
 
   if (user.isBlocked) {
     return NextResponse.json(
-      { ok: false, message: "Your account has been blocked. Please contact an administrator." },
-      { status: 403 }
+      {
+        ok: false,
+        message:
+          "Your account has been blocked. Please contact an administrator.",
+      },
+      { status: 403 },
     );
   }
 

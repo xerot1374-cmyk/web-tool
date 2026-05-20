@@ -130,20 +130,22 @@ export type LinkedInTemplate2RendererProps = {
   onPickProductImage?: (file: File) => void;
   onStartFrameImageDrag?: (
     imageId: string,
-    event: React.MouseEvent<HTMLDivElement>
+    event: React.MouseEvent<HTMLDivElement>,
   ) => void;
   onSelectableClick?: (
     field: "badge" | "title" | "body" | "company",
-    event: React.MouseEvent<HTMLElement>
+    event: React.MouseEvent<HTMLElement>,
   ) => void;
   onSelectableDoubleClick?: (
     field: "badge" | "title" | "body" | "company",
-    event: React.MouseEvent<HTMLElement>
+    event: React.MouseEvent<HTMLElement>,
   ) => void;
 };
 
 function safeScale(scale?: number) {
-  return Number.isFinite(scale) && (scale as number) > 0 ? (scale as number) : 1;
+  return Number.isFinite(scale) && (scale as number) > 0
+    ? (scale as number)
+    : 1;
 }
 
 function normalizeHttpUrl(raw: string) {
@@ -215,7 +217,11 @@ function renderMarkedText(text: string, marks?: TextMark[]) {
     const m = safeMarks[i];
 
     if (m.start > pos) {
-      out.push(<React.Fragment key={`t-${pos}`}>{t.slice(pos, m.start)}</React.Fragment>);
+      out.push(
+        <React.Fragment key={`t-${pos}`}>
+          {t.slice(pos, m.start)}
+        </React.Fragment>,
+      );
     }
 
     const chunk = t.slice(m.start, m.end);
@@ -226,21 +232,23 @@ function renderMarkedText(text: string, marks?: TextMark[]) {
       fontWeight: m.style.fontWeight,
       fontStyle: m.style.fontStyle,
       background: m.style.highlight
-        ? m.style.highlightColor ?? "rgba(250,204,21,0.18)"
+        ? (m.style.highlightColor ?? "rgba(250,204,21,0.18)")
         : undefined,
     };
 
     out.push(
       <span key={`m-${m.start}-${m.end}-${i}`} style={style}>
         {chunk}
-      </span>
+      </span>,
     );
 
     pos = m.end;
   }
 
   if (pos < t.length) {
-    out.push(<React.Fragment key={`t-${pos}-end`}>{t.slice(pos)}</React.Fragment>);
+    out.push(
+      <React.Fragment key={`t-${pos}-end`}>{t.slice(pos)}</React.Fragment>,
+    );
   }
 
   return out;
@@ -293,7 +301,12 @@ export default function LinkedInTemplate2Renderer({
     }
 
     return [];
-  }, [data.productImages, data.productImage, data.productOrientation, data.mediaBox]);
+  }, [
+    data.productImages,
+    data.productImage,
+    data.productOrientation,
+    data.mediaBox,
+  ]);
 
   const hasProductImage =
     images.length > 0 ||
@@ -305,9 +318,12 @@ export default function LinkedInTemplate2Renderer({
       data.imageLayout === "frame"
         ? data.frameSlots?.length
           ? data.frameSlots
-          : resolveFrameSlots(data.framePresetId, data.canvasPreset ?? "linkedin")
+          : resolveFrameSlots(
+              data.framePresetId,
+              data.canvasPreset ?? "linkedin",
+            )
         : [],
-    [data.imageLayout, data.framePresetId, data.canvasPreset, data.frameSlots]
+    [data.imageLayout, data.framePresetId, data.canvasPreset, data.frameSlots],
   );
 
   const vBadge = isEdit ? (data.badgeText ?? "") : clean(data.badgeText);
@@ -319,11 +335,15 @@ export default function LinkedInTemplate2Renderer({
 
   const urls = useMemo((): string[] => {
     if (Array.isArray(data.linkUrls) && data.linkUrls.length) {
-      return data.linkUrls.map((s) => normalizeHttpUrl(String(s))).filter(Boolean);
+      return data.linkUrls
+        .map((s) => normalizeHttpUrl(String(s)))
+        .filter(Boolean);
     }
 
     if (Array.isArray(data.linkUrl) && data.linkUrl.length) {
-      return data.linkUrl.map((s) => normalizeHttpUrl(String(s))).filter(Boolean);
+      return data.linkUrl
+        .map((s) => normalizeHttpUrl(String(s)))
+        .filter(Boolean);
     }
 
     const raw = typeof data.linkUrl === "string" ? data.linkUrl : "";
@@ -339,7 +359,7 @@ export default function LinkedInTemplate2Renderer({
     (key: keyof LinkedInTemplate2Data, value: string) => {
       onFieldChange?.(key, value);
     },
-    [onFieldChange]
+    [onFieldChange],
   );
 
   const canPickImage = isEdit && typeof onPickProductImage === "function";
@@ -354,22 +374,22 @@ export default function LinkedInTemplate2Renderer({
       if (!file) return;
       onPickProductImage?.(file);
     },
-    [onPickProductImage]
+    [onPickProductImage],
   );
 
   const presetClass =
     data.canvasPreset === "instagramStory"
       ? "story"
       : data.canvasPreset === "instagram"
-      ? "instagram"
-      : "linkedin";
+        ? "instagram"
+        : "linkedin";
 
   return (
     <div
       className={cx(
         "li2-viewport",
         `li2-viewport--${presetClass}`,
-        isPreviewLike && "li2-viewport--autoHeight"
+        isPreviewLike && "li2-viewport--autoHeight",
       )}
       style={{ "--li2-scale": String(s) } as React.CSSProperties}
     >
@@ -380,7 +400,7 @@ export default function LinkedInTemplate2Renderer({
           "li2-theme-cream",
           data.imageLayout === "collage" && "li2-root--imageCollage",
           isPreviewLike && "li2-root--autoHeight",
-          isEdit && "li2-root--editing"
+          isEdit && "li2-root--editing",
         )}
         style={{
           position: "relative",
@@ -389,7 +409,7 @@ export default function LinkedInTemplate2Renderer({
         <div
           className={cx(
             "li2-header",
-            hasProductImage ? "li2-header--hasimg" : "li2-header--noimg"
+            hasProductImage ? "li2-header--hasimg" : "li2-header--noimg",
           )}
         >
           {data.imageLayout === "frame"
@@ -417,7 +437,8 @@ export default function LinkedInTemplate2Renderer({
                       height: slot.h,
                       zIndex: 12 + index,
                       pointerEvents: hideProductMedia && img ? "none" : "auto",
-                      visibility: hideProductMedia && img ? "hidden" : undefined,
+                      visibility:
+                        hideProductMedia && img ? "hidden" : undefined,
                       right: "auto",
                       bottom: "auto",
                       margin: 0,
@@ -429,14 +450,18 @@ export default function LinkedInTemplate2Renderer({
                         ? (event) => onStartFrameImageDrag?.(img.id, event)
                         : undefined
                     }
-                    title={canPickImage && !img ? "Click to add image to this frame" : undefined}
+                    title={
+                      canPickImage && !img
+                        ? "Click to add image to this frame"
+                        : undefined
+                    }
                   >
                     <div
                       className={cx(
                         "li2-productFrame",
                         "li2-productFrame--frame",
                         imageOrientationClass,
-                        !img && "li2-productFrame--empty"
+                        !img && "li2-productFrame--empty",
                       )}
                       style={{
                         width: "100%",
@@ -493,8 +518,8 @@ export default function LinkedInTemplate2Renderer({
                   data.productAlign === "left"
                     ? "li2-productSlot--left"
                     : data.productAlign === "right"
-                    ? "li2-productSlot--right"
-                    : "li2-productSlot--center";
+                      ? "li2-productSlot--right"
+                      : "li2-productSlot--center";
 
                 return (
                   <div
@@ -502,7 +527,7 @@ export default function LinkedInTemplate2Renderer({
                     className={cx(
                       "li2-productSlot",
                       alignClass,
-                      isCollage && "li2-productSlot--collage"
+                      isCollage && "li2-productSlot--collage",
                     )}
                     data-select="productImage"
                     data-image-id={img.id}
@@ -522,13 +547,15 @@ export default function LinkedInTemplate2Renderer({
                       margin: 0,
                     }}
                     onClick={canPickImage ? openFilePicker : undefined}
-                    title={canPickImage ? "Click to add/change image" : undefined}
+                    title={
+                      canPickImage ? "Click to add/change image" : undefined
+                    }
                   >
                     <div
                       className={cx(
                         "li2-productFrame",
                         imageOrientationClass,
-                        isCollage && "li2-productFrame--collage"
+                        isCollage && "li2-productFrame--collage",
                       )}
                       style={{
                         width: "100%",
@@ -548,7 +575,11 @@ export default function LinkedInTemplate2Renderer({
                           : "1px solid rgba(15,23,42,0.10)",
                       }}
                     >
-                      <div className={cx(isCollage && "li2-productFrameInner--collage")}>
+                      <div
+                        className={cx(
+                          isCollage && "li2-productFrameInner--collage",
+                        )}
+                      >
                         <img
                           className="li2-productImg li2-productImg--cropped"
                           src={img.src}
@@ -607,7 +638,9 @@ export default function LinkedInTemplate2Renderer({
             <span
               data-select="badge"
               onClick={(event) => onSelectableClick?.("badge", event)}
-              onDoubleClick={(event) => onSelectableDoubleClick?.("badge", event)}
+              onDoubleClick={(event) =>
+                onSelectableDoubleClick?.("badge", event)
+              }
               style={{ cursor: isEdit ? "pointer" : undefined }}
             >
               {vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0"}
@@ -625,7 +658,11 @@ export default function LinkedInTemplate2Renderer({
             </div>
 
             <div className="li2-avatarWrap">
-              <img className="li2-avatar" src={data.profileImage} alt="profile" />
+              <img
+                className="li2-avatar"
+                src={data.profileImage}
+                alt="profile"
+              />
             </div>
           </div>
         </div>
@@ -633,7 +670,7 @@ export default function LinkedInTemplate2Renderer({
         <div
           className={cx(
             "li2-content",
-            isPreviewLike && "li2-content--autoHeight"
+            isPreviewLike && "li2-content--autoHeight",
           )}
         >
           {vTitle ? (
@@ -641,7 +678,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-linkTitle"
               data-select="title"
               onClick={(event) => onSelectableClick?.("title", event)}
-              onDoubleClick={(event) => onSelectableDoubleClick?.("title", event)}
+              onDoubleClick={(event) =>
+                onSelectableDoubleClick?.("title", event)
+              }
               style={{
                 fontFamily: data.titleStyle?.fontFamily,
                 fontSize: data.titleStyle?.fontSize,
@@ -658,7 +697,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-company"
               data-select="company"
               onClick={(event) => onSelectableClick?.("company", event)}
-              onDoubleClick={(event) => onSelectableDoubleClick?.("company", event)}
+              onDoubleClick={(event) =>
+                onSelectableDoubleClick?.("company", event)
+              }
               style={{
                 fontFamily: data.companyStyle?.fontFamily,
                 fontSize: data.companyStyle?.fontSize,
@@ -741,7 +782,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-body"
               data-select="body"
               onClick={(event) => onSelectableClick?.("body", event)}
-              onDoubleClick={(event) => onSelectableDoubleClick?.("body", event)}
+              onDoubleClick={(event) =>
+                onSelectableDoubleClick?.("body", event)
+              }
               style={{
                 fontFamily: data.bodyStyle?.fontFamily,
                 fontSize: data.bodyStyle?.fontSize,
@@ -756,7 +799,12 @@ export default function LinkedInTemplate2Renderer({
           {urls.length ? (
             <div className="li2-linkRow" data-select="links">
               {urls.length === 1 ? (
-                <a className="li2-link" href={urls[0]} target="_blank" rel="noreferrer">
+                <a
+                  className="li2-link"
+                  href={urls[0]}
+                  target="_blank"
+                  rel="noreferrer"
+                >
                   {linkText}
                   <span className="li2-linkArrow" aria-hidden="true">
                     {" "}
@@ -789,7 +837,11 @@ export default function LinkedInTemplate2Renderer({
 
         <div className="li2-bottom">
           <div className="li2-bottomLeft">
-            <img className="li2-profileMini" src={data.profileImage} alt="profile-small" />
+            <img
+              className="li2-profileMini"
+              src={data.profileImage}
+              alt="profile-small"
+            />
             <div className="li2-bottomMeta">
               <div className="li2-bottomName" title={data.name}>
                 {data.name}

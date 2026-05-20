@@ -14,7 +14,7 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const sessionUser = req.cookies.get("session_user")?.value;
   const isPublicPath = publicPaths.some((path) =>
-    path === "/" ? pathname === path : pathname.startsWith(path)
+    path === "/" ? pathname === path : pathname.startsWith(path),
   );
   const isAuthPage = pathname === "/login" || pathname === "/register";
   const isProtectedPath = pathname.startsWith("/account");

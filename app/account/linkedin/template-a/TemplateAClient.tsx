@@ -126,7 +126,7 @@ function applyOnSelection(
   text: string,
   selStart: number,
   selEnd: number,
-  transform: (selected: string) => string
+  transform: (selected: string) => string,
 ) {
   const start = clamp(Math.min(selStart, selEnd), 0, text.length);
   const end = clamp(Math.max(selStart, selEnd), 0, text.length);
@@ -138,7 +138,13 @@ function applyOnSelection(
   const nextSelStart = start;
   const nextSelEnd = start + replaced.length;
 
-  return { next, nextSelStart, nextSelEnd, replaceStart: start, replaceEnd: end };
+  return {
+    next,
+    nextSelStart,
+    nextSelEnd,
+    replaceStart: start,
+    replaceEnd: end,
+  };
 }
 
 function isFormattingWordChar(ch: string) {
@@ -149,7 +155,7 @@ function expandSelectionToWord(text: string, selStart: number, selEnd: number) {
   let start = clamp(Math.min(selStart, selEnd), 0, text.length);
   let end = clamp(Math.max(selStart, selEnd), 0, text.length);
 
-  if (start !== end) return {start, end};
+  if (start !== end) return { start, end };
 
   while (start > 0 && isFormattingWordChar(text[start - 1])) {
     start -= 1;
@@ -158,21 +164,22 @@ function expandSelectionToWord(text: string, selStart: number, selEnd: number) {
     end += 1;
   }
 
-  return {start, end};
+  return { start, end };
 }
 
 function applyOnSelectionOrWord(
   text: string,
   selStart: number,
   selEnd: number,
-  transform: (selected: string) => string
+  transform: (selected: string) => string,
 ) {
-  const {start, end} = expandSelectionToWord(text, selStart, selEnd);
+  const { start, end } = expandSelectionToWord(text, selStart, selEnd);
   return applyOnSelection(text, start, end, transform);
 }
 
 function getSelectedLineBlock(text: string, start: number, end: number) {
-  const effectiveEnd = start !== end && end > start && text[end - 1] === "\n" ? end - 1 : end;
+  const effectiveEnd =
+    start !== end && end > start && text[end - 1] === "\n" ? end - 1 : end;
   const rangeStart =
     start === end ? text.lastIndexOf("\n", start - 1) + 1 : start;
   const rangeEnd =
@@ -187,7 +194,7 @@ function getSelectedLineBlock(text: string, start: number, end: number) {
   const after = text.indexOf("\n", rangeEnd);
   const lineEnd = after === -1 ? text.length : after;
 
-  return {lineStart, lineEnd};
+  return { lineStart, lineEnd };
 }
 
 function getLineBounds(text: string, index: number) {
@@ -195,7 +202,7 @@ function getLineBounds(text: string, index: number) {
   const start = text.lastIndexOf("\n", Math.max(0, safeIndex - 1)) + 1;
   const next = text.indexOf("\n", safeIndex);
   const end = next === -1 ? text.length : next;
-  return {start, end};
+  return { start, end };
 }
 
 type LinePrefixChange = {
@@ -219,7 +226,7 @@ function toHashtag(s: string) {
 
 async function copyTextToClipboard(
   text: string,
-  fallbackEl?: HTMLTextAreaElement | HTMLInputElement | null
+  fallbackEl?: HTMLTextAreaElement | HTMLInputElement | null,
 ) {
   try {
     await navigator.clipboard.writeText(text);
@@ -307,10 +314,14 @@ declare global {
   }
 }
 
-function getPdfModeAndPayload(): { isPdf: boolean; payload: PdfPayload | null } {
+function getPdfModeAndPayload(): {
+  isPdf: boolean;
+  payload: PdfPayload | null;
+} {
   if (typeof window === "undefined") return { isPdf: false, payload: null };
-  const isPdf = new URLSearchParams(window.location.search).get("__pdf") === "1";
-  const payload = isPdf ? window.__PDF_PAYLOAD__ ?? null : null;
+  const isPdf =
+    new URLSearchParams(window.location.search).get("__pdf") === "1";
+  const payload = isPdf ? (window.__PDF_PAYLOAD__ ?? null) : null;
   return { isPdf, payload };
 }
 
@@ -323,7 +334,9 @@ type TextStyle = {
   bold?: boolean;
   italic?: boolean;
   textAlign?: "left" | "center" | "right";
-  mixed?: Partial<Record<"fontFamily" | "fontSize" | "color" | "highlightColor", boolean>>;
+  mixed?: Partial<
+    Record<"fontFamily" | "fontSize" | "color" | "highlightColor", boolean>
+  >;
 };
 
 type CanvasPresetKey = CanvasPreset;
@@ -360,7 +373,9 @@ const PREVIEW_SELECTABLE_IDS = new Set<SelectableId>([
   "video",
 ]);
 
-function isPreviewTextSelectableId(id: SelectableId | null): id is "title" | "body" | "badge" | "company" {
+function isPreviewTextSelectableId(
+  id: SelectableId | null,
+): id is "title" | "body" | "badge" | "company" {
   return id !== null && PREVIEW_TEXT_SELECTABLE_IDS.has(id);
 }
 
@@ -436,14 +451,9 @@ function uid() {
 
 function imageToViewportRect(
   image: Pick<ImageItem, "x" | "y" | "w" | "h">,
-  _scale: number
+  _scale: number,
 ) {
-  return new DOMRect(
-    image.x,
-    image.y,
-    image.w,
-    image.h
-  );
+  return new DOMRect(image.x, image.y, image.w, image.h);
 }
 
 function normalizeAngle(deg: number) {
@@ -478,7 +488,9 @@ function getCropScale(img?: ImageItem | null) {
   return Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1;
 }
 
-function getImageAspectRatio(image: Pick<ImageItem, "w" | "h" | "orientation">) {
+function getImageAspectRatio(
+  image: Pick<ImageItem, "w" | "h" | "orientation">,
+) {
   if (image.w > 0 && image.h > 0) {
     return image.w / image.h;
   }
@@ -488,7 +500,7 @@ function getImageAspectRatio(image: Pick<ImageItem, "w" | "h" | "orientation">) 
 function fitImageToBounds(
   image: Pick<ImageItem, "w" | "h" | "orientation">,
   maxW: number,
-  maxH: number
+  maxH: number,
 ) {
   const aspectRatio = getImageAspectRatio(image);
   let width = maxW;
@@ -509,47 +521,137 @@ function getCollageSlots(
   count: number,
   canvasW: number,
   headerH: number,
-  align: "left" | "center" | "right"
+  align: "left" | "center" | "right",
 ) {
   const alignShift =
     align === "left" ? -canvasW * 0.12 : align === "right" ? canvasW * 0.12 : 0;
 
   if (count <= 1) {
     return [
-      { cx: canvasW * 0.5 + alignShift, cy: headerH * 0.57, bw: canvasW * 0.44, bh: headerH * 0.5, rotation: -3 },
+      {
+        cx: canvasW * 0.5 + alignShift,
+        cy: headerH * 0.57,
+        bw: canvasW * 0.44,
+        bh: headerH * 0.5,
+        rotation: -3,
+      },
     ];
   }
 
   if (count === 2) {
     return [
-      { cx: canvasW * 0.4 + alignShift, cy: headerH * 0.57, bw: canvasW * 0.34, bh: headerH * 0.45, rotation: -9 },
-      { cx: canvasW * 0.62 + alignShift, cy: headerH * 0.52, bw: canvasW * 0.34, bh: headerH * 0.45, rotation: 8 },
+      {
+        cx: canvasW * 0.4 + alignShift,
+        cy: headerH * 0.57,
+        bw: canvasW * 0.34,
+        bh: headerH * 0.45,
+        rotation: -9,
+      },
+      {
+        cx: canvasW * 0.62 + alignShift,
+        cy: headerH * 0.52,
+        bw: canvasW * 0.34,
+        bh: headerH * 0.45,
+        rotation: 8,
+      },
     ];
   }
 
   if (count === 3) {
     return [
-      { cx: canvasW * 0.3 + alignShift, cy: headerH * 0.59, bw: canvasW * 0.28, bh: headerH * 0.38, rotation: -11 },
-      { cx: canvasW * 0.7 + alignShift, cy: headerH * 0.57, bw: canvasW * 0.28, bh: headerH * 0.38, rotation: 10 },
-      { cx: canvasW * 0.5 + alignShift, cy: headerH * 0.5, bw: canvasW * 0.35, bh: headerH * 0.47, rotation: -2 },
+      {
+        cx: canvasW * 0.3 + alignShift,
+        cy: headerH * 0.59,
+        bw: canvasW * 0.28,
+        bh: headerH * 0.38,
+        rotation: -11,
+      },
+      {
+        cx: canvasW * 0.7 + alignShift,
+        cy: headerH * 0.57,
+        bw: canvasW * 0.28,
+        bh: headerH * 0.38,
+        rotation: 10,
+      },
+      {
+        cx: canvasW * 0.5 + alignShift,
+        cy: headerH * 0.5,
+        bw: canvasW * 0.35,
+        bh: headerH * 0.47,
+        rotation: -2,
+      },
     ];
   }
 
   if (count === 4) {
     return [
-      { cx: canvasW * 0.31 + alignShift, cy: headerH * 0.43, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: -10 },
-      { cx: canvasW * 0.68 + alignShift, cy: headerH * 0.42, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: 9 },
-      { cx: canvasW * 0.38 + alignShift, cy: headerH * 0.68, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: -4 },
-      { cx: canvasW * 0.62 + alignShift, cy: headerH * 0.64, bw: canvasW * 0.24, bh: headerH * 0.33, rotation: 6 },
+      {
+        cx: canvasW * 0.31 + alignShift,
+        cy: headerH * 0.43,
+        bw: canvasW * 0.24,
+        bh: headerH * 0.33,
+        rotation: -10,
+      },
+      {
+        cx: canvasW * 0.68 + alignShift,
+        cy: headerH * 0.42,
+        bw: canvasW * 0.24,
+        bh: headerH * 0.33,
+        rotation: 9,
+      },
+      {
+        cx: canvasW * 0.38 + alignShift,
+        cy: headerH * 0.68,
+        bw: canvasW * 0.24,
+        bh: headerH * 0.33,
+        rotation: -4,
+      },
+      {
+        cx: canvasW * 0.62 + alignShift,
+        cy: headerH * 0.64,
+        bw: canvasW * 0.24,
+        bh: headerH * 0.33,
+        rotation: 6,
+      },
     ];
   }
 
   const baseSlots = [
-    { cx: canvasW * 0.25 + alignShift, cy: headerH * 0.44, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: -12 },
-    { cx: canvasW * 0.74 + alignShift, cy: headerH * 0.43, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: 12 },
-    { cx: canvasW * 0.35 + alignShift, cy: headerH * 0.68, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: -6 },
-    { cx: canvasW * 0.65 + alignShift, cy: headerH * 0.66, bw: canvasW * 0.22, bh: headerH * 0.3, rotation: 7 },
-    { cx: canvasW * 0.5 + alignShift, cy: headerH * 0.54, bw: canvasW * 0.28, bh: headerH * 0.38, rotation: -1 },
+    {
+      cx: canvasW * 0.25 + alignShift,
+      cy: headerH * 0.44,
+      bw: canvasW * 0.22,
+      bh: headerH * 0.3,
+      rotation: -12,
+    },
+    {
+      cx: canvasW * 0.74 + alignShift,
+      cy: headerH * 0.43,
+      bw: canvasW * 0.22,
+      bh: headerH * 0.3,
+      rotation: 12,
+    },
+    {
+      cx: canvasW * 0.35 + alignShift,
+      cy: headerH * 0.68,
+      bw: canvasW * 0.22,
+      bh: headerH * 0.3,
+      rotation: -6,
+    },
+    {
+      cx: canvasW * 0.65 + alignShift,
+      cy: headerH * 0.66,
+      bw: canvasW * 0.22,
+      bh: headerH * 0.3,
+      rotation: 7,
+    },
+    {
+      cx: canvasW * 0.5 + alignShift,
+      cy: headerH * 0.54,
+      bw: canvasW * 0.28,
+      bh: headerH * 0.38,
+      rotation: -1,
+    },
   ];
 
   return Array.from({ length: count }, (_, index) => {
@@ -572,7 +674,7 @@ function arrangeImagesForLayout(
   preset: CanvasPreset,
   align: "left" | "center" | "right",
   framePresetId: string,
-  frameSlotsOverride?: FrameSlot[]
+  frameSlotsOverride?: FrameSlot[],
 ) {
   if (sourceImages.length === 0) {
     return sourceImages;
@@ -588,7 +690,9 @@ function arrangeImagesForLayout(
 
     return sourceImages.map((img) => {
       let nextSlotId =
-        img.frameSlotId && slotIds.includes(img.frameSlotId) ? img.frameSlotId : undefined;
+        img.frameSlotId && slotIds.includes(img.frameSlotId)
+          ? img.frameSlotId
+          : undefined;
 
       if (!nextSlotId || assigned.has(nextSlotId)) {
         while (slotIndex < slotIds.length && assigned.has(slotIds[slotIndex])) {
@@ -643,12 +747,12 @@ function arrangeImagesForLayout(
     const x = clamp(
       Math.round(slot.cx - fit.w / 2),
       safeSide,
-      Math.max(safeSide, canvas.w - safeSide - fit.w)
+      Math.max(safeSide, canvas.w - safeSide - fit.w),
     );
     const y = clamp(
       Math.round(slot.cy - fit.h / 2),
       safeTop,
-      Math.max(safeTop, headerH - safeBottom - fit.h)
+      Math.max(safeTop, headerH - safeBottom - fit.h),
     );
 
     return {
@@ -662,15 +766,13 @@ function arrangeImagesForLayout(
   });
 }
 
-export default function TemplateAClient({
-  sessionUser,
-}: TemplateAClientProps) {
+export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const router = useRouter();
 
-  const [{isPdf, payload}, setPdfCtx] = useState<{
+  const [{ isPdf, payload }, setPdfCtx] = useState<{
     isPdf: boolean;
     payload: PdfPayload | null;
-  }>(() => ({isPdf: false, payload: null}));
+  }>(() => ({ isPdf: false, payload: null }));
 
   useEffect(() => {
     setPdfCtx(getPdfModeAndPayload());
@@ -687,7 +789,9 @@ export default function TemplateAClient({
 
   const [selectedId, setSelectedId] = useState<SelectableId | null>(null);
   const [selectedRect, setSelectedRect] = useState<DOMRect | null>(null);
-  const [selectedFrameSlotId, setSelectedFrameSlotId] = useState<string | null>(null);
+  const [selectedFrameSlotId, setSelectedFrameSlotId] = useState<string | null>(
+    null,
+  );
   const [hoverFrameSlotId, setHoverFrameSlotId] = useState<string | null>(null);
   const [objectLayers, setObjectLayers] = useState({
     images: {} as Record<string, number>,
@@ -697,19 +801,22 @@ export default function TemplateAClient({
 
   const [editField, setEditField] = useState<EditField>(null);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
-  const [floatingTextToolbar, setFloatingTextToolbar] = useState<FloatingTextToolbarState>({
-    visible: false,
-    x: 0,
-    y: 0,
-    placement: "above",
-    activeField: null,
-  });
+  const [floatingTextToolbar, setFloatingTextToolbar] =
+    useState<FloatingTextToolbarState>({
+      visible: false,
+      x: 0,
+      y: 0,
+      placement: "above",
+      activeField: null,
+    });
   const floatingTextToolbarRef = useRef<HTMLDivElement | null>(null);
   const titleEditRef = useRef<HTMLDivElement | null>(null);
   const bodyEditRef = useRef<HTMLDivElement | null>(null);
   const companyEditRef = useRef<HTMLDivElement | null>(null);
   const badgeEditRef = useRef<HTMLDivElement | null>(null);
-  const richEditSelectionRef = useRef<Record<RichEditField, { start: number; end: number }>>({
+  const richEditSelectionRef = useRef<
+    Record<RichEditField, { start: number; end: number }>
+  >({
     title: { start: 0, end: 0 },
     body: { start: 0, end: 0 },
     company: { start: 0, end: 0 },
@@ -741,7 +848,7 @@ export default function TemplateAClient({
   } | null>(null);
 
   const [previewContentHeight, setPreviewContentHeight] = useState<number>(
-      getCanvasFrame("linkedin").h
+    getCanvasFrame("linkedin").h,
   );
 
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
@@ -840,7 +947,9 @@ export default function TemplateAClient({
     textAlign: "left",
   });
 
-  const [toolbarStyles, setToolbarStyles] = useState<Record<EditorTextField, TextStyle>>({
+  const [toolbarStyles, setToolbarStyles] = useState<
+    Record<EditorTextField, TextStyle>
+  >({
     badge: {
       fontFamily: "system-ui",
       fontSize: 20,
@@ -877,7 +986,9 @@ export default function TemplateAClient({
       textAlign: "left",
     },
   });
-  const [pendingTextStyles, setPendingTextStyles] = useState<Record<EditorTextField, RichStyle>>({
+  const [pendingTextStyles, setPendingTextStyles] = useState<
+    Record<EditorTextField, RichStyle>
+  >({
     badge: {},
     title: {},
     company: {},
@@ -888,15 +999,18 @@ export default function TemplateAClient({
 
   const [productImage, setProductImage] = useState<string>("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
-  const [productOrientation, setProductOrientation] =
-      useState<"landscape" | "portrait">("landscape");
+  const [productOrientation, setProductOrientation] = useState<
+    "landscape" | "portrait"
+  >("landscape");
   const [productAlign, setProductAlign] = useState<"left" | "center" | "right">(
-      "center"
+    "center",
   );
   const [imageLayout, setImageLayout] = useState<ImageLayoutMode>("manual");
-  const [framePresetId, setFramePresetId] = useState<string>(FRAME_PRESETS[0].id);
+  const [framePresetId, setFramePresetId] = useState<string>(
+    FRAME_PRESETS[0].id,
+  );
   const [frameSlotsState, setFrameSlotsState] = useState<FrameSlot[]>(() =>
-    resolveFrameSlots(FRAME_PRESETS[0].id, "linkedin")
+    resolveFrameSlots(FRAME_PRESETS[0].id, "linkedin"),
   );
 
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -937,10 +1051,10 @@ export default function TemplateAClient({
 
   const normalizedLink: string | undefined = useMemo(() => {
     const urls = link
-        .map((l) => l.trim())
-        .filter(Boolean)
-        .map((l) => normalizeUrl(l))
-        .filter((v): v is string => Boolean(v));
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => normalizeUrl(l))
+      .filter((v): v is string => Boolean(v));
 
     return urls.length ? urls.join("\n") : undefined;
   }, [link]);
@@ -966,7 +1080,7 @@ export default function TemplateAClient({
           zIndex: objectLayers.images[img.id] ?? 2 + index,
         };
       }),
-    [frameSlotsState, imageLayout, images, objectLayers.images]
+    [frameSlotsState, imageLayout, images, objectLayers.images],
   );
 
   function bringImageObjectToFront(imageId: string) {
@@ -1036,13 +1150,13 @@ export default function TemplateAClient({
 
   function calcFitSize(w: number, h: number, maxW: number, maxH: number) {
     const r = Math.min(maxW / w, maxH / h, 1);
-    return {w: Math.round(w * r), h: Math.round(h * r)};
+    return { w: Math.round(w * r), h: Math.round(h * r) };
   }
 
   function clampImageBox(
-      item: Pick<ImageItem, "x" | "y" | "w" | "h">,
-      canvasW: number,
-      canvasH: number
+    item: Pick<ImageItem, "x" | "y" | "w" | "h">,
+    canvasW: number,
+    canvasH: number,
   ) {
     const minW = 60;
     const minH = 60;
@@ -1052,7 +1166,7 @@ export default function TemplateAClient({
     const x = clamp(item.x, 0, Math.max(0, canvasW - w));
     const y = clamp(item.y, 0, Math.max(0, canvasH - h));
 
-    return {x, y, w, h};
+    return { x, y, w, h };
   }
 
   async function resizeImageFile(file: File): Promise<File> {
@@ -1076,7 +1190,7 @@ export default function TemplateAClient({
 
     const preset = w0 >= h0 ? landscape : portrait;
 
-    const {w, h} = calcFitSize(w0, h0, preset.maxW, preset.maxH);
+    const { w, h } = calcFitSize(w0, h0, preset.maxW, preset.maxH);
 
     const canvas = document.createElement("canvas");
     canvas.width = w;
@@ -1091,13 +1205,13 @@ export default function TemplateAClient({
 
     const blob: Blob = await new Promise((resolve, reject) => {
       canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
-          preset.mime,
-          preset.quality
+        (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
+        preset.mime,
+        preset.quality,
       );
     });
 
-    return new File([blob], `product-resized.jpg`, {type: preset.mime});
+    return new File([blob], `product-resized.jpg`, { type: preset.mime });
   }
 
   function getSelectedImage() {
@@ -1112,7 +1226,7 @@ export default function TemplateAClient({
   function updateSelectedImage(updater: (prev: ImageItem) => ImageItem) {
     if (!selectedImageId) return;
     setImages((prev) =>
-        prev.map((img) => (img.id === selectedImageId ? updater(img) : img))
+      prev.map((img) => (img.id === selectedImageId ? updater(img) : img)),
     );
   }
 
@@ -1126,13 +1240,13 @@ export default function TemplateAClient({
 
     setProductImage(first.src);
     setProductOrientation(first.orientation);
-    setMediaBox({x: first.x, y: first.y, w: first.w, h: first.h});
+    setMediaBox({ x: first.x, y: first.y, w: first.w, h: first.h });
   }
 
   function applyImageLayout(
     nextLayout: ImageLayoutMode,
     sourceImages: ImageItem[],
-    align: "left" | "center" | "right" = productAlign
+    align: "left" | "center" | "right" = productAlign,
   ) {
     return arrangeImagesForLayout(
       sourceImages,
@@ -1140,7 +1254,7 @@ export default function TemplateAClient({
       canvasPreset,
       align,
       framePresetId,
-      frameSlotsState
+      frameSlotsState,
     );
   }
 
@@ -1171,7 +1285,7 @@ export default function TemplateAClient({
         canvasPreset,
         productAlign,
         nextFramePresetId,
-        nextFrameSlots
+        nextFrameSlots,
       );
       syncLegacyFromFirstImage(next);
       return next;
@@ -1207,13 +1321,13 @@ export default function TemplateAClient({
     const base64 = await fileToBase64(resized);
 
     const orientation: "landscape" | "portrait" =
-        img.naturalWidth >= img.naturalHeight ? "landscape" : "portrait";
+      img.naturalWidth >= img.naturalHeight ? "landscape" : "portrait";
 
     const fit = calcFitSize(
-        img.naturalWidth,
-        img.naturalHeight,
-        currentCanvas.w * 0.6,
-        currentCanvas.h * 0.5
+      img.naturalWidth,
+      img.naturalHeight,
+      currentCanvas.w * 0.6,
+      currentCanvas.h * 0.5,
     );
 
     const nextImage: ImageItem = {
@@ -1234,22 +1348,26 @@ export default function TemplateAClient({
 
     const targetFrameSlotId =
       imageLayout === "frame"
-        ? selectedFrameSlotId ??
+        ? (selectedFrameSlotId ??
           getSelectedImage()?.frameSlotId ??
           getFirstAvailableFrameSlotId(
             framePresetId,
             canvasPreset,
-            images.map((img) => img.frameSlotId).filter(Boolean) as string[]
-          )
+            images.map((img) => img.frameSlotId).filter(Boolean) as string[],
+          ))
         : undefined;
 
     setImages((prev) => {
       if (imageLayout === "frame") {
-        const existingIndex = prev.findIndex((img) => img.frameSlotId === targetFrameSlotId);
+        const existingIndex = prev.findIndex(
+          (img) => img.frameSlotId === targetFrameSlotId,
+        );
         const nextWithSlot = { ...nextImage, frameSlotId: targetFrameSlotId };
         const raw =
           existingIndex >= 0
-            ? prev.map((img, index) => (index === existingIndex ? nextWithSlot : img))
+            ? prev.map((img, index) =>
+                index === existingIndex ? nextWithSlot : img,
+              )
             : [...prev, nextWithSlot];
         const next = applyImageLayout(imageLayout, raw);
         syncLegacyFromFirstImage(next);
@@ -1265,7 +1383,9 @@ export default function TemplateAClient({
     setSelectedId("productImage");
     setSelectedImageId(nextImage.id);
     setSelectedFrameSlotId(targetFrameSlotId ?? null);
-    setSelectedRect(targetFrameSlotId ? getFrameSlotRect(targetFrameSlotId) : null);
+    setSelectedRect(
+      targetFrameSlotId ? getFrameSlotRect(targetFrameSlotId) : null,
+    );
     bringImageObjectToFront(nextImage.id);
   }
 
@@ -1275,7 +1395,7 @@ export default function TemplateAClient({
     setImages((prev) => {
       const next = applyImageLayout(
         imageLayout,
-        prev.filter((img) => img.id !== imageId)
+        prev.filter((img) => img.id !== imageId),
       );
       syncLegacyFromFirstImage(next);
       return next;
@@ -1315,7 +1435,7 @@ export default function TemplateAClient({
     if (!current) return;
     imageClipboardRef.current = {
       type: "image",
-      image: {...current},
+      image: { ...current },
     };
   }
 
@@ -1404,13 +1524,19 @@ export default function TemplateAClient({
 
   function getFrameSlotAtPoint(x: number, y: number) {
     return frameSlotsState.find(
-      (slot) => x >= slot.x && x <= slot.x + slot.w && y >= slot.y && y <= slot.y + slot.h
+      (slot) =>
+        x >= slot.x &&
+        x <= slot.x + slot.w &&
+        y >= slot.y &&
+        y <= slot.y + slot.h,
     );
   }
 
   function getSelectedFrameSlot() {
     if (!selectedFrameSlotId) return null;
-    return frameSlotsState.find((slot) => slot.id === selectedFrameSlotId) ?? null;
+    return (
+      frameSlotsState.find((slot) => slot.id === selectedFrameSlotId) ?? null
+    );
   }
 
   function clampFrameSlotBox(slot: Pick<FrameSlot, "x" | "y" | "w" | "h">) {
@@ -1431,7 +1557,7 @@ export default function TemplateAClient({
 
       const sourceSlotId = current.frameSlotId;
       const occupant = prev.find(
-        (img) => img.id !== imageId && img.frameSlotId === targetSlotId
+        (img) => img.id !== imageId && img.frameSlotId === targetSlotId,
       );
 
       const nextRaw = prev.map((img) => {
@@ -1460,7 +1586,7 @@ export default function TemplateAClient({
 
     setFrameSlotsState((prev) => {
       const nextSlots = prev.map((slot) =>
-        slot.id === selectedFrameSlotId ? updater(slot) : slot
+        slot.id === selectedFrameSlotId ? updater(slot) : slot,
       );
       setImages((currentImages) => {
         const nextImages = arrangeImagesForLayout(
@@ -1469,7 +1595,7 @@ export default function TemplateAClient({
           canvasPreset,
           productAlign,
           framePresetId,
-          nextSlots
+          nextSlots,
         );
         syncLegacyFromFirstImage(nextImages);
         return nextImages;
@@ -1491,8 +1617,8 @@ export default function TemplateAClient({
       const next = applyImageLayout(
         imageLayout,
         prev.map((img) =>
-          img.id === selectedImageId ? { ...img, frameSlotId: slotId } : img
-        )
+          img.id === selectedImageId ? { ...img, frameSlotId: slotId } : img,
+        ),
       );
       syncLegacyFromFirstImage(next);
       return next;
@@ -1508,7 +1634,11 @@ export default function TemplateAClient({
     setSelectedId(null);
     setSelectedRect(null);
     setEditField(null);
-    setFloatingTextToolbar((prev) => ({...prev, visible: false, activeField: null}));
+    setFloatingTextToolbar((prev) => ({
+      ...prev,
+      visible: false,
+      activeField: null,
+    }));
     setSelectedImageId(null);
     setSelectedFrameSlotId(null);
   }
@@ -1530,7 +1660,9 @@ export default function TemplateAClient({
 
   function remeasureBadgeSelection() {
     const stage = stageRef.current;
-    const badgeTextEl = stage?.querySelector('[data-select="badge"]') as HTMLElement | null;
+    const badgeTextEl = stage?.querySelector(
+      '[data-select="badge"]',
+    ) as HTMLElement | null;
     if (!badgeTextEl) return;
 
     const rect = computeRectRelativeToStage(badgeTextEl);
@@ -1554,7 +1686,9 @@ export default function TemplateAClient({
       return target.closest("[data-select]") as HTMLElement | null;
     }
     if (target instanceof Node) {
-      return target.parentElement?.closest("[data-select]") as HTMLElement | null;
+      return target.parentElement?.closest(
+        "[data-select]",
+      ) as HTMLElement | null;
     }
     return null;
   }
@@ -1566,7 +1700,7 @@ export default function TemplateAClient({
       target.closest('[data-media-selection-ui="true"]') ||
       target.closest('[data-resize-handle="true"]') ||
       target.closest('[data-select="productImage"]') ||
-      target.closest('[data-select="video"]')
+      target.closest('[data-select="video"]'),
     );
   }
 
@@ -1574,7 +1708,9 @@ export default function TemplateAClient({
     if (!badgeText.trim()) return null;
 
     const stage = stageRef.current;
-    const badgeTextEl = stage?.querySelector('[data-select="badge"]') as HTMLElement | null;
+    const badgeTextEl = stage?.querySelector(
+      '[data-select="badge"]',
+    ) as HTMLElement | null;
     if (!badgeTextEl) return null;
 
     const rect = badgeTextEl.getBoundingClientRect();
@@ -1592,7 +1728,9 @@ export default function TemplateAClient({
       return;
     }
 
-    const t = getBadgeTextTargetAtPoint(e.clientX, e.clientY) ?? getSelectableTarget(e.target);
+    const t =
+      getBadgeTextTargetAtPoint(e.clientX, e.clientY) ??
+      getSelectableTarget(e.target);
 
     if (!t) {
       clearSelection();
@@ -1656,7 +1794,9 @@ export default function TemplateAClient({
     setSelectedId("video");
     setSelectedImageId(null);
     setSelectedFrameSlotId(null);
-    setSelectedRect(new DOMRect(videoBox.x, videoBox.y, videoBox.w, videoBox.h));
+    setSelectedRect(
+      new DOMRect(videoBox.x, videoBox.y, videoBox.w, videoBox.h),
+    );
     if (editField) setEditField(null);
   }
 
@@ -1664,7 +1804,7 @@ export default function TemplateAClient({
     return {
       videoFile,
       videoPreviewUrl,
-      videoBox: {...videoBox},
+      videoBox: { ...videoBox },
       videoZIndex: objectLayers.video,
     };
   }
@@ -1677,7 +1817,7 @@ export default function TemplateAClient({
   }
 
   function restoreVideoSnapshot(snapshot: VideoSnapshot) {
-    setVideoBox({...snapshot.videoBox});
+    setVideoBox({ ...snapshot.videoBox });
     setObjectLayers((prev) => ({
       ...prev,
       video: snapshot.videoZIndex,
@@ -1687,7 +1827,7 @@ export default function TemplateAClient({
     setVideoFile(snapshot.videoFile);
 
     if (snapshot.videoFile) {
-      pendingVideoBoxRef.current = {...snapshot.videoBox};
+      pendingVideoBoxRef.current = { ...snapshot.videoBox };
       setSelectedId("video");
       setSelectedImageId(null);
       setSelectedFrameSlotId(null);
@@ -1696,8 +1836,8 @@ export default function TemplateAClient({
           snapshot.videoBox.x,
           snapshot.videoBox.y,
           snapshot.videoBox.w,
-          snapshot.videoBox.h
-        )
+          snapshot.videoBox.h,
+        ),
       );
       return;
     }
@@ -1764,7 +1904,7 @@ export default function TemplateAClient({
         y: snapshot.videoBox.y + 24,
       },
       currentCanvas.w,
-      currentCanvas.h
+      currentCanvas.h,
     );
 
     pendingVideoBoxRef.current = nextBox;
@@ -1784,8 +1924,15 @@ export default function TemplateAClient({
     restoreVideoSnapshot(previous);
   }
 
-  function isRichEditField(field: EditorTextField | EditField | null): field is RichEditField {
-    return field === "body" || field === "title" || field === "company" || field === "badge";
+  function isRichEditField(
+    field: EditorTextField | EditField | null,
+  ): field is RichEditField {
+    return (
+      field === "body" ||
+      field === "title" ||
+      field === "company" ||
+      field === "badge"
+    );
   }
 
   function getRichEditText(field: RichEditField) {
@@ -1805,13 +1952,19 @@ export default function TemplateAClient({
 
     const cs = window.getComputedStyle(targetEl);
     const fontSize = safePx(
-        cs.fontSize,
-        field === "title" ? 34 : field === "badge" ? 20 : field === "company" ? 18 : 16
+      cs.fontSize,
+      field === "title"
+        ? 34
+        : field === "badge"
+          ? 20
+          : field === "company"
+            ? 18
+            : 16,
     );
     const lineHeight =
-        cs.lineHeight === "normal"
-            ? Math.round(fontSize * 1.35)
-            : safePx(cs.lineHeight, Math.round(fontSize * 1.35));
+      cs.lineHeight === "normal"
+        ? Math.round(fontSize * 1.35)
+        : safePx(cs.lineHeight, Math.round(fontSize * 1.35));
 
     setEditStyle({
       fontFamily: cs.fontFamily || "system-ui",
@@ -1829,11 +1982,14 @@ export default function TemplateAClient({
   }
 
   function onCanvasDoubleClick(e: React.MouseEvent) {
-    const t = getBadgeTextTargetAtPoint(e.clientX, e.clientY) ?? getSelectableTarget(e.target);
+    const t =
+      getBadgeTextTargetAtPoint(e.clientX, e.clientY) ??
+      getSelectableTarget(e.target);
     if (!t) return;
 
     const id = (t.getAttribute("data-select") || "") as SelectableId;
-    if (id !== "title" && id !== "body" && id !== "badge" && id !== "company") return;
+    if (id !== "title" && id !== "body" && id !== "badge" && id !== "company")
+      return;
 
     if (!isRichEditField(id)) {
       selectCanvasField(id, t);
@@ -1845,7 +2001,7 @@ export default function TemplateAClient({
 
   function selectCanvasField(
     field: "title" | "body" | "badge" | "company",
-    targetEl: HTMLElement
+    targetEl: HTMLElement,
   ) {
     setSelectedId(field);
     setSelectedRect(computeRectRelativeToStage(targetEl));
@@ -1856,7 +2012,7 @@ export default function TemplateAClient({
 
   function activateCanvasField(
     field: "title" | "body" | "badge" | "company",
-    targetEl: HTMLElement
+    targetEl: HTMLElement,
   ) {
     if (!isRichEditField(field)) {
       setEditField(null);
@@ -1866,172 +2022,171 @@ export default function TemplateAClient({
     startRichTextEdit(field, targetEl);
   }
 
-    useEffect(() => {
-      if (!editField) return;
-      requestAnimationFrame(() => {
-        if (isRichEditField(editField)) {
-          const text = getRichEditText(editField);
-          const next = { start: text.length, end: text.length };
-          richEditSelectionRef.current[editField] = next;
-          const root = getRichEditRoot(editField);
-          if (root) {
-            root.textContent = text;
-          }
-          root?.focus();
-          restoreContentEditableSelection(root, next);
-          return;
+  useEffect(() => {
+    if (!editField) return;
+    requestAnimationFrame(() => {
+      if (isRichEditField(editField)) {
+        const text = getRichEditText(editField);
+        const next = { start: text.length, end: text.length };
+        richEditSelectionRef.current[editField] = next;
+        const root = getRichEditRoot(editField);
+        if (root) {
+          root.textContent = text;
         }
-        editRef.current?.focus();
-        const v = editRef.current?.value ?? "";
-        editRef.current?.setSelectionRange(v.length, v.length);
-      });
-    }, [editField]);
-
-    function onEditBlur(e: React.FocusEvent<HTMLElement>) {
-      const nextTarget = e.relatedTarget;
-      if (
-        nextTarget instanceof Node &&
-        floatingTextToolbarRef.current?.contains(nextTarget)
-      ) {
+        root?.focus();
+        restoreContentEditableSelection(root, next);
         return;
       }
+      editRef.current?.focus();
+      const v = editRef.current?.value ?? "";
+      editRef.current?.setSelectionRange(v.length, v.length);
+    });
+  }, [editField]);
 
-      setEditField(null);
-      setFloatingTextToolbar((prev) => ({...prev, visible: false, activeField: null}));
+  function onEditBlur(e: React.FocusEvent<HTMLElement>) {
+    const nextTarget = e.relatedTarget;
+    if (
+      nextTarget instanceof Node &&
+      floatingTextToolbarRef.current?.contains(nextTarget)
+    ) {
+      return;
     }
 
-    function handleBodyBulletEnter(e: React.KeyboardEvent<HTMLElement>) {
-      if (
-        e.key !== "Enter" ||
-        e.shiftKey ||
-        e.altKey ||
-        e.ctrlKey ||
-        e.metaKey ||
-        editField !== "body"
-      ) {
-        return false;
-      }
+    setEditField(null);
+    setFloatingTextToolbar((prev) => ({
+      ...prev,
+      visible: false,
+      activeField: null,
+    }));
+  }
 
-      const root = getRichEditRoot("body");
-      if (!root) return false;
+  function handleBodyBulletEnter(e: React.KeyboardEvent<HTMLElement>) {
+    if (
+      e.key !== "Enter" ||
+      e.shiftKey ||
+      e.altKey ||
+      e.ctrlKey ||
+      e.metaKey ||
+      editField !== "body"
+    ) {
+      return false;
+    }
 
-      const selection = readContentEditableSelection("body", root);
-      if (selection.start !== selection.end) return false;
+    const root = getRichEditRoot("body");
+    if (!root) return false;
 
-      const text = getContentEditablePlainText(root);
-      const {start: lineStart, end: lineEnd} = getLineBounds(text, selection.start);
-      const line = text.slice(lineStart, lineEnd);
-      const prefixMatch = line.match(/^(\s*\u2022\s?)/);
-      if (!prefixMatch) return false;
+    const selection = readContentEditableSelection("body", root);
+    if (selection.start !== selection.end) return false;
 
-      e.preventDefault();
+    const text = getContentEditablePlainText(root);
+    const { start: lineStart, end: lineEnd } = getLineBounds(
+      text,
+      selection.start,
+    );
+    const line = text.slice(lineStart, lineEnd);
+    const prefixMatch = line.match(/^(\s*\u2022\s?)/);
+    if (!prefixMatch) return false;
 
-      const prefix = prefixMatch[1] || "  \u2022 ";
-      const content = line.slice(prefix.length);
-      const {marks, setMarks} = getActiveMarksState("body");
+    e.preventDefault();
 
-      if (!content.trim()) {
-        const markerEnd = lineStart + prefix.length;
-        const next = text.slice(0, lineStart) + text.slice(markerEnd);
-        const nextMarks = remapMarksForLinePrefixChanges(marks, [
-          {
-            oldLineStart: lineStart,
-            oldLineEnd: lineEnd,
-            oldPrefixLength: prefix.length,
-            newPrefixLength: 0,
-          },
-        ]);
-        setFieldTextRaw("body", next);
-        setMarks(nextMarks);
-        syncRichEditOverlayDom(
-          "body",
-          nextMarks,
-          {start: lineStart, end: lineStart},
-          next
-        );
-        return true;
-      }
+    const prefix = prefixMatch[1] || "  \u2022 ";
+    const content = line.slice(prefix.length);
+    const { marks, setMarks } = getActiveMarksState("body");
 
-      const insert = `\n${prefix}`;
-      const next = text.slice(0, selection.start) + insert + text.slice(selection.end);
-      const nextCaret = selection.start + insert.length;
-      const nextMarks = shiftMarksAfterTextChange(
-        marks,
-        selection.start,
-        selection.end,
-        insert.length
-      );
+    if (!content.trim()) {
+      const markerEnd = lineStart + prefix.length;
+      const next = text.slice(0, lineStart) + text.slice(markerEnd);
+      const nextMarks = remapMarksForLinePrefixChanges(marks, [
+        {
+          oldLineStart: lineStart,
+          oldLineEnd: lineEnd,
+          oldPrefixLength: prefix.length,
+          newPrefixLength: 0,
+        },
+      ]);
       setFieldTextRaw("body", next);
       setMarks(nextMarks);
       syncRichEditOverlayDom(
         "body",
         nextMarks,
-        {start: nextCaret, end: nextCaret},
-        next
+        { start: lineStart, end: lineStart },
+        next,
       );
       return true;
     }
 
-    function onEditKeyDown(e: React.KeyboardEvent<HTMLElement>) {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setEditField(null);
-        return;
-      }
+    const insert = `\n${prefix}`;
+    const next =
+      text.slice(0, selection.start) + insert + text.slice(selection.end);
+    const nextCaret = selection.start + insert.length;
+    const nextMarks = shiftMarksAfterTextChange(
+      marks,
+      selection.start,
+      selection.end,
+      insert.length,
+    );
+    setFieldTextRaw("body", next);
+    setMarks(nextMarks);
+    syncRichEditOverlayDom(
+      "body",
+      nextMarks,
+      { start: nextCaret, end: nextCaret },
+      next,
+    );
+    return true;
+  }
 
-      if (editField === "badge" && e.key === "Enter") {
-        e.preventDefault();
-        return;
-      }
-
-      if (handleBodyBulletEnter(e)) {
-        return;
-      }
-
-      if (editField === "body" && e.currentTarget instanceof HTMLTextAreaElement) {
-        handleNumberedListEnter("body", e);
-      }
+  function onEditKeyDown(e: React.KeyboardEvent<HTMLElement>) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setEditField(null);
+      return;
     }
 
-    function startMediaInteraction(
-        e: React.MouseEvent<HTMLDivElement>,
-        mode: DragMode,
-        imageOverride?: ImageItem | null
-    ) {
-      const current = imageOverride ?? getSelectedImage();
-      if (!current) return;
-
+    if (editField === "badge" && e.key === "Enter") {
       e.preventDefault();
-      e.stopPropagation();
-      selectImageObject(current);
+      return;
+    }
 
-      if (imageLayout === "frame") {
-        const selectedSlot = current.frameSlotId
-          ? frameSlotsState.find((slot) => slot.id === current.frameSlotId) ?? null
-          : getSelectedFrameSlot();
-        setSelectedId("productImage");
-        setSelectedImageId(current.id);
-        setSelectedFrameSlotId(current.frameSlotId ?? null);
-        if (current.frameSlotId) {
-          const rect = getFrameSlotRect(current.frameSlotId);
-          if (rect) setSelectedRect(rect);
-        }
-        if (mode !== "move") {
-          dragStateRef.current = {
-            mode,
-            startClientX: e.clientX,
-            startClientY: e.clientY,
-            startImage: current,
-            startFrameSlot: selectedSlot,
-            startAngle: 0,
-            centerX: 0,
-            centerY: 0,
-            hoverFrameSlotId: current.frameSlotId ?? null,
-          };
-          return;
-        }
+    if (handleBodyBulletEnter(e)) {
+      return;
+    }
+
+    if (
+      editField === "body" &&
+      e.currentTarget instanceof HTMLTextAreaElement
+    ) {
+      handleNumberedListEnter("body", e);
+    }
+  }
+
+  function startMediaInteraction(
+    e: React.MouseEvent<HTMLDivElement>,
+    mode: DragMode,
+    imageOverride?: ImageItem | null,
+  ) {
+    const current = imageOverride ?? getSelectedImage();
+    if (!current) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    selectImageObject(current);
+
+    if (imageLayout === "frame") {
+      const selectedSlot = current.frameSlotId
+        ? (frameSlotsState.find((slot) => slot.id === current.frameSlotId) ??
+          null)
+        : getSelectedFrameSlot();
+      setSelectedId("productImage");
+      setSelectedImageId(current.id);
+      setSelectedFrameSlotId(current.frameSlotId ?? null);
+      if (current.frameSlotId) {
+        const rect = getFrameSlotRect(current.frameSlotId);
+        if (rect) setSelectedRect(rect);
+      }
+      if (mode !== "move") {
         dragStateRef.current = {
-          mode: "frame-swap",
+          mode,
           startClientX: e.clientX,
           startClientY: e.clientY,
           startImage: current,
@@ -2041,149 +2196,116 @@ export default function TemplateAClient({
           centerY: 0,
           hoverFrameSlotId: current.frameSlotId ?? null,
         };
-        setHoverFrameSlotId(current.frameSlotId ?? null);
         return;
       }
-
-      setSelectedId("productImage");
-      setSelectedImageId(current.id);
-      setSelectedRect(imageToViewportRect(current, previewScale));
-      setEditField(null);
-
-      const centerX = current.x + current.w / 2;
-      const centerY = current.y + current.h / 2;
-      const stagePoint = clientPointToStage(e.clientX, e.clientY);
-      const startPointerAngle = angleFromCenter(
-          centerX,
-          centerY,
-          stagePoint?.x ?? centerX,
-          stagePoint?.y ?? centerY
-      );
-
       dragStateRef.current = {
-        mode,
+        mode: "frame-swap",
         startClientX: e.clientX,
         startClientY: e.clientY,
         startImage: current,
-        startAngle: startPointerAngle,
-        centerX,
-        centerY,
-      };
-    }
-
-    function startVideoInteraction(
-      e: React.MouseEvent<HTMLDivElement>,
-      mode: DragMode
-    ) {
-      e.preventDefault();
-      e.stopPropagation();
-      selectVideoObject();
-      pushVideoUndoSnapshot();
-
-      dragStateRef.current = {
-        mode,
-        mediaKind: "video",
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        startImage: null,
-        startVideoBox: videoBox,
+        startFrameSlot: selectedSlot,
         startAngle: 0,
         centerX: 0,
         centerY: 0,
+        hoverFrameSlotId: current.frameSlotId ?? null,
       };
+      setHoverFrameSlotId(current.frameSlotId ?? null);
+      return;
     }
 
-    function startFrameImageDrag(
-      imageId: string,
-      e: React.MouseEvent<HTMLDivElement>
-    ) {
-      const current = getImageById(imageId);
-      if (!current) return;
+    setSelectedId("productImage");
+    setSelectedImageId(current.id);
+    setSelectedRect(imageToViewportRect(current, previewScale));
+    setEditField(null);
 
-      setSelectedId("productImage");
-      setSelectedImageId(imageId);
-      setSelectedFrameSlotId(current.frameSlotId ?? null);
+    const centerX = current.x + current.w / 2;
+    const centerY = current.y + current.h / 2;
+    const stagePoint = clientPointToStage(e.clientX, e.clientY);
+    const startPointerAngle = angleFromCenter(
+      centerX,
+      centerY,
+      stagePoint?.x ?? centerX,
+      stagePoint?.y ?? centerY,
+    );
 
-      if (current.frameSlotId) {
-        const rect = getFrameSlotRect(current.frameSlotId);
-        if (rect) setSelectedRect(rect);
-      }
+    dragStateRef.current = {
+      mode,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startImage: current,
+      startAngle: startPointerAngle,
+      centerX,
+      centerY,
+    };
+  }
 
-      startMediaInteraction(e, "move", current);
+  function startVideoInteraction(
+    e: React.MouseEvent<HTMLDivElement>,
+    mode: DragMode,
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    selectVideoObject();
+    pushVideoUndoSnapshot();
+
+    dragStateRef.current = {
+      mode,
+      mediaKind: "video",
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startImage: null,
+      startVideoBox: videoBox,
+      startAngle: 0,
+      centerX: 0,
+      centerY: 0,
+    };
+  }
+
+  function startFrameImageDrag(
+    imageId: string,
+    e: React.MouseEvent<HTMLDivElement>,
+  ) {
+    const current = getImageById(imageId);
+    if (!current) return;
+
+    setSelectedId("productImage");
+    setSelectedImageId(imageId);
+    setSelectedFrameSlotId(current.frameSlotId ?? null);
+
+    if (current.frameSlotId) {
+      const rect = getFrameSlotRect(current.frameSlotId);
+      if (rect) setSelectedRect(rect);
     }
 
-    useEffect(() => {
-      function onWindowMove(e: MouseEvent) {
-        const drag = dragStateRef.current;
-        if (!drag || !drag.mode || (!drag.startImage && !drag.startVideoBox)) return;
+    startMediaInteraction(e, "move", current);
+  }
 
-        const dx = (e.clientX - drag.startClientX) / previewScale;
-        const dy = (e.clientY - drag.startClientY) / previewScale;
+  useEffect(() => {
+    function onWindowMove(e: MouseEvent) {
+      const drag = dragStateRef.current;
+      if (!drag || !drag.mode || (!drag.startImage && !drag.startVideoBox))
+        return;
 
-        if (drag.mediaKind === "video" && drag.startVideoBox) {
-          const start = drag.startVideoBox;
-          let x = start.x;
-          let y = start.y;
-          let w = start.w;
-          let h = start.h;
+      const dx = (e.clientX - drag.startClientX) / previewScale;
+      const dy = (e.clientY - drag.startClientY) / previewScale;
 
-          if (drag.mode === "move") {
-            const fixed = clampImageBox(
-              {
-                x: Math.round(start.x + dx),
-                y: Math.round(start.y + dy),
-                w: start.w,
-                h: start.h,
-              },
-              currentCanvas.w,
-              currentCanvas.h
-            );
+      if (drag.mediaKind === "video" && drag.startVideoBox) {
+        const start = drag.startVideoBox;
+        let x = start.x;
+        let y = start.y;
+        let w = start.w;
+        let h = start.h;
 
-            setVideoBox(fixed);
-            setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
-            return;
-          }
-
-          if (
-            drag.mode === "resize-e" ||
-            drag.mode === "resize-ne" ||
-            drag.mode === "resize-se"
-          ) {
-            w = start.w + dx;
-          }
-          if (
-            drag.mode === "resize-s" ||
-            drag.mode === "resize-se" ||
-            drag.mode === "resize-sw"
-          ) {
-            h = start.h + dy;
-          }
-          if (
-            drag.mode === "resize-w" ||
-            drag.mode === "resize-nw" ||
-            drag.mode === "resize-sw"
-          ) {
-            x = start.x + dx;
-            w = start.w - dx;
-          }
-          if (
-            drag.mode === "resize-n" ||
-            drag.mode === "resize-ne" ||
-            drag.mode === "resize-nw"
-          ) {
-            y = start.y + dy;
-            h = start.h - dy;
-          }
-
+        if (drag.mode === "move") {
           const fixed = clampImageBox(
             {
-              x: Math.round(x),
-              y: Math.round(y),
-              w: Math.round(w),
-              h: Math.round(h),
+              x: Math.round(start.x + dx),
+              y: Math.round(start.y + dy),
+              w: start.w,
+              h: start.h,
             },
             currentCanvas.w,
-            currentCanvas.h
+            currentCanvas.h,
           );
 
           setVideoBox(fixed);
@@ -2191,1873 +2313,2072 @@ export default function TemplateAClient({
           return;
         }
 
-        const start = drag.startImage;
-        if (!start) return;
-
-        if (drag.mode === "frame-swap") {
-          const stagePoint = clientPointToStage(e.clientX, e.clientY);
-          const slot = stagePoint
-            ? getFrameSlotAtPoint(stagePoint.x, stagePoint.y)
-            : undefined;
-          const nextSlotId = slot?.id ?? null;
-          drag.hoverFrameSlotId = nextSlotId;
-          setHoverFrameSlotId(nextSlotId);
-          if (slot) {
-            setSelectedRect(new DOMRect(slot.x, slot.y, slot.w, slot.h));
-          }
-          return;
-        }
-
-        if (imageLayout === "frame" && drag.mode === "frame-image-scale") {
-          const delta = (dx + dy) * 0.01;
-          updateSelectedImage((prev) => ({
-            ...prev,
-            cropScale: clamp((drag.startImage?.cropScale ?? 1) + delta, 1, 3),
-          }));
-          return;
-        }
-
-        if (imageLayout === "frame" && drag.mode === "frame-image-pan") {
-          const frameSlot = drag.startFrameSlot;
-          if (!frameSlot) return;
-
-          const nextCropX = clamp(
-            (start.cropX ?? 50) - (dx / Math.max(frameSlot.w, 1)) * 100,
-            0,
-            100
-          );
-          const nextCropY = clamp(
-            (start.cropY ?? 50) - (dy / Math.max(frameSlot.h, 1)) * 100,
-            0,
-            100
-          );
-
-          updateSelectedImage((prev) => ({
-            ...prev,
-            cropX: nextCropX,
-            cropY: nextCropY,
-          }));
-          return;
-        }
-
         if (
-          imageLayout === "frame" &&
-          drag.startFrameSlot &&
-          selectedFrameSlotId &&
-          drag.mode !== "move"
-        ) {
-          let x = drag.startFrameSlot.x;
-          let y = drag.startFrameSlot.y;
-          let w = drag.startFrameSlot.w;
-          let h = drag.startFrameSlot.h;
-
-          if (
-            drag.mode === "resize-e" ||
-            drag.mode === "resize-ne" ||
-            drag.mode === "resize-se"
-          ) {
-            w = drag.startFrameSlot.w + dx;
-          }
-          if (
-            drag.mode === "resize-s" ||
-            drag.mode === "resize-se" ||
-            drag.mode === "resize-sw"
-          ) {
-            h = drag.startFrameSlot.h + dy;
-          }
-          if (
-            drag.mode === "resize-w" ||
-            drag.mode === "resize-nw" ||
-            drag.mode === "resize-sw"
-          ) {
-            x = drag.startFrameSlot.x + dx;
-            w = drag.startFrameSlot.w - dx;
-          }
-          if (
-            drag.mode === "resize-n" ||
-            drag.mode === "resize-ne" ||
-            drag.mode === "resize-nw"
-          ) {
-            y = drag.startFrameSlot.y + dy;
-            h = drag.startFrameSlot.h - dy;
-          }
-
-          const fixed = clampFrameSlotBox({
-            x: Math.round(x),
-            y: Math.round(y),
-            w: Math.round(w),
-            h: Math.round(h),
-          });
-
-          updateSelectedFrameSlot((prev) => ({
-            ...prev,
-            ...fixed,
-          }));
-          const rect = getFrameSlotRect(selectedFrameSlotId);
-          if (rect) {
-            setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
-          }
-          return;
-        }
-
-        if (drag.mode === "rotate") {
-          const stagePoint = clientPointToStage(e.clientX, e.clientY);
-          const pointerAngle = angleFromCenter(
-              drag.centerX,
-              drag.centerY,
-              stagePoint?.x ?? drag.centerX,
-              stagePoint?.y ?? drag.centerY
-          );
-          const delta = pointerAngle - drag.startAngle;
-          updateSelectedImage((prev) => ({
-            ...prev,
-            rotation: normalizeAngle(start.rotation + delta),
-          }));
-          return;
-        }
-
-        if (drag.mode === "move") {
-          const next = clampImageBox(
-              {
-                x: Math.round(start.x + dx),
-                y: Math.round(start.y + dy),
-                w: start.w,
-                h: start.h,
-              },
-              currentCanvas.w,
-              currentCanvas.h
-          );
-          updateSelectedImage((prev) => ({...prev, ...next}));
-          return;
-        }
-
-        let x = start.x;
-        let y = start.y;
-        let w = start.w;
-        let h = start.h;
-
-        if (
-            drag.mode === "resize-e" ||
-            drag.mode === "resize-ne" ||
-            drag.mode === "resize-se"
+          drag.mode === "resize-e" ||
+          drag.mode === "resize-ne" ||
+          drag.mode === "resize-se"
         ) {
           w = start.w + dx;
         }
         if (
-            drag.mode === "resize-s" ||
-            drag.mode === "resize-se" ||
-            drag.mode === "resize-sw"
+          drag.mode === "resize-s" ||
+          drag.mode === "resize-se" ||
+          drag.mode === "resize-sw"
         ) {
           h = start.h + dy;
         }
         if (
-            drag.mode === "resize-w" ||
-            drag.mode === "resize-nw" ||
-            drag.mode === "resize-sw"
+          drag.mode === "resize-w" ||
+          drag.mode === "resize-nw" ||
+          drag.mode === "resize-sw"
         ) {
           x = start.x + dx;
           w = start.w - dx;
         }
         if (
-            drag.mode === "resize-n" ||
-            drag.mode === "resize-ne" ||
-            drag.mode === "resize-nw"
+          drag.mode === "resize-n" ||
+          drag.mode === "resize-ne" ||
+          drag.mode === "resize-nw"
         ) {
           y = start.y + dy;
           h = start.h - dy;
         }
 
         const fixed = clampImageBox(
-            {
-              x: Math.round(x),
-              y: Math.round(y),
-              w: Math.round(w),
-              h: Math.round(h),
-            },
-            currentCanvas.w,
-            currentCanvas.h
+          {
+            x: Math.round(x),
+            y: Math.round(y),
+            w: Math.round(w),
+            h: Math.round(h),
+          },
+          currentCanvas.w,
+          currentCanvas.h,
         );
 
-        updateSelectedImage((prev) => ({...prev, ...fixed}));
+        setVideoBox(fixed);
+        setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
+        return;
       }
 
-      function onWindowUp() {
-        const drag = dragStateRef.current;
-        if (drag?.mode === "frame-swap" && drag.startImage) {
-          const targetSlotId = drag.hoverFrameSlotId ?? drag.startImage.frameSlotId ?? null;
-          if (targetSlotId) {
-            swapImageIntoFrameSlot(drag.startImage.id, targetSlotId);
-          }
-          setHoverFrameSlotId(null);
+      const start = drag.startImage;
+      if (!start) return;
+
+      if (drag.mode === "frame-swap") {
+        const stagePoint = clientPointToStage(e.clientX, e.clientY);
+        const slot = stagePoint
+          ? getFrameSlotAtPoint(stagePoint.x, stagePoint.y)
+          : undefined;
+        const nextSlotId = slot?.id ?? null;
+        drag.hoverFrameSlotId = nextSlotId;
+        setHoverFrameSlotId(nextSlotId);
+        if (slot) {
+          setSelectedRect(new DOMRect(slot.x, slot.y, slot.w, slot.h));
         }
-        dragStateRef.current = null;
+        return;
       }
 
-      window.addEventListener("mousemove", onWindowMove);
-      window.addEventListener("mouseup", onWindowUp);
-
-      return () => {
-        window.removeEventListener("mousemove", onWindowMove);
-        window.removeEventListener("mouseup", onWindowUp);
-      };
-    }, [previewScale, currentCanvas.w, currentCanvas.h, selectedImageId, images, imageLayout, framePresetId, canvasPreset]);
-
-    useEffect(() => {
-      if (selectedId !== "productImage" || !selectedImageId) return;
-      const current = getSelectedImage();
-      if (!current) return;
-      setSelectedRect(imageToViewportRect(current, previewScale));
-    }, [images, previewScale, selectedId, selectedImageId]);
-
-    useEffect(() => {
-      if (selectedId !== "frameSlot" || !selectedFrameSlotId) return;
-      const rect = getFrameSlotRect(selectedFrameSlotId);
-      if (rect) setSelectedRect(rect);
-    }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
-
-    useEffect(() => {
-      if (selectedId !== "video") return;
-      const videoEl = stageRef.current?.querySelector('[data-select="video"]') as HTMLElement | null;
-      if (!videoEl) return;
-      const rect = computeRectRelativeToStage(videoEl);
-      if (rect) setSelectedRect(rect);
-    }, [selectedId, videoPreviewUrl, videoBox, previewScale]);
-
-    useEffect(() => {
-      if (imageLayout === "manual") return;
-      const nextFrameSlots =
-        imageLayout === "frame"
-          ? resolveFrameSlots(framePresetId, canvasPreset)
-          : frameSlotsState;
-      if (imageLayout === "frame") {
-        setFrameSlotsState(nextFrameSlots);
+      if (imageLayout === "frame" && drag.mode === "frame-image-scale") {
+        const delta = (dx + dy) * 0.01;
+        updateSelectedImage((prev) => ({
+          ...prev,
+          cropScale: clamp((drag.startImage?.cropScale ?? 1) + delta, 1, 3),
+        }));
+        return;
       }
-      setImages((prev) => {
-        const next = arrangeImagesForLayout(
-          prev,
-          imageLayout,
-          canvasPreset,
-          productAlign,
-          framePresetId,
-          nextFrameSlots
+
+      if (imageLayout === "frame" && drag.mode === "frame-image-pan") {
+        const frameSlot = drag.startFrameSlot;
+        if (!frameSlot) return;
+
+        const nextCropX = clamp(
+          (start.cropX ?? 50) - (dx / Math.max(frameSlot.w, 1)) * 100,
+          0,
+          100,
         );
-        syncLegacyFromFirstImage(next);
-        return next;
-      });
-    }, [imageLayout, framePresetId, canvasPreset]);
+        const nextCropY = clamp(
+          (start.cropY ?? 50) - (dy / Math.max(frameSlot.h, 1)) * 100,
+          0,
+          100,
+        );
 
-    useEffect(() => {
-      function onWindowKeyDown(e: KeyboardEvent) {
-        const metaOrCtrl = e.ctrlKey || e.metaKey;
-
-        if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedId === "video" && !editField) {
-          if (isEditableTarget(e.target)) return;
-          e.preventDefault();
-          copySelectedVideo();
-          return;
-        }
-
-        if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedId === "video" && !editField) {
-          if (isEditableTarget(e.target)) return;
-          e.preventDefault();
-          cutSelectedVideo();
-          return;
-        }
-
-        if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
-          if (isEditableTarget(e.target)) return;
-          if (videoClipboardRef.current?.type === "video") {
-            e.preventDefault();
-            pasteVideoFromClipboard();
-            return;
-          }
-        }
-
-        if (metaOrCtrl && e.key.toLowerCase() === "z" && !editField) {
-          if (isEditableTarget(e.target)) return;
-          if (videoUndoStackRef.current.length > 0) {
-            e.preventDefault();
-            undoVideoAction();
-            return;
-          }
-        }
-
-        if (
-            (e.key === "Delete" || e.key === "Backspace") &&
-            selectedId === "video" &&
-            !editField
-        ) {
-          if (isEditableTarget(e.target)) return;
-          e.preventDefault();
-          deleteSelectedVideo();
-          return;
-        }
-
-        if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedImageId && !editField) {
-          if (isEditableTarget(e.target)) return;
-          e.preventDefault();
-          videoClipboardRef.current = null;
-          copySelectedImageToClipboard();
-          return;
-        }
-
-        if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedImageId && !editField) {
-          if (isEditableTarget(e.target)) return;
-          e.preventDefault();
-          videoClipboardRef.current = null;
-          cutSelectedImageToClipboard();
-          return;
-        }
-
-        if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
-          if (isEditableTarget(e.target)) return;
-          if (!imageClipboardRef.current) return;
-          e.preventDefault();
-          pasteImageFromClipboard();
-          return;
-        }
-
-        if (
-            (e.key === "Delete" || e.key === "Backspace") &&
-            selectedImageId &&
-            !editField
-        ) {
-          if (isEditableTarget(e.target)) return;
-          e.preventDefault();
-          removeSelectedImage();
-        }
+        updateSelectedImage((prev) => ({
+          ...prev,
+          cropX: nextCropX,
+          cropY: nextCropY,
+        }));
+        return;
       }
 
-      window.addEventListener("keydown", onWindowKeyDown);
-      return () => window.removeEventListener("keydown", onWindowKeyDown);
-    }, [
-      selectedId,
-      selectedImageId,
-      editField,
-      images,
-      canvasPreset,
-      videoFile,
-      videoPreviewUrl,
-      videoBox,
-      objectLayers.video,
-      currentCanvas.w,
-      currentCanvas.h,
-    ]);
-
-    useEffect(() => {
-      if (isPdf) return;
-      const stage = stageRef.current;
-      if (!stage) return;
-
-      const measure = () => {
-        const root = stage.querySelector(".li2-root") as HTMLElement | null;
-        if (!root) return;
-        const nextHeight = Math.max(root.scrollHeight, 1);
-        setPreviewContentHeight(nextHeight);
-      };
-
-      measure();
-
-      const root = stage.querySelector(".li2-root") as HTMLElement | null;
-      if (!root || typeof ResizeObserver === "undefined") return;
-
-      const ro = new ResizeObserver(() => measure());
-      ro.observe(root);
-
-      return () => ro.disconnect();
-    }, [
-      isPdf,
-      canvasPreset,
-      title,
-      body,
-      badgeText,
-      company,
-      headline,
-      subline,
-      images,
-      link,
-    ]);
-
-    function handleAddLink(e: React.KeyboardEvent<HTMLInputElement>) {
-      if (e.key === "Enter" && linkInput.trim()) {
-        e.preventDefault();
-        setLink((prev) => [...prev, linkInput.trim()]);
-        setLinkInput("");
-      }
-    }
-
-    function getNodeTextLength(node: Node | null) {
-      return node?.textContent?.length ?? 0;
-    }
-
-    function getRichEditRoot(field: RichEditField) {
-      if (field === "title") return titleEditRef.current;
-      if (field === "company") return companyEditRef.current;
-      if (field === "badge") return badgeEditRef.current;
-      return bodyEditRef.current;
-    }
-
-    function getRichEditMarks(field: RichEditField) {
-      if (field === "title") return titleMarks;
-      if (field === "company") return companyMarks;
-      if (field === "badge") return badgeMarks;
-      return bodyMarks;
-    }
-
-    function getContentEditableOffset(root: HTMLElement, node: Node, offset: number) {
-      let total = 0;
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-
-      while (walker.nextNode()) {
-        const current = walker.currentNode;
-        if (current === node) {
-          return total + Math.min(offset, getNodeTextLength(current));
-        }
-        total += getNodeTextLength(current);
-      }
-
-      if (node === root) {
-        return Array.from(root.childNodes)
-          .slice(0, offset)
-          .reduce((sum, child) => sum + getNodeTextLength(child), 0);
-      }
-
-      return total;
-    }
-
-    function readContentEditableSelection(field: RichEditField, root: HTMLElement | null) {
-      const selection = window.getSelection();
-      if (!root || !selection || selection.rangeCount === 0) {
-        return richEditSelectionRef.current[field];
-      }
-
-      const range = selection.getRangeAt(0);
       if (
-        !root.contains(range.startContainer) ||
-        !root.contains(range.endContainer)
+        imageLayout === "frame" &&
+        drag.startFrameSlot &&
+        selectedFrameSlotId &&
+        drag.mode !== "move"
       ) {
-        return richEditSelectionRef.current[field];
-      }
+        let x = drag.startFrameSlot.x;
+        let y = drag.startFrameSlot.y;
+        let w = drag.startFrameSlot.w;
+        let h = drag.startFrameSlot.h;
 
-      const start = getContentEditableOffset(root, range.startContainer, range.startOffset);
-      const end = getContentEditableOffset(root, range.endContainer, range.endOffset);
-      const next = { start: Math.min(start, end), end: Math.max(start, end) };
-      richEditSelectionRef.current[field] = next;
-      return next;
-    }
-
-    function findContentEditablePosition(root: HTMLElement, target: number) {
-      let remaining = Math.max(0, target);
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-
-      while (walker.nextNode()) {
-        const current = walker.currentNode;
-        const length = getNodeTextLength(current);
-        if (remaining <= length) {
-          return { node: current, offset: remaining };
+        if (
+          drag.mode === "resize-e" ||
+          drag.mode === "resize-ne" ||
+          drag.mode === "resize-se"
+        ) {
+          w = drag.startFrameSlot.w + dx;
         }
-        remaining -= length;
+        if (
+          drag.mode === "resize-s" ||
+          drag.mode === "resize-se" ||
+          drag.mode === "resize-sw"
+        ) {
+          h = drag.startFrameSlot.h + dy;
+        }
+        if (
+          drag.mode === "resize-w" ||
+          drag.mode === "resize-nw" ||
+          drag.mode === "resize-sw"
+        ) {
+          x = drag.startFrameSlot.x + dx;
+          w = drag.startFrameSlot.w - dx;
+        }
+        if (
+          drag.mode === "resize-n" ||
+          drag.mode === "resize-ne" ||
+          drag.mode === "resize-nw"
+        ) {
+          y = drag.startFrameSlot.y + dy;
+          h = drag.startFrameSlot.h - dy;
+        }
+
+        const fixed = clampFrameSlotBox({
+          x: Math.round(x),
+          y: Math.round(y),
+          w: Math.round(w),
+          h: Math.round(h),
+        });
+
+        updateSelectedFrameSlot((prev) => ({
+          ...prev,
+          ...fixed,
+        }));
+        const rect = getFrameSlotRect(selectedFrameSlotId);
+        if (rect) {
+          setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
+        }
+        return;
       }
 
-      return { node: root, offset: root.childNodes.length };
+      if (drag.mode === "rotate") {
+        const stagePoint = clientPointToStage(e.clientX, e.clientY);
+        const pointerAngle = angleFromCenter(
+          drag.centerX,
+          drag.centerY,
+          stagePoint?.x ?? drag.centerX,
+          stagePoint?.y ?? drag.centerY,
+        );
+        const delta = pointerAngle - drag.startAngle;
+        updateSelectedImage((prev) => ({
+          ...prev,
+          rotation: normalizeAngle(start.rotation + delta),
+        }));
+        return;
+      }
+
+      if (drag.mode === "move") {
+        const next = clampImageBox(
+          {
+            x: Math.round(start.x + dx),
+            y: Math.round(start.y + dy),
+            w: start.w,
+            h: start.h,
+          },
+          currentCanvas.w,
+          currentCanvas.h,
+        );
+        updateSelectedImage((prev) => ({ ...prev, ...next }));
+        return;
+      }
+
+      let x = start.x;
+      let y = start.y;
+      let w = start.w;
+      let h = start.h;
+
+      if (
+        drag.mode === "resize-e" ||
+        drag.mode === "resize-ne" ||
+        drag.mode === "resize-se"
+      ) {
+        w = start.w + dx;
+      }
+      if (
+        drag.mode === "resize-s" ||
+        drag.mode === "resize-se" ||
+        drag.mode === "resize-sw"
+      ) {
+        h = start.h + dy;
+      }
+      if (
+        drag.mode === "resize-w" ||
+        drag.mode === "resize-nw" ||
+        drag.mode === "resize-sw"
+      ) {
+        x = start.x + dx;
+        w = start.w - dx;
+      }
+      if (
+        drag.mode === "resize-n" ||
+        drag.mode === "resize-ne" ||
+        drag.mode === "resize-nw"
+      ) {
+        y = start.y + dy;
+        h = start.h - dy;
+      }
+
+      const fixed = clampImageBox(
+        {
+          x: Math.round(x),
+          y: Math.round(y),
+          w: Math.round(w),
+          h: Math.round(h),
+        },
+        currentCanvas.w,
+        currentCanvas.h,
+      );
+
+      updateSelectedImage((prev) => ({ ...prev, ...fixed }));
     }
 
-    function restoreContentEditableSelection(
-      root: HTMLElement | null,
-      range: { start: number; end: number }
-    ) {
+    function onWindowUp() {
+      const drag = dragStateRef.current;
+      if (drag?.mode === "frame-swap" && drag.startImage) {
+        const targetSlotId =
+          drag.hoverFrameSlotId ?? drag.startImage.frameSlotId ?? null;
+        if (targetSlotId) {
+          swapImageIntoFrameSlot(drag.startImage.id, targetSlotId);
+        }
+        setHoverFrameSlotId(null);
+      }
+      dragStateRef.current = null;
+    }
+
+    window.addEventListener("mousemove", onWindowMove);
+    window.addEventListener("mouseup", onWindowUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onWindowMove);
+      window.removeEventListener("mouseup", onWindowUp);
+    };
+  }, [
+    previewScale,
+    currentCanvas.w,
+    currentCanvas.h,
+    selectedImageId,
+    images,
+    imageLayout,
+    framePresetId,
+    canvasPreset,
+  ]);
+
+  useEffect(() => {
+    if (selectedId !== "productImage" || !selectedImageId) return;
+    const current = getSelectedImage();
+    if (!current) return;
+    setSelectedRect(imageToViewportRect(current, previewScale));
+  }, [images, previewScale, selectedId, selectedImageId]);
+
+  useEffect(() => {
+    if (selectedId !== "frameSlot" || !selectedFrameSlotId) return;
+    const rect = getFrameSlotRect(selectedFrameSlotId);
+    if (rect) setSelectedRect(rect);
+  }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
+
+  useEffect(() => {
+    if (selectedId !== "video") return;
+    const videoEl = stageRef.current?.querySelector(
+      '[data-select="video"]',
+    ) as HTMLElement | null;
+    if (!videoEl) return;
+    const rect = computeRectRelativeToStage(videoEl);
+    if (rect) setSelectedRect(rect);
+  }, [selectedId, videoPreviewUrl, videoBox, previewScale]);
+
+  useEffect(() => {
+    if (imageLayout === "manual") return;
+    const nextFrameSlots =
+      imageLayout === "frame"
+        ? resolveFrameSlots(framePresetId, canvasPreset)
+        : frameSlotsState;
+    if (imageLayout === "frame") {
+      setFrameSlotsState(nextFrameSlots);
+    }
+    setImages((prev) => {
+      const next = arrangeImagesForLayout(
+        prev,
+        imageLayout,
+        canvasPreset,
+        productAlign,
+        framePresetId,
+        nextFrameSlots,
+      );
+      syncLegacyFromFirstImage(next);
+      return next;
+    });
+  }, [imageLayout, framePresetId, canvasPreset]);
+
+  useEffect(() => {
+    function onWindowKeyDown(e: KeyboardEvent) {
+      const metaOrCtrl = e.ctrlKey || e.metaKey;
+
+      if (
+        metaOrCtrl &&
+        e.key.toLowerCase() === "c" &&
+        selectedId === "video" &&
+        !editField
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        copySelectedVideo();
+        return;
+      }
+
+      if (
+        metaOrCtrl &&
+        e.key.toLowerCase() === "x" &&
+        selectedId === "video" &&
+        !editField
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        cutSelectedVideo();
+        return;
+      }
+
+      if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
+        if (isEditableTarget(e.target)) return;
+        if (videoClipboardRef.current?.type === "video") {
+          e.preventDefault();
+          pasteVideoFromClipboard();
+          return;
+        }
+      }
+
+      if (metaOrCtrl && e.key.toLowerCase() === "z" && !editField) {
+        if (isEditableTarget(e.target)) return;
+        if (videoUndoStackRef.current.length > 0) {
+          e.preventDefault();
+          undoVideoAction();
+          return;
+        }
+      }
+
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedId === "video" &&
+        !editField
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        deleteSelectedVideo();
+        return;
+      }
+
+      if (
+        metaOrCtrl &&
+        e.key.toLowerCase() === "c" &&
+        selectedImageId &&
+        !editField
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        videoClipboardRef.current = null;
+        copySelectedImageToClipboard();
+        return;
+      }
+
+      if (
+        metaOrCtrl &&
+        e.key.toLowerCase() === "x" &&
+        selectedImageId &&
+        !editField
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        videoClipboardRef.current = null;
+        cutSelectedImageToClipboard();
+        return;
+      }
+
+      if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
+        if (isEditableTarget(e.target)) return;
+        if (!imageClipboardRef.current) return;
+        e.preventDefault();
+        pasteImageFromClipboard();
+        return;
+      }
+
+      if (
+        (e.key === "Delete" || e.key === "Backspace") &&
+        selectedImageId &&
+        !editField
+      ) {
+        if (isEditableTarget(e.target)) return;
+        e.preventDefault();
+        removeSelectedImage();
+      }
+    }
+
+    window.addEventListener("keydown", onWindowKeyDown);
+    return () => window.removeEventListener("keydown", onWindowKeyDown);
+  }, [
+    selectedId,
+    selectedImageId,
+    editField,
+    images,
+    canvasPreset,
+    videoFile,
+    videoPreviewUrl,
+    videoBox,
+    objectLayers.video,
+    currentCanvas.w,
+    currentCanvas.h,
+  ]);
+
+  useEffect(() => {
+    if (isPdf) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const measure = () => {
+      const root = stage.querySelector(".li2-root") as HTMLElement | null;
       if (!root) return;
-      const selection = window.getSelection();
-      if (!selection) return;
+      const nextHeight = Math.max(root.scrollHeight, 1);
+      setPreviewContentHeight(nextHeight);
+    };
 
-      const start = findContentEditablePosition(root, range.start);
-      const end = findContentEditablePosition(root, range.end);
-      const domRange = document.createRange();
-      domRange.setStart(start.node, start.offset);
-      domRange.setEnd(end.node, end.offset);
-      selection.removeAllRanges();
-      selection.addRange(domRange);
+    measure();
+
+    const root = stage.querySelector(".li2-root") as HTMLElement | null;
+    if (!root || typeof ResizeObserver === "undefined") return;
+
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(root);
+
+    return () => ro.disconnect();
+  }, [
+    isPdf,
+    canvasPreset,
+    title,
+    body,
+    badgeText,
+    company,
+    headline,
+    subline,
+    images,
+    link,
+  ]);
+
+  function handleAddLink(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && linkInput.trim()) {
+      e.preventDefault();
+      setLink((prev) => [...prev, linkInput.trim()]);
+      setLinkInput("");
+    }
+  }
+
+  function getNodeTextLength(node: Node | null) {
+    return node?.textContent?.length ?? 0;
+  }
+
+  function getRichEditRoot(field: RichEditField) {
+    if (field === "title") return titleEditRef.current;
+    if (field === "company") return companyEditRef.current;
+    if (field === "badge") return badgeEditRef.current;
+    return bodyEditRef.current;
+  }
+
+  function getRichEditMarks(field: RichEditField) {
+    if (field === "title") return titleMarks;
+    if (field === "company") return companyMarks;
+    if (field === "badge") return badgeMarks;
+    return bodyMarks;
+  }
+
+  function getContentEditableOffset(
+    root: HTMLElement,
+    node: Node,
+    offset: number,
+  ) {
+    let total = 0;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+    while (walker.nextNode()) {
+      const current = walker.currentNode;
+      if (current === node) {
+        return total + Math.min(offset, getNodeTextLength(current));
+      }
+      total += getNodeTextLength(current);
     }
 
-    function hideFloatingTextToolbar() {
-      setFloatingTextToolbar((prev) =>
-        prev.visible ? {...prev, visible: false, activeField: null} : prev
+    if (node === root) {
+      return Array.from(root.childNodes)
+        .slice(0, offset)
+        .reduce((sum, child) => sum + getNodeTextLength(child), 0);
+    }
+
+    return total;
+  }
+
+  function readContentEditableSelection(
+    field: RichEditField,
+    root: HTMLElement | null,
+  ) {
+    const selection = window.getSelection();
+    if (!root || !selection || selection.rangeCount === 0) {
+      return richEditSelectionRef.current[field];
+    }
+
+    const range = selection.getRangeAt(0);
+    if (
+      !root.contains(range.startContainer) ||
+      !root.contains(range.endContainer)
+    ) {
+      return richEditSelectionRef.current[field];
+    }
+
+    const start = getContentEditableOffset(
+      root,
+      range.startContainer,
+      range.startOffset,
+    );
+    const end = getContentEditableOffset(
+      root,
+      range.endContainer,
+      range.endOffset,
+    );
+    const next = { start: Math.min(start, end), end: Math.max(start, end) };
+    richEditSelectionRef.current[field] = next;
+    return next;
+  }
+
+  function findContentEditablePosition(root: HTMLElement, target: number) {
+    let remaining = Math.max(0, target);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+
+    while (walker.nextNode()) {
+      const current = walker.currentNode;
+      const length = getNodeTextLength(current);
+      if (remaining <= length) {
+        return { node: current, offset: remaining };
+      }
+      remaining -= length;
+    }
+
+    return { node: root, offset: root.childNodes.length };
+  }
+
+  function restoreContentEditableSelection(
+    root: HTMLElement | null,
+    range: { start: number; end: number },
+  ) {
+    if (!root) return;
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const start = findContentEditablePosition(root, range.start);
+    const end = findContentEditablePosition(root, range.end);
+    const domRange = document.createRange();
+    domRange.setStart(start.node, start.offset);
+    domRange.setEnd(end.node, end.offset);
+    selection.removeAllRanges();
+    selection.addRange(domRange);
+  }
+
+  function hideFloatingTextToolbar() {
+    setFloatingTextToolbar((prev) =>
+      prev.visible ? { ...prev, visible: false, activeField: null } : prev,
+    );
+  }
+
+  function updateFloatingTextToolbar(field: RichEditField) {
+    const root = getRichEditRoot(field);
+    const selection = window.getSelection();
+    if (
+      !root ||
+      !selection ||
+      selection.rangeCount === 0 ||
+      selection.isCollapsed
+    ) {
+      hideFloatingTextToolbar();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (
+      !root.contains(range.startContainer) ||
+      !root.contains(range.endContainer)
+    ) {
+      hideFloatingTextToolbar();
+      return;
+    }
+
+    const selectionRange = readContentEditableSelection(field, root);
+    if (selectionRange.start === selectionRange.end) {
+      hideFloatingTextToolbar();
+      return;
+    }
+    const selectionFormatting = getSelectionFormatting(field, selectionRange);
+
+    const rect = range.getBoundingClientRect();
+    const fallbackRect = range.getClientRects()[0];
+    const targetRect = rect.width || rect.height ? rect : fallbackRect;
+
+    if (!targetRect) {
+      hideFloatingTextToolbar();
+      return;
+    }
+
+    const canvasWrap = canvasWrapRef.current;
+    if (!canvasWrap) {
+      hideFloatingTextToolbar();
+      return;
+    }
+
+    const canvasRect = canvasWrap.getBoundingClientRect();
+    const selectionCenterX =
+      targetRect.left + targetRect.width / 2 - canvasRect.left;
+    const selectionTop = targetRect.top - canvasRect.top;
+    const selectionBottom = targetRect.bottom - canvasRect.top;
+    const estimatedWidth = Math.min(560, Math.max(220, previewViewportW - 24));
+    const estimatedHeight = 52;
+    const margin = 12;
+    const minX = estimatedWidth / 2 + margin;
+    const maxX = previewViewportW - estimatedWidth / 2 - margin;
+    const x =
+      maxX > minX
+        ? Math.min(Math.max(selectionCenterX, minX), maxX)
+        : previewViewportW / 2;
+    const hasSpaceAbove = selectionTop >= estimatedHeight + margin * 2;
+    const placement: FloatingTextToolbarState["placement"] = hasSpaceAbove
+      ? "above"
+      : "below";
+    const rawY = hasSpaceAbove
+      ? selectionTop - margin
+      : selectionBottom + margin;
+    const y = hasSpaceAbove
+      ? Math.max(estimatedHeight + margin, rawY)
+      : Math.min(previewViewportH - estimatedHeight - margin, rawY);
+
+    setFloatingTextToolbar({
+      visible: true,
+      x,
+      y,
+      placement,
+      activeField: field,
+    });
+    setActiveField(field);
+    setToolbarStyles((prev) => ({
+      ...prev,
+      [field]: selectionFormatting,
+    }));
+  }
+
+  function getContentEditablePlainText(root: HTMLElement) {
+    return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
+  }
+
+  function handleRichEditableInput(field: RichEditField) {
+    const root = getRichEditRoot(field);
+    if (!root) return;
+
+    const selection = readContentEditableSelection(field, root);
+    handleTextChange(field, getContentEditablePlainText(root), selection.end);
+    if (selection.start === selection.end) hideFloatingTextToolbar();
+    richEditSelectionRef.current[field] = selection;
+    if (field === "badge") {
+      requestAnimationFrame(() => remeasureBadgeSelection());
+    }
+  }
+
+  function renderEditableMarkedText(text: string, marks?: TextMark[]) {
+    const t = String(text ?? "");
+    if (!marks || marks.length === 0) return t || "\u00A0";
+
+    const safeMarks = marks
+      .map((m) => ({
+        start: Math.max(0, Math.min(m.start, t.length)),
+        end: Math.max(0, Math.min(m.end, t.length)),
+        style: m.style ?? {},
+      }))
+      .filter((m) => m.end > m.start)
+      .sort((a, b) => a.start - b.start);
+
+    const out: ReactNode[] = [];
+    let pos = 0;
+
+    for (let i = 0; i < safeMarks.length; i += 1) {
+      const mark = safeMarks[i];
+      if (mark.start > pos) {
+        out.push(<span key={`t-${pos}`}>{t.slice(pos, mark.start)}</span>);
+      }
+
+      out.push(
+        <span
+          key={`m-${mark.start}-${mark.end}-${i}`}
+          style={{
+            fontFamily: mark.style.fontFamily,
+            fontSize: mark.style.fontSize,
+            color: mark.style.color,
+            fontWeight: mark.style.fontWeight,
+            fontStyle: mark.style.fontStyle,
+            background: mark.style.highlight
+              ? (mark.style.highlightColor ?? "rgba(250,204,21,0.18)")
+              : undefined,
+          }}
+        >
+          {t.slice(mark.start, mark.end)}
+        </span>,
+      );
+      pos = mark.end;
+    }
+
+    if (pos < t.length) {
+      out.push(<span key={`t-${pos}-end`}>{t.slice(pos)}</span>);
+    }
+
+    return out.length ? out : "\u00A0";
+  }
+
+  function syncRichEditOverlayDom(
+    field: RichEditField,
+    marks: TextMark[],
+    range: { start: number; end: number },
+    textOverride?: string,
+  ) {
+    const root = getRichEditRoot(field);
+    if (!root) return;
+
+    const text = textOverride ?? getRichEditText(field);
+    const safeMarks = marks
+      .map((m) => ({
+        start: Math.max(0, Math.min(m.start, text.length)),
+        end: Math.max(0, Math.min(m.end, text.length)),
+        style: m.style ?? {},
+      }))
+      .filter((m) => m.end > m.start)
+      .sort((a, b) => a.start - b.start);
+
+    const nodes: Node[] = [];
+    let pos = 0;
+
+    for (const mark of safeMarks) {
+      if (mark.start > pos) {
+        nodes.push(document.createTextNode(text.slice(pos, mark.start)));
+      }
+
+      const span = document.createElement("span");
+      if (mark.style.fontFamily)
+        span.style.fontFamily = String(mark.style.fontFamily);
+      if (mark.style.fontSize) span.style.fontSize = `${mark.style.fontSize}px`;
+      if (mark.style.color) span.style.color = String(mark.style.color);
+      if (mark.style.fontWeight)
+        span.style.fontWeight = String(mark.style.fontWeight);
+      if (mark.style.fontStyle)
+        span.style.fontStyle = String(mark.style.fontStyle);
+      if (mark.style.highlight) {
+        span.style.background =
+          mark.style.highlightColor ?? "rgba(250,204,21,0.18)";
+      }
+      span.textContent = text.slice(mark.start, mark.end);
+      nodes.push(span);
+      pos = mark.end;
+    }
+
+    if (pos < text.length) {
+      nodes.push(document.createTextNode(text.slice(pos)));
+    }
+
+    if (nodes.length === 0) {
+      nodes.push(document.createTextNode("\u00A0"));
+    }
+
+    root.replaceChildren(...nodes);
+    richEditSelectionRef.current[field] = range;
+    root.focus();
+    restoreContentEditableSelection(root, range);
+  }
+
+  function getEditorFieldControl(
+    field: EditorTextField = editField ?? activeField,
+  ): {
+    text: string;
+    setText: (value: string) => void;
+    ref:
+      | RefObject<HTMLInputElement | null>
+      | RefObject<HTMLTextAreaElement | null>;
+  } {
+    const refForField = <T extends HTMLInputElement | HTMLTextAreaElement>(
+      fieldRef: RefObject<T | null>,
+    ) => (field === editField && !isRichEditField(field) ? editRef : fieldRef);
+
+    switch (field) {
+      case "badge":
+        return {
+          text: badgeText,
+          setText: setBadgeTextValue,
+          ref: refForField(badgeRef),
+        };
+      case "title":
+        return {
+          text: title,
+          setText: setTitleValue,
+          ref: refForField(titleRef),
+        };
+      case "company":
+        return {
+          text: company,
+          setText: setCompanyValue,
+          ref: refForField(companyRef),
+        };
+      case "body":
+        return { text: body, setText: setBody, ref: refForField(bodyRef) };
+      case "caption":
+      default:
+        return { text: caption, setText: setCaption, ref: captionRef };
+    }
+  }
+
+  function setFieldTextRaw(field: EditorTextField, value: string) {
+    switch (field) {
+      case "badge":
+        setBadgeText(value);
+        return;
+      case "title":
+        setTitle(value);
+        return;
+      case "company":
+        setCompany(value);
+        return;
+      case "body":
+        _setBody(value);
+        return;
+      case "caption":
+      default:
+        _setCaption(value);
+    }
+  }
+
+  function getTextChangeRange(prev: string, next: string) {
+    let start = 0;
+    while (
+      start < prev.length &&
+      start < next.length &&
+      prev[start] === next[start]
+    ) {
+      start += 1;
+    }
+
+    let prevEnd = prev.length;
+    let nextEnd = next.length;
+    while (
+      prevEnd > start &&
+      nextEnd > start &&
+      prev[prevEnd - 1] === next[nextEnd - 1]
+    ) {
+      prevEnd -= 1;
+      nextEnd -= 1;
+    }
+
+    return { start, prevEnd, nextEnd };
+  }
+
+  function togglePendingStyle(
+    field: EditorTextField,
+    mode: "toggleHighlight" | "toggleBold" | "toggleItalic",
+  ) {
+    setPendingTextStyles((prev) => {
+      const current = prev[field] ?? {};
+      let next: RichStyle = current;
+
+      if (mode === "toggleHighlight") {
+        next = current.highlight
+          ? { ...current, highlight: undefined }
+          : { ...current, highlight: true };
+      } else if (mode === "toggleBold") {
+        const isBold =
+          current.fontWeight === 800 ||
+          current.fontWeight === "800" ||
+          current.fontWeight === "bold";
+        next = isBold
+          ? { ...current, fontWeight: undefined }
+          : { ...current, fontWeight: 800 };
+      } else {
+        next =
+          current.fontStyle === "italic"
+            ? { ...current, fontStyle: undefined }
+            : { ...current, fontStyle: "italic" };
+      }
+
+      const updated = { ...prev, [field]: cleanStyle(next) };
+      pendingTextStylesRef.current = updated;
+      return updated;
+    });
+  }
+
+  function setPendingStyle(field: EditorTextField, patch: RichStyle) {
+    setPendingTextStyles((prev) => {
+      const updated = {
+        ...prev,
+        [field]: cleanStyle({ ...prev[field], ...patch }),
+      };
+      pendingTextStylesRef.current = updated;
+      return updated;
+    });
+  }
+
+  function handleTextChange(
+    field: EditorTextField,
+    next: string,
+    selectionStart: number | null,
+  ) {
+    const { text } = getEditorFieldControl(field);
+    if (next === text) return;
+
+    const { start, prevEnd, nextEnd } = getTextChangeRange(text, next);
+    const insertedLength = Math.max(0, nextEnd - start);
+    const delta = next.length - text.length;
+    const pendingStyle = cleanStyle(pendingTextStylesRef.current[field] ?? {});
+
+    setFieldTextRaw(field, next);
+
+    const { setMarks } = getActiveMarksState(field);
+    setMarks((prevMarks) => {
+      const shifted = shiftMarksAfterTextChange(
+        prevMarks,
+        start,
+        prevEnd,
+        delta,
+      );
+      return insertedLength > 0 && hasStyle(pendingStyle)
+        ? mergeMarks([
+            ...shifted,
+            {
+              start,
+              end: start + insertedLength,
+              style: pendingStyle,
+            },
+          ])
+        : shifted;
+    });
+
+    requestAnimationFrame(() => {
+      const node = getEditorFieldControl(field).ref.current;
+      if (!node || selectionStart == null) return;
+      node.setSelectionRange(selectionStart, selectionStart);
+    });
+  }
+
+  function withActiveSelection(
+    fn: (
+      text: string,
+      s: number,
+      e: number,
+    ) => {
+      next: string;
+      nextSelStart: number;
+      nextSelEnd: number;
+      replaceStart?: number;
+      replaceEnd?: number;
+      preserveReplacementMarks?: boolean;
+    },
+  ) {
+    const { text, setText, ref } = getEditorFieldControl();
+    const el = ref.current;
+    if (!el) return;
+
+    const s = el.selectionStart ?? 0;
+    const e = el.selectionEnd ?? 0;
+
+    const {
+      next,
+      nextSelStart,
+      nextSelEnd,
+      replaceStart,
+      replaceEnd,
+      preserveReplacementMarks,
+    } = fn(text, s, e);
+    if (next !== text) {
+      setText(next);
+    }
+
+    if (next !== text && replaceStart != null && replaceEnd != null) {
+      const delta = next.length - text.length;
+      const { marks, setMarks } = getActiveMarksState();
+      setMarks(
+        shiftMarksAfterTextChange(
+          marks,
+          replaceStart,
+          replaceEnd,
+          delta,
+          preserveReplacementMarks ? nextSelEnd - nextSelStart : 0,
+        ),
       );
     }
 
-    function updateFloatingTextToolbar(field: RichEditField) {
-      const root = getRichEditRoot(field);
-      const selection = window.getSelection();
-      if (!root || !selection || selection.rangeCount === 0 || selection.isCollapsed) {
-        hideFloatingTextToolbar();
-        return;
-      }
+    requestAnimationFrame(() => {
+      const node = ref.current;
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(nextSelStart, nextSelEnd);
+    });
+  }
 
-      const range = selection.getRangeAt(0);
-      if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) {
-        hideFloatingTextToolbar();
-        return;
-      }
+  function shiftMarksAfterTextChange(
+    marks: TextMark[],
+    replaceStart: number,
+    replaceEnd: number,
+    delta: number,
+    replacementMarkLength = 0,
+  ) {
+    const replacementStyle =
+      replacementMarkLength > 0
+        ? cleanStyle(styleForSegment(marks, replaceStart, replaceEnd))
+        : {};
+    const shifted = marks
+      .flatMap((mark) => {
+        if (mark.end <= replaceStart) return [mark];
+        if (mark.start >= replaceEnd) {
+          return [
+            { ...mark, start: mark.start + delta, end: mark.end + delta },
+          ];
+        }
 
-      const selectionRange = readContentEditableSelection(field, root);
-      if (selectionRange.start === selectionRange.end) {
-        hideFloatingTextToolbar();
-        return;
-      }
-      const selectionFormatting = getSelectionFormatting(field, selectionRange);
+        const pieces: TextMark[] = [];
+        if (mark.start < replaceStart) {
+          pieces.push({ ...mark, end: replaceStart });
+        }
+        if (mark.end > replaceEnd) {
+          pieces.push({
+            ...mark,
+            start: replaceStart + Math.max(0, delta),
+            end: mark.end + delta,
+          });
+        }
+        return pieces;
+      })
+      .filter((mark) => mark.end > mark.start);
 
-      const rect = range.getBoundingClientRect();
-      const fallbackRect = range.getClientRects()[0];
-      const targetRect =
-        rect.width || rect.height
-          ? rect
-          : fallbackRect;
-
-      if (!targetRect) {
-        hideFloatingTextToolbar();
-        return;
-      }
-
-      const canvasWrap = canvasWrapRef.current;
-      if (!canvasWrap) {
-        hideFloatingTextToolbar();
-        return;
-      }
-
-      const canvasRect = canvasWrap.getBoundingClientRect();
-      const selectionCenterX = targetRect.left + targetRect.width / 2 - canvasRect.left;
-      const selectionTop = targetRect.top - canvasRect.top;
-      const selectionBottom = targetRect.bottom - canvasRect.top;
-      const estimatedWidth = Math.min(560, Math.max(220, previewViewportW - 24));
-      const estimatedHeight = 52;
-      const margin = 12;
-      const minX = estimatedWidth / 2 + margin;
-      const maxX = previewViewportW - estimatedWidth / 2 - margin;
-      const x =
-        maxX > minX
-          ? Math.min(Math.max(selectionCenterX, minX), maxX)
-          : previewViewportW / 2;
-      const hasSpaceAbove = selectionTop >= estimatedHeight + margin * 2;
-      const placement: FloatingTextToolbarState["placement"] = hasSpaceAbove
-        ? "above"
-        : "below";
-      const rawY = hasSpaceAbove ? selectionTop - margin : selectionBottom + margin;
-      const y = hasSpaceAbove
-        ? Math.max(estimatedHeight + margin, rawY)
-        : Math.min(previewViewportH - estimatedHeight - margin, rawY);
-
-      setFloatingTextToolbar({
-        visible: true,
-        x,
-        y,
-        placement,
-        activeField: field,
+    if (replacementMarkLength > 0 && hasStyle(replacementStyle)) {
+      shifted.push({
+        start: replaceStart,
+        end: replaceStart + replacementMarkLength,
+        style: replacementStyle,
       });
-      setActiveField(field);
-      setToolbarStyles((prev) => ({
-        ...prev,
-        [field]: selectionFormatting,
-      }));
     }
 
-    function getContentEditablePlainText(root: HTMLElement) {
-      return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
-    }
+    return mergeMarks(shifted);
+  }
 
-    function handleRichEditableInput(field: RichEditField) {
-      const root = getRichEditRoot(field);
-      if (!root) return;
+  function remapMarksForLinePrefixChanges(
+    marks: TextMark[],
+    changes: LinePrefixChange[],
+  ) {
+    if (!changes.length) return marks;
 
-      const selection = readContentEditableSelection(field, root);
-      handleTextChange(field, getContentEditablePlainText(root), selection.end);
-      if (selection.start === selection.end) hideFloatingTextToolbar();
-      richEditSelectionRef.current[field] = selection;
-      if (field === "badge") {
-        requestAnimationFrame(() => remeasureBadgeSelection());
+    const shiftPoint = (pos: number) => {
+      let cumulativeDelta = 0;
+
+      for (const change of changes) {
+        const oldContentStart = change.oldLineStart + change.oldPrefixLength;
+        const delta = change.newPrefixLength - change.oldPrefixLength;
+
+        if (pos < change.oldLineStart) continue;
+        if (pos <= change.oldLineEnd) {
+          const newPrefixStart = change.oldLineStart + cumulativeDelta;
+          if (pos <= oldContentStart) {
+            return newPrefixStart + change.newPrefixLength;
+          } else {
+            return pos + cumulativeDelta + delta;
+          }
+        }
+
+        cumulativeDelta += delta;
       }
-    }
 
-    function renderEditableMarkedText(text: string, marks?: TextMark[]) {
-      const t = String(text ?? "");
-      if (!marks || marks.length === 0) return t || "\u00A0";
+      return pos + cumulativeDelta;
+    };
 
-      const safeMarks = marks
-        .map((m) => ({
-          start: Math.max(0, Math.min(m.start, t.length)),
-          end: Math.max(0, Math.min(m.end, t.length)),
-          style: m.style ?? {},
+    return mergeMarks(
+      marks
+        .map((mark) => ({
+          ...mark,
+          start: shiftPoint(mark.start),
+          end: shiftPoint(mark.end),
         }))
-        .filter((m) => m.end > m.start)
-        .sort((a, b) => a.start - b.start);
+        .filter((mark) => mark.end > mark.start),
+    );
+  }
 
-      const out: ReactNode[] = [];
-      let pos = 0;
+  function getActiveMarksState(
+    field: EditorTextField = editField ?? activeField,
+  ) {
+    switch (field) {
+      case "badge":
+        return { marks: badgeMarks, setMarks: setBadgeMarks };
+      case "title":
+        return { marks: titleMarks, setMarks: setTitleMarks };
+      case "company":
+        return { marks: companyMarks, setMarks: setCompanyMarks };
+      case "body":
+        return { marks: bodyMarks, setMarks: setBodyMarks };
+      case "caption":
+      default:
+        return { marks: captionMarks, setMarks: setCaptionMarks };
+    }
+  }
 
-      for (let i = 0; i < safeMarks.length; i += 1) {
-        const mark = safeMarks[i];
-        if (mark.start > pos) {
-          out.push(<span key={`t-${pos}`}>{t.slice(pos, mark.start)}</span>);
-        }
+  function getFieldBoxStyle(field: RichEditField): BoxTextStyle {
+    if (field === "title") return titleStyle;
+    if (field === "company") return companyStyle;
+    if (field === "badge") return badgeStyle;
+    return bodyBoxStyle;
+  }
 
-        out.push(
-          <span
-            key={`m-${mark.start}-${mark.end}-${i}`}
-            style={{
-              fontFamily: mark.style.fontFamily,
-              fontSize: mark.style.fontSize,
-              color: mark.style.color,
-              fontWeight: mark.style.fontWeight,
-              fontStyle: mark.style.fontStyle,
-              background: mark.style.highlight
-                ? mark.style.highlightColor ?? "rgba(250,204,21,0.18)"
-                : undefined,
-            }}
-          >
-            {t.slice(mark.start, mark.end)}
-          </span>
-        );
-        pos = mark.end;
-      }
-
-      if (pos < t.length) {
-        out.push(<span key={`t-${pos}-end`}>{t.slice(pos)}</span>);
-      }
-
-      return out.length ? out : "\u00A0";
+  function setFieldTextAlign(
+    field: RichEditField,
+    textAlign: BoxTextStyle["textAlign"],
+  ) {
+    if (field === "title") {
+      setTitleStyle((prev) => ({ ...prev, textAlign }));
+    } else if (field === "company") {
+      setCompanyStyle((prev) => ({ ...prev, textAlign }));
+    } else if (field === "badge") {
+      setBadgeStyle((prev) => ({ ...prev, textAlign }));
+    } else {
+      setBodyBoxStyle((prev) => ({ ...prev, textAlign }));
     }
 
-    function syncRichEditOverlayDom(
-      field: RichEditField,
-      marks: TextMark[],
-      range: { start: number; end: number },
-      textOverride?: string
-    ) {
-      const root = getRichEditRoot(field);
-      if (!root) return;
-
-      const text = textOverride ?? getRichEditText(field);
-      const safeMarks = marks
-        .map((m) => ({
-          start: Math.max(0, Math.min(m.start, text.length)),
-          end: Math.max(0, Math.min(m.end, text.length)),
-          style: m.style ?? {},
-        }))
-        .filter((m) => m.end > m.start)
-        .sort((a, b) => a.start - b.start);
-
-      const nodes: Node[] = [];
-      let pos = 0;
-
-      for (const mark of safeMarks) {
-        if (mark.start > pos) {
-          nodes.push(document.createTextNode(text.slice(pos, mark.start)));
-        }
-
-        const span = document.createElement("span");
-        if (mark.style.fontFamily) span.style.fontFamily = String(mark.style.fontFamily);
-        if (mark.style.fontSize) span.style.fontSize = `${mark.style.fontSize}px`;
-        if (mark.style.color) span.style.color = String(mark.style.color);
-        if (mark.style.fontWeight) span.style.fontWeight = String(mark.style.fontWeight);
-        if (mark.style.fontStyle) span.style.fontStyle = String(mark.style.fontStyle);
-        if (mark.style.highlight) {
-          span.style.background = mark.style.highlightColor ?? "rgba(250,204,21,0.18)";
-        }
-        span.textContent = text.slice(mark.start, mark.end);
-        nodes.push(span);
-        pos = mark.end;
-      }
-
-      if (pos < text.length) {
-        nodes.push(document.createTextNode(text.slice(pos)));
-      }
-
-      if (nodes.length === 0) {
-        nodes.push(document.createTextNode("\u00A0"));
-      }
-
-      root.replaceChildren(...nodes);
-      richEditSelectionRef.current[field] = range;
-      root.focus();
-      restoreContentEditableSelection(root, range);
+    setActiveField(field);
+    setToolbarStyles((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], textAlign },
+    }));
+    if (editField === field) {
+      setEditStyle((prev) => ({ ...prev, textAlign }));
     }
+  }
 
-    function getEditorFieldControl(
-        field: EditorTextField = editField ?? activeField
-    ): {
-      text: string;
-      setText: (value: string) => void;
-      ref: RefObject<HTMLInputElement | null> | RefObject<HTMLTextAreaElement | null>;
-    } {
-      const refForField = <T extends HTMLInputElement | HTMLTextAreaElement>(
-        fieldRef: RefObject<T | null>
-      ) => (field === editField && !isRichEditField(field) ? editRef : fieldRef);
+  function clampRange(start: number, end: number, max: number) {
+    const s = Math.max(0, Math.min(start, max));
+    const e = Math.max(0, Math.min(end, max));
+    return s <= e ? { s, e } : { s: e, e: s };
+  }
 
-      switch (field) {
-        case "badge":
-          return {text: badgeText, setText: setBadgeTextValue, ref: refForField(badgeRef)};
-        case "title":
-          return {text: title, setText: setTitleValue, ref: refForField(titleRef)};
-        case "company":
-          return {text: company, setText: setCompanyValue, ref: refForField(companyRef)};
-        case "body":
-          return {text: body, setText: setBody, ref: refForField(bodyRef)};
-        case "caption":
-        default:
-          return {text: caption, setText: setCaption, ref: captionRef};
+  function overlaps(
+    a: { start: number; end: number },
+    b: { start: number; end: number },
+  ) {
+    return a.start < b.end && b.start < a.end;
+  }
+
+  function cleanStyle(style: RichStyle): RichStyle {
+    const next: RichStyle = {};
+    if (style.fontFamily) next.fontFamily = style.fontFamily;
+    if (style.fontSize) next.fontSize = style.fontSize;
+    if (style.color) next.color = style.color;
+    if (style.highlight) next.highlight = true;
+    if (style.highlight && style.highlightColor)
+      next.highlightColor = style.highlightColor;
+    if (style.fontWeight && style.fontWeight !== "normal") {
+      next.fontWeight = style.fontWeight;
+    }
+    if (style.fontStyle && style.fontStyle !== "normal") {
+      next.fontStyle = style.fontStyle;
+    }
+    return next;
+  }
+
+  function hasStyle(style: RichStyle) {
+    return Object.keys(cleanStyle(style)).length > 0;
+  }
+
+  function stylesEqual(a: RichStyle, b: RichStyle) {
+    return JSON.stringify(cleanStyle(a)) === JSON.stringify(cleanStyle(b));
+  }
+
+  function mergeMarks(next: TextMark[]) {
+    next.sort((a, b) => a.start - b.start);
+
+    const merged: TextMark[] = [];
+    for (const m of next) {
+      const style = cleanStyle(m.style ?? {});
+      if (m.end <= m.start || !hasStyle(style)) continue;
+
+      const last = merged[merged.length - 1];
+      if (last && last.end === m.start && stylesEqual(last.style, style)) {
+        last.end = m.end;
+      } else {
+        merged.push({ ...m, style });
       }
     }
 
-    function setFieldTextRaw(field: EditorTextField, value: string) {
-      switch (field) {
-        case "badge":
-          setBadgeText(value);
-          return;
-        case "title":
-          setTitle(value);
-          return;
-        case "company":
-          setCompany(value);
-          return;
-        case "body":
-          _setBody(value);
-          return;
-        case "caption":
-        default:
-          _setCaption(value);
+    return merged;
+  }
+
+  function styleForSegment(prev: TextMark[], start: number, end: number) {
+    return prev.reduce<RichStyle>((style, mark) => {
+      if (!overlaps(mark, { start, end })) return style;
+      return { ...style, ...(mark.style ?? {}) };
+    }, {});
+  }
+
+  function updateMarksInRange(
+    prev: TextMark[],
+    range: { start: number; end: number },
+    transform: (style: RichStyle) => RichStyle,
+  ) {
+    const next: TextMark[] = [];
+    const boundaries = new Set<number>([range.start, range.end]);
+
+    for (const mark of prev) {
+      if (!overlaps(mark, range)) {
+        next.push(mark);
+        continue;
+      }
+
+      if (mark.start < range.start) {
+        next.push({ ...mark, end: range.start });
+      }
+      if (range.end < mark.end) {
+        next.push({ ...mark, start: range.end });
+      }
+
+      boundaries.add(Math.max(mark.start, range.start));
+      boundaries.add(Math.min(mark.end, range.end));
+    }
+
+    const points = [...boundaries].sort((a, b) => a - b);
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const start = points[i];
+      const end = points[i + 1];
+      if (end <= start) continue;
+
+      const style = cleanStyle(transform(styleForSegment(prev, start, end)));
+      if (hasStyle(style)) {
+        next.push({ start, end, style });
       }
     }
 
-    function getTextChangeRange(prev: string, next: string) {
-      let start = 0;
-      while (
-          start < prev.length &&
-          start < next.length &&
-          prev[start] === next[start]
-      ) {
-        start += 1;
-      }
+    return mergeMarks(next);
+  }
 
-      let prevEnd = prev.length;
-      let nextEnd = next.length;
-      while (
-          prevEnd > start &&
-          nextEnd > start &&
-          prev[prevEnd - 1] === next[nextEnd - 1]
-      ) {
-        prevEnd -= 1;
-        nextEnd -= 1;
-      }
+  function applyStyleToMarks(
+    prev: TextMark[],
+    range: { start: number; end: number },
+    patch: RichStyle,
+  ) {
+    return updateMarksInRange(prev, range, (style) => ({ ...style, ...patch }));
+  }
 
-      return {start, prevEnd, nextEnd};
+  function selectionHasEveryStyle(
+    prev: TextMark[],
+    range: { start: number; end: number },
+    predicate: (style: RichStyle) => boolean,
+  ) {
+    const boundaries = new Set<number>([range.start, range.end]);
+    for (const mark of prev) {
+      if (!overlaps(mark, range)) continue;
+      boundaries.add(Math.max(mark.start, range.start));
+      boundaries.add(Math.min(mark.end, range.end));
     }
 
-    function togglePendingStyle(
-        field: EditorTextField,
-        mode: "toggleHighlight" | "toggleBold" | "toggleItalic"
-    ) {
-      setPendingTextStyles((prev) => {
-        const current = prev[field] ?? {};
-        let next: RichStyle = current;
-
-        if (mode === "toggleHighlight") {
-          next = current.highlight
-              ? {...current, highlight: undefined}
-              : {...current, highlight: true};
-        } else if (mode === "toggleBold") {
-          const isBold =
-              current.fontWeight === 800 ||
-              current.fontWeight === "800" ||
-              current.fontWeight === "bold";
-          next = isBold
-              ? {...current, fontWeight: undefined}
-              : {...current, fontWeight: 800};
-        } else {
-          next = current.fontStyle === "italic"
-              ? {...current, fontStyle: undefined}
-              : {...current, fontStyle: "italic"};
-        }
-
-        const updated = {...prev, [field]: cleanStyle(next)};
-        pendingTextStylesRef.current = updated;
-        return updated;
-      });
+    const points = [...boundaries].sort((a, b) => a - b);
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const start = points[i];
+      const end = points[i + 1];
+      if (end > start && !predicate(styleForSegment(prev, start, end)))
+        return false;
     }
 
-    function setPendingStyle(field: EditorTextField, patch: RichStyle) {
-      setPendingTextStyles((prev) => {
-        const updated = {
-          ...prev,
-          [field]: cleanStyle({...prev[field], ...patch}),
-        };
-        pendingTextStylesRef.current = updated;
-        return updated;
-      });
-    }
+    return true;
+  }
 
-    function handleTextChange(
-        field: EditorTextField,
-        next: string,
-        selectionStart: number | null
-    ) {
-      const {text} = getEditorFieldControl(field);
-      if (next === text) return;
+  function toggleStyleMarks(
+    prev: TextMark[],
+    range: { start: number; end: number },
+    active: (style: RichStyle) => boolean,
+    add: RichStyle,
+    remove: RichStyle,
+  ) {
+    const shouldRemove = selectionHasEveryStyle(prev, range, active);
+    return updateMarksInRange(prev, range, (style) => ({
+      ...style,
+      ...(shouldRemove ? remove : add),
+    }));
+  }
 
-      const {start, prevEnd, nextEnd} = getTextChangeRange(text, next);
-      const insertedLength = Math.max(0, nextEnd - start);
-      const delta = next.length - text.length;
-      const pendingStyle = cleanStyle(pendingTextStylesRef.current[field] ?? {});
-
-      setFieldTextRaw(field, next);
-
-      const {setMarks} = getActiveMarksState(field);
-      setMarks((prevMarks) => {
-        const shifted = shiftMarksAfterTextChange(prevMarks, start, prevEnd, delta);
-        return insertedLength > 0 && hasStyle(pendingStyle)
-            ? mergeMarks([
-              ...shifted,
-              {
-                start,
-                end: start + insertedLength,
-                style: pendingStyle,
-              },
-            ])
-            : shifted;
-      });
-
+  function applyStyleSelection(
+    patch: RichStyle,
+    mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set",
+  ) {
+    const field: EditorTextField = isRichEditField(editField)
+      ? editField
+      : activeField;
+    const { text, ref } = getEditorFieldControl(field);
+    const editableSelection = isRichEditField(editField)
+      ? readContentEditableSelection(editField, getRichEditRoot(editField))
+      : null;
+    const el = ref.current;
+    const rawStart = editableSelection?.start ?? el?.selectionStart ?? 0;
+    const rawEnd = editableSelection?.end ?? el?.selectionEnd ?? rawStart;
+    const { s, e } = clampRange(rawStart, rawEnd, text.length);
+    const restoreSelection = () => {
       requestAnimationFrame(() => {
-        const node = getEditorFieldControl(field).ref.current;
-        if (!node || selectionStart == null) return;
-        node.setSelectionRange(selectionStart, selectionStart);
-      });
-    }
-
-    function withActiveSelection(
-        fn: (
-            text: string,
-            s: number,
-            e: number
-        ) => {
-          next: string;
-          nextSelStart: number;
-          nextSelEnd: number;
-          replaceStart?: number;
-          replaceEnd?: number;
-          preserveReplacementMarks?: boolean;
+        if (isRichEditField(editField)) {
+          const range = { start: s, end: e };
+          richEditSelectionRef.current[editField] = range;
+          const root = getRichEditRoot(editField);
+          root?.focus();
+          restoreContentEditableSelection(root, range);
+          return;
         }
-    ) {
-      const {text, setText, ref} = getEditorFieldControl();
-      const el = ref.current;
-      if (!el) return;
-
-      const s = el.selectionStart ?? 0;
-      const e = el.selectionEnd ?? 0;
-
-      const {
-        next,
-        nextSelStart,
-        nextSelEnd,
-        replaceStart,
-        replaceEnd,
-        preserveReplacementMarks,
-      } = fn(text, s, e);
-      if (next !== text) {
-        setText(next);
-      }
-
-      if (
-          next !== text &&
-          replaceStart != null &&
-          replaceEnd != null
-      ) {
-        const delta = next.length - text.length;
-        const {marks, setMarks} = getActiveMarksState();
-        setMarks(
-            shiftMarksAfterTextChange(
-                marks,
-                replaceStart,
-                replaceEnd,
-                delta,
-                preserveReplacementMarks ? nextSelEnd - nextSelStart : 0
-            )
-        );
-      }
-
-      requestAnimationFrame(() => {
         const node = ref.current;
         if (!node) return;
         node.focus();
-        node.setSelectionRange(nextSelStart, nextSelEnd);
+        node.setSelectionRange(s, e);
       });
-    }
+    };
 
-    function shiftMarksAfterTextChange(
-        marks: TextMark[],
-        replaceStart: number,
-        replaceEnd: number,
-        delta: number,
-        replacementMarkLength = 0
-    ) {
-      const replacementStyle =
-          replacementMarkLength > 0
-              ? cleanStyle(styleForSegment(marks, replaceStart, replaceEnd))
-              : {};
-      const shifted = marks
-          .flatMap((mark) => {
-            if (mark.end <= replaceStart) return [mark];
-            if (mark.start >= replaceEnd) {
-              return [{...mark, start: mark.start + delta, end: mark.end + delta}];
-            }
-
-            const pieces: TextMark[] = [];
-            if (mark.start < replaceStart) {
-              pieces.push({...mark, end: replaceStart});
-            }
-            if (mark.end > replaceEnd) {
-              pieces.push({
-                ...mark,
-                start: replaceStart + Math.max(0, delta),
-                end: mark.end + delta,
-              });
-            }
-            return pieces;
-          })
-          .filter((mark) => mark.end > mark.start);
-
-      if (replacementMarkLength > 0 && hasStyle(replacementStyle)) {
-        shifted.push({
-          start: replaceStart,
-          end: replaceStart + replacementMarkLength,
-          style: replacementStyle,
-        });
-      }
-
-      return mergeMarks(shifted);
-    }
-
-    function remapMarksForLinePrefixChanges(
-        marks: TextMark[],
-        changes: LinePrefixChange[]
-    ) {
-      if (!changes.length) return marks;
-
-      const shiftPoint = (pos: number) => {
-        let cumulativeDelta = 0;
-
-        for (const change of changes) {
-          const oldContentStart = change.oldLineStart + change.oldPrefixLength;
-          const delta = change.newPrefixLength - change.oldPrefixLength;
-
-          if (pos < change.oldLineStart) continue;
-          if (pos <= change.oldLineEnd) {
-            const newPrefixStart = change.oldLineStart + cumulativeDelta;
-            if (pos <= oldContentStart) {
-              return newPrefixStart + change.newPrefixLength;
-            } else {
-              return pos + cumulativeDelta + delta;
-            }
-          }
-
-          cumulativeDelta += delta;
-        }
-
-        return pos + cumulativeDelta;
-      };
-
-      return mergeMarks(
-          marks
-              .map((mark) => ({
-                ...mark,
-                start: shiftPoint(mark.start),
-                end: shiftPoint(mark.end),
-              }))
-              .filter((mark) => mark.end > mark.start)
-      );
-    }
-
-    function getActiveMarksState(field: EditorTextField = editField ?? activeField) {
-      switch (field) {
-        case "badge":
-          return {marks: badgeMarks, setMarks: setBadgeMarks};
-        case "title":
-          return {marks: titleMarks, setMarks: setTitleMarks};
-        case "company":
-          return {marks: companyMarks, setMarks: setCompanyMarks};
-        case "body":
-          return {marks: bodyMarks, setMarks: setBodyMarks};
-        case "caption":
-        default:
-          return {marks: captionMarks, setMarks: setCaptionMarks};
-      }
-    }
-
-    function getFieldBoxStyle(field: RichEditField): BoxTextStyle {
-      if (field === "title") return titleStyle;
-      if (field === "company") return companyStyle;
-      if (field === "badge") return badgeStyle;
-      return bodyBoxStyle;
-    }
-
-    function setFieldTextAlign(field: RichEditField, textAlign: BoxTextStyle["textAlign"]) {
-      if (field === "title") {
-        setTitleStyle((prev) => ({...prev, textAlign}));
-      } else if (field === "company") {
-        setCompanyStyle((prev) => ({...prev, textAlign}));
-      } else if (field === "badge") {
-        setBadgeStyle((prev) => ({...prev, textAlign}));
-      } else {
-        setBodyBoxStyle((prev) => ({...prev, textAlign}));
-      }
-
-      setActiveField(field);
-      setToolbarStyles((prev) => ({
-        ...prev,
-        [field]: {...prev[field], textAlign},
-      }));
-      if (editField === field) {
-        setEditStyle((prev) => ({...prev, textAlign}));
-      }
-    }
-
-    function clampRange(start: number, end: number, max: number) {
-      const s = Math.max(0, Math.min(start, max));
-      const e = Math.max(0, Math.min(end, max));
-      return s <= e ? {s, e} : {s: e, e: s};
-    }
-
-    function overlaps(
-        a: { start: number; end: number },
-        b: { start: number; end: number }
-    ) {
-      return a.start < b.end && b.start < a.end;
-    }
-
-    function cleanStyle(style: RichStyle): RichStyle {
-      const next: RichStyle = {};
-      if (style.fontFamily) next.fontFamily = style.fontFamily;
-      if (style.fontSize) next.fontSize = style.fontSize;
-      if (style.color) next.color = style.color;
-      if (style.highlight) next.highlight = true;
-      if (style.highlight && style.highlightColor) next.highlightColor = style.highlightColor;
-      if (style.fontWeight && style.fontWeight !== "normal") {
-        next.fontWeight = style.fontWeight;
-      }
-      if (style.fontStyle && style.fontStyle !== "normal") {
-        next.fontStyle = style.fontStyle;
-      }
-      return next;
-    }
-
-    function hasStyle(style: RichStyle) {
-      return Object.keys(cleanStyle(style)).length > 0;
-    }
-
-    function stylesEqual(a: RichStyle, b: RichStyle) {
-      return JSON.stringify(cleanStyle(a)) === JSON.stringify(cleanStyle(b));
-    }
-
-    function mergeMarks(next: TextMark[]) {
-      next.sort((a, b) => a.start - b.start);
-
-      const merged: TextMark[] = [];
-      for (const m of next) {
-        const style = cleanStyle(m.style ?? {});
-        if (m.end <= m.start || !hasStyle(style)) continue;
-
-        const last = merged[merged.length - 1];
-        if (last && last.end === m.start && stylesEqual(last.style, style)) {
-          last.end = m.end;
-        } else {
-          merged.push({...m, style});
-        }
-      }
-
-      return merged;
-    }
-
-    function styleForSegment(prev: TextMark[], start: number, end: number) {
-      return prev.reduce<RichStyle>((style, mark) => {
-        if (!overlaps(mark, {start, end})) return style;
-        return {...style, ...(mark.style ?? {})};
-      }, {});
-    }
-
-    function updateMarksInRange(
-        prev: TextMark[],
-        range: { start: number; end: number },
-        transform: (style: RichStyle) => RichStyle
-    ) {
-      const next: TextMark[] = [];
-      const boundaries = new Set<number>([range.start, range.end]);
-
-      for (const mark of prev) {
-        if (!overlaps(mark, range)) {
-          next.push(mark);
-          continue;
-        }
-
-        if (mark.start < range.start) {
-          next.push({...mark, end: range.start});
-        }
-        if (range.end < mark.end) {
-          next.push({...mark, start: range.end});
-        }
-
-        boundaries.add(Math.max(mark.start, range.start));
-        boundaries.add(Math.min(mark.end, range.end));
-      }
-
-      const points = [...boundaries].sort((a, b) => a - b);
-      for (let i = 0; i < points.length - 1; i += 1) {
-        const start = points[i];
-        const end = points[i + 1];
-        if (end <= start) continue;
-
-        const style = cleanStyle(transform(styleForSegment(prev, start, end)));
-        if (hasStyle(style)) {
-          next.push({start, end, style});
-        }
-      }
-
-      return mergeMarks(next);
-    }
-
-    function applyStyleToMarks(
-        prev: TextMark[],
-        range: { start: number; end: number },
-        patch: RichStyle
-    ) {
-      return updateMarksInRange(prev, range, (style) => ({...style, ...patch}));
-    }
-
-    function selectionHasEveryStyle(
-        prev: TextMark[],
-        range: { start: number; end: number },
-        predicate: (style: RichStyle) => boolean
-    ) {
-      const boundaries = new Set<number>([range.start, range.end]);
-      for (const mark of prev) {
-        if (!overlaps(mark, range)) continue;
-        boundaries.add(Math.max(mark.start, range.start));
-        boundaries.add(Math.min(mark.end, range.end));
-      }
-
-      const points = [...boundaries].sort((a, b) => a - b);
-      for (let i = 0; i < points.length - 1; i += 1) {
-        const start = points[i];
-        const end = points[i + 1];
-        if (end > start && !predicate(styleForSegment(prev, start, end))) return false;
-      }
-
-      return true;
-    }
-
-    function toggleStyleMarks(
-        prev: TextMark[],
-        range: { start: number; end: number },
-        active: (style: RichStyle) => boolean,
-        add: RichStyle,
-        remove: RichStyle
-    ) {
-      const shouldRemove = selectionHasEveryStyle(prev, range, active);
-      return updateMarksInRange(prev, range, (style) => ({
-        ...style,
-        ...(shouldRemove ? remove : add),
-      }));
-    }
-
-    function applyStyleSelection(
-        patch: RichStyle,
-        mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set"
-    ) {
-      const field: EditorTextField = isRichEditField(editField) ? editField : activeField;
-      const {text, ref} = getEditorFieldControl(field);
-      const editableSelection =
-        isRichEditField(editField)
-          ? readContentEditableSelection(editField, getRichEditRoot(editField))
-          : null;
-      const el = ref.current;
-      const rawStart = editableSelection?.start ?? el?.selectionStart ?? 0;
-      const rawEnd = editableSelection?.end ?? el?.selectionEnd ?? rawStart;
-      const {s, e} = clampRange(rawStart, rawEnd, text.length);
-      const restoreSelection = () => {
-        requestAnimationFrame(() => {
-          if (isRichEditField(editField)) {
-            const range = { start: s, end: e };
-            richEditSelectionRef.current[editField] = range;
-            const root = getRichEditRoot(editField);
-            root?.focus();
-            restoreContentEditableSelection(root, range);
-            return;
-          }
-          const node = ref.current;
-          if (!node) return;
-          node.focus();
-          node.setSelectionRange(s, e);
-        });
-      };
-
-      if (s === e) {
-        if (mode === "set") {
-          setPendingStyle(field, patch);
-        } else {
-          togglePendingStyle(field, mode);
-        }
-        restoreSelection();
-        return;
-      }
-
-      const {setMarks, marks} = getActiveMarksState(field);
-      const range = {start: s, end: e};
-      let nextMarks = marks;
-      if (mode === "toggleHighlight") {
-        const shouldRemove = selectionHasEveryStyle(
-            marks,
-            range,
-            (style) => style.highlight === true
-        );
-        nextMarks = toggleStyleMarks(
-            marks,
-            range,
-            (style) => style.highlight === true,
-            {highlight: true},
-            {highlight: undefined}
-        );
-        setMarks(nextMarks);
-        setPendingStyle(field, {highlight: shouldRemove ? undefined : true});
-      } else if (mode === "toggleBold") {
-        const isBold = (style: RichStyle) =>
-            style.fontWeight === 800 ||
-            style.fontWeight === "800" ||
-            style.fontWeight === "bold";
-        const shouldRemove = selectionHasEveryStyle(marks, range, isBold);
-        nextMarks = toggleStyleMarks(
-            marks,
-            range,
-            isBold,
-            {fontWeight: 800},
-            {fontWeight: undefined}
-        );
-        setMarks(nextMarks);
-        setPendingStyle(field, {fontWeight: shouldRemove ? undefined : 800});
-      } else if (mode === "toggleItalic") {
-        const shouldRemove = selectionHasEveryStyle(
-            marks,
-            range,
-            (style) => style.fontStyle === "italic"
-        );
-        nextMarks = toggleStyleMarks(
-            marks,
-            range,
-            (style) => style.fontStyle === "italic",
-            {fontStyle: "italic"},
-            {fontStyle: undefined}
-        );
-        setMarks(nextMarks);
-        setPendingStyle(field, {fontStyle: shouldRemove ? undefined : "italic"});
-      } else {
-        nextMarks = applyStyleToMarks(marks, range, patch);
-        setMarks(nextMarks);
+    if (s === e) {
+      if (mode === "set") {
         setPendingStyle(field, patch);
-      }
-
-      if (isRichEditField(field)) {
-        syncFloatingToolbarFormatting(field, range, nextMarks);
-        requestAnimationFrame(() => {
-          syncRichEditOverlayDom(field, nextMarks, range);
-        });
+      } else {
+        togglePendingStyle(field, mode);
       }
       restoreSelection();
+      return;
     }
 
-    function getSelectionFormatting(
-      field: RichEditField,
-      range: { start: number; end: number },
-      marksOverride?: TextMark[],
-      baseOverride?: BoxTextStyle
-    ): TextStyle {
-      const base = baseOverride ?? getFieldBoxStyle(field);
-      const {marks: stateMarks} = getActiveMarksState(field);
-      const marks = marksOverride ?? stateMarks;
-      const boundaries = new Set<number>([range.start, range.end]);
-      for (const mark of marks) {
-        if (!overlaps(mark, range)) continue;
-        boundaries.add(Math.max(mark.start, range.start));
-        boundaries.add(Math.min(mark.end, range.end));
-      }
-
-      const points = [...boundaries].sort((a, b) => a - b);
-      const segments: RichStyle[] = [];
-      for (let i = 0; i < points.length - 1; i += 1) {
-        const start = points[i];
-        const end = points[i + 1];
-        if (end <= start) continue;
-        segments.push(styleForSegment(marks, start, end));
-      }
-
-      const valueFor = <T,>(resolve: (style: RichStyle) => T, fallback: T) => {
-        if (segments.length === 0) return {value: fallback, mixed: false};
-        const values = segments.map(resolve);
-        const first = values[0];
-        return {
-          value: first,
-          mixed: values.some((value) => value !== first),
-        };
-      };
-
-      const fontFamily = valueFor(
-        (style) => style.fontFamily ?? base.fontFamily,
-        base.fontFamily
+    const { setMarks, marks } = getActiveMarksState(field);
+    const range = { start: s, end: e };
+    let nextMarks = marks;
+    if (mode === "toggleHighlight") {
+      const shouldRemove = selectionHasEveryStyle(
+        marks,
+        range,
+        (style) => style.highlight === true,
       );
-      const fontSize = valueFor((style) => style.fontSize ?? base.fontSize, base.fontSize);
-      const color = valueFor((style) => style.color ?? base.color, base.color);
-      const highlightColor = valueFor(
-        (style) => style.highlightColor ?? "rgba(250,204,21,0.18)",
-        "rgba(250,204,21,0.18)"
+      nextMarks = toggleStyleMarks(
+        marks,
+        range,
+        (style) => style.highlight === true,
+        { highlight: true },
+        { highlight: undefined },
       );
+      setMarks(nextMarks);
+      setPendingStyle(field, { highlight: shouldRemove ? undefined : true });
+    } else if (mode === "toggleBold") {
+      const isBold = (style: RichStyle) =>
+        style.fontWeight === 800 ||
+        style.fontWeight === "800" ||
+        style.fontWeight === "bold";
+      const shouldRemove = selectionHasEveryStyle(marks, range, isBold);
+      nextMarks = toggleStyleMarks(
+        marks,
+        range,
+        isBold,
+        { fontWeight: 800 },
+        { fontWeight: undefined },
+      );
+      setMarks(nextMarks);
+      setPendingStyle(field, { fontWeight: shouldRemove ? undefined : 800 });
+    } else if (mode === "toggleItalic") {
+      const shouldRemove = selectionHasEveryStyle(
+        marks,
+        range,
+        (style) => style.fontStyle === "italic",
+      );
+      nextMarks = toggleStyleMarks(
+        marks,
+        range,
+        (style) => style.fontStyle === "italic",
+        { fontStyle: "italic" },
+        { fontStyle: undefined },
+      );
+      setMarks(nextMarks);
+      setPendingStyle(field, {
+        fontStyle: shouldRemove ? undefined : "italic",
+      });
+    } else {
+      nextMarks = applyStyleToMarks(marks, range, patch);
+      setMarks(nextMarks);
+      setPendingStyle(field, patch);
+    }
 
+    if (isRichEditField(field)) {
+      syncFloatingToolbarFormatting(field, range, nextMarks);
+      requestAnimationFrame(() => {
+        syncRichEditOverlayDom(field, nextMarks, range);
+      });
+    }
+    restoreSelection();
+  }
+
+  function getSelectionFormatting(
+    field: RichEditField,
+    range: { start: number; end: number },
+    marksOverride?: TextMark[],
+    baseOverride?: BoxTextStyle,
+  ): TextStyle {
+    const base = baseOverride ?? getFieldBoxStyle(field);
+    const { marks: stateMarks } = getActiveMarksState(field);
+    const marks = marksOverride ?? stateMarks;
+    const boundaries = new Set<number>([range.start, range.end]);
+    for (const mark of marks) {
+      if (!overlaps(mark, range)) continue;
+      boundaries.add(Math.max(mark.start, range.start));
+      boundaries.add(Math.min(mark.end, range.end));
+    }
+
+    const points = [...boundaries].sort((a, b) => a - b);
+    const segments: RichStyle[] = [];
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const start = points[i];
+      const end = points[i + 1];
+      if (end <= start) continue;
+      segments.push(styleForSegment(marks, start, end));
+    }
+
+    const valueFor = <T,>(resolve: (style: RichStyle) => T, fallback: T) => {
+      if (segments.length === 0) return { value: fallback, mixed: false };
+      const values = segments.map(resolve);
+      const first = values[0];
       return {
-        fontFamily: String(fontFamily.value),
-        fontSize: Number(fontSize.value) || base.fontSize,
-        color: String(color.value),
-        highlight: selectionHasEveryStyle(marks, range, (style) => style.highlight === true),
-        highlightColor: String(highlightColor.value),
-        bold: selectionHasEveryStyle(
+        value: first,
+        mixed: values.some((value) => value !== first),
+      };
+    };
+
+    const fontFamily = valueFor(
+      (style) => style.fontFamily ?? base.fontFamily,
+      base.fontFamily,
+    );
+    const fontSize = valueFor(
+      (style) => style.fontSize ?? base.fontSize,
+      base.fontSize,
+    );
+    const color = valueFor((style) => style.color ?? base.color, base.color);
+    const highlightColor = valueFor(
+      (style) => style.highlightColor ?? "rgba(250,204,21,0.18)",
+      "rgba(250,204,21,0.18)",
+    );
+
+    return {
+      fontFamily: String(fontFamily.value),
+      fontSize: Number(fontSize.value) || base.fontSize,
+      color: String(color.value),
+      highlight: selectionHasEveryStyle(
+        marks,
+        range,
+        (style) => style.highlight === true,
+      ),
+      highlightColor: String(highlightColor.value),
+      bold: selectionHasEveryStyle(
+        marks,
+        range,
+        (style) =>
+          style.fontWeight === 800 ||
+          style.fontWeight === "800" ||
+          style.fontWeight === "bold",
+      ),
+      italic: selectionHasEveryStyle(
+        marks,
+        range,
+        (style) => style.fontStyle === "italic",
+      ),
+      textAlign: base.textAlign,
+      mixed: {
+        fontFamily: fontFamily.mixed,
+        fontSize: fontSize.mixed,
+        color: color.mixed,
+        highlightColor: highlightColor.mixed,
+      },
+    };
+  }
+
+  function syncFloatingToolbarFormatting(
+    field: RichEditField,
+    range: { start: number; end: number },
+    marksOverride?: TextMark[],
+    baseOverride?: BoxTextStyle,
+  ) {
+    setActiveField(field);
+    setToolbarStyles((prev) => ({
+      ...prev,
+      [field]: getSelectionFormatting(
+        field,
+        range,
+        marksOverride,
+        baseOverride,
+      ),
+    }));
+  }
+
+  function applySelectionStyleForField(
+    field: "title" | "body" | "badge" | "company",
+    patch: RichStyle,
+    mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set",
+  ) {
+    const { text, ref } = getEditorFieldControl(field);
+    const el = ref.current;
+    if (!el) return false;
+
+    const { s, e } = clampRange(
+      el.selectionStart ?? 0,
+      el.selectionEnd ?? 0,
+      text.length,
+    );
+    if (s === e) return false;
+
+    const { setMarks, marks } = getActiveMarksState(field);
+
+    const range = { start: s, end: e };
+    if (mode === "toggleHighlight") {
+      setMarks(
+        toggleStyleMarks(
+          marks,
+          range,
+          (style) => style.highlight === true,
+          { highlight: true },
+          { highlight: undefined },
+        ),
+      );
+    } else if (mode === "toggleBold") {
+      setMarks(
+        toggleStyleMarks(
           marks,
           range,
           (style) =>
             style.fontWeight === 800 ||
             style.fontWeight === "800" ||
-            style.fontWeight === "bold"
+            style.fontWeight === "bold",
+          { fontWeight: 800 },
+          { fontWeight: undefined },
         ),
-        italic: selectionHasEveryStyle(
+      );
+    } else if (mode === "toggleItalic") {
+      setMarks(
+        toggleStyleMarks(
           marks,
           range,
-          (style) => style.fontStyle === "italic"
+          (style) => style.fontStyle === "italic",
+          { fontStyle: "italic" },
+          { fontStyle: undefined },
         ),
-        textAlign: base.textAlign,
-        mixed: {
-          fontFamily: fontFamily.mixed,
-          fontSize: fontSize.mixed,
-          color: color.mixed,
-          highlightColor: highlightColor.mixed,
-        },
-      };
+      );
+    } else {
+      setMarks(applyStyleToMarks(marks, range, patch));
     }
 
-    function syncFloatingToolbarFormatting(
-      field: RichEditField,
-      range: { start: number; end: number },
-      marksOverride?: TextMark[],
-      baseOverride?: BoxTextStyle
-    ) {
-      setActiveField(field);
-      setToolbarStyles((prev) => ({
-        ...prev,
-        [field]: getSelectionFormatting(field, range, marksOverride, baseOverride),
-      }));
+    setActiveField(field);
+    setToolbarStyles((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], ...patch },
+    }));
+
+    return true;
+  }
+
+  function applyUnicodeStyle(style: UnicodeStyle) {
+    applyStyleSelection({}, style === "bold" ? "toggleBold" : "toggleItalic");
+  }
+
+  function getListActionTarget() {
+    const field: EditorTextField = isRichEditField(editField)
+      ? editField
+      : activeField;
+    const { text, setText, ref } = getEditorFieldControl(field);
+
+    if (isRichEditField(field)) {
+      const range = readContentEditableSelection(field, getRichEditRoot(field));
+      return { field, text, setText, ref, s: range.start, e: range.end };
     }
 
-    function applySelectionStyleForField(
-        field: "title" | "body" | "badge" | "company",
-        patch: RichStyle,
-        mode: "set" | "toggleHighlight" | "toggleBold" | "toggleItalic" = "set"
-    ) {
-      const {text, ref} = getEditorFieldControl(field);
-      const el = ref.current;
-      if (!el) return false;
+    const node = ref.current;
+    if (!node) return null;
+    return {
+      field,
+      text,
+      setText,
+      ref,
+      s: node.selectionStart ?? 0,
+      e: node.selectionEnd ?? node.selectionStart ?? 0,
+    };
+  }
 
-      const {s, e} = clampRange(el.selectionStart ?? 0, el.selectionEnd ?? 0, text.length);
-      if (s === e) return false;
-
-      const {setMarks, marks} = getActiveMarksState(field);
-
-      const range = {start: s, end: e};
-      if (mode === "toggleHighlight") {
-        setMarks(toggleStyleMarks(
-            marks,
-            range,
-            (style) => style.highlight === true,
-            {highlight: true},
-            {highlight: undefined}
-        ));
-      } else if (mode === "toggleBold") {
-        setMarks(toggleStyleMarks(
-            marks,
-            range,
-            (style) => style.fontWeight === 800 || style.fontWeight === "800" || style.fontWeight === "bold",
-            {fontWeight: 800},
-            {fontWeight: undefined}
-        ));
-      } else if (mode === "toggleItalic") {
-        setMarks(toggleStyleMarks(
-            marks,
-            range,
-            (style) => style.fontStyle === "italic",
-            {fontStyle: "italic"},
-            {fontStyle: undefined}
-        ));
-      } else {
-        setMarks(applyStyleToMarks(marks, range, patch));
-      }
-
-      setActiveField(field);
-      setToolbarStyles((prev) => ({
-        ...prev,
-        [field]: {...prev[field], ...patch},
-      }));
-
-      return true;
-    }
-
-    function applyUnicodeStyle(style: UnicodeStyle) {
-      applyStyleSelection({}, style === "bold" ? "toggleBold" : "toggleItalic");
-    }
-
-    function getListActionTarget() {
-      const field: EditorTextField = isRichEditField(editField) ? editField : activeField;
-      const {text, setText, ref} = getEditorFieldControl(field);
-
+  function restoreListActionSelection(
+    field: EditorTextField,
+    ref:
+      | RefObject<HTMLInputElement | null>
+      | RefObject<HTMLTextAreaElement | null>,
+    range: { start: number; end: number },
+    text: string,
+    marks: TextMark[],
+  ) {
+    requestAnimationFrame(() => {
       if (isRichEditField(field)) {
-        const range = readContentEditableSelection(field, getRichEditRoot(field));
-        return {field, text, setText, ref, s: range.start, e: range.end};
+        syncRichEditOverlayDom(field, marks, range, text);
+        return;
       }
 
       const node = ref.current;
-      if (!node) return null;
-      return {
-        field,
-        text,
-        setText,
-        ref,
-        s: node.selectionStart ?? 0,
-        e: node.selectionEnd ?? node.selectionStart ?? 0,
-      };
-    }
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(range.start, range.end);
+    });
+  }
 
-    function restoreListActionSelection(
-      field: EditorTextField,
-      ref: RefObject<HTMLInputElement | null> | RefObject<HTMLTextAreaElement | null>,
-      range: { start: number; end: number },
-      text: string,
-      marks: TextMark[]
-    ) {
-      requestAnimationFrame(() => {
-        if (isRichEditField(field)) {
-          syncRichEditOverlayDom(field, marks, range, text);
-          return;
-        }
+  function applyCollapsedListPrefix(kind: "bullet" | "numbered") {
+    const target = getListActionTarget();
+    if (!target) return true;
 
-        const node = ref.current;
-        if (!node) return;
-        node.focus();
-        node.setSelectionRange(range.start, range.end);
-      });
-    }
+    const { field, text, setText, ref, s } = target;
+    const { start: lineStart, end: lineEnd } = getLineBounds(text, s);
+    const line = text.slice(lineStart, lineEnd);
+    const oldMarker = line.match(/^\s*(?:\u2022|\d+\.)\s+/)?.[0] ?? "";
+    const hasTargetMarker =
+      kind === "bullet"
+        ? /^\s*\u2022\s+/.test(line)
+        : /^\s*\d+\.\s+/.test(line);
+    const newMarker = hasTargetMarker
+      ? ""
+      : kind === "bullet"
+        ? "  \u2022 "
+        : "  1. ";
+    const content = oldMarker ? line.slice(oldMarker.length) : line;
+    const nextLine = `${newMarker}${content}`;
+    const next = text.slice(0, lineStart) + nextLine + text.slice(lineEnd);
+    const cursorOffset = s - lineStart;
+    const markerDelta = newMarker.length - oldMarker.length;
+    const nextCursor =
+      lineStart + clamp(cursorOffset + markerDelta, 0, nextLine.length);
 
-    function applyCollapsedListPrefix(kind: "bullet" | "numbered") {
-      const target = getListActionTarget();
-      if (!target) return true;
-
-      const {field, text, setText, ref, s} = target;
-      const {start: lineStart, end: lineEnd} = getLineBounds(text, s);
-      const line = text.slice(lineStart, lineEnd);
-      const oldMarker = line.match(/^\s*(?:\u2022|\d+\.)\s+/)?.[0] ?? "";
-      const hasTargetMarker =
-        kind === "bullet"
-          ? /^\s*\u2022\s+/.test(line)
-          : /^\s*\d+\.\s+/.test(line);
-      const newMarker = hasTargetMarker ? "" : kind === "bullet" ? "  \u2022 " : "  1. ";
-      const content = oldMarker ? line.slice(oldMarker.length) : line;
-      const nextLine = `${newMarker}${content}`;
-      const next = text.slice(0, lineStart) + nextLine + text.slice(lineEnd);
-      const cursorOffset = s - lineStart;
-      const markerDelta = newMarker.length - oldMarker.length;
-      const nextCursor = lineStart + clamp(cursorOffset + markerDelta, 0, nextLine.length);
-
-      if (next !== text) {
-        setText(next);
-        const {marks, setMarks} = getActiveMarksState(field);
-        const nextMarks = remapMarksForLinePrefixChanges(marks, [
-          {
-            oldLineStart: lineStart,
-            oldLineEnd: lineEnd,
-            oldPrefixLength: oldMarker.length,
-            newPrefixLength: newMarker.length,
-          },
-        ]);
-        setMarks(nextMarks);
-        restoreListActionSelection(
-          field,
-          ref,
-          {start: nextCursor, end: nextCursor},
-          next,
-          nextMarks
-        );
-      }
-
-      return true;
-    }
-
-    function applyBullet() {
-      const target = getListActionTarget();
-      if (!target) return;
-      const {field, text, setText, ref, s, e} = target;
-      if (s === e && applyCollapsedListPrefix("bullet")) return;
-
-      const {lineStart, lineEnd} = getSelectedLineBlock(text, s, e);
-      const block = text.slice(lineStart, lineEnd);
-      const lines = block.split("\n");
-      const contentLines = lines.filter((line) => line.trim());
-      const removeBullets =
-          contentLines.length > 0 &&
-          contentLines.every((line) => /^\s*\u2022\s+/.test(line));
-
-      let offset = lineStart;
-      const changes: LinePrefixChange[] = [];
-
-      const replacedLines = lines.map((line) => {
-        const oldLineStart = offset;
-        const oldLineEnd = oldLineStart + line.length;
-        offset = oldLineEnd + 1;
-
-        const trimmed = line.trim();
-        if (!trimmed) return line;
-
-        const indent = line.match(/^\s*/)?.[0] ?? "";
-        const contentWithMarker = line.slice(indent.length);
-        const oldMarker = contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
-        const content = contentWithMarker.slice(oldMarker.length);
-        const newMarker = removeBullets ? "" : "\u2022 ";
-
-        changes.push({
-          oldLineStart: oldLineStart + indent.length,
-          oldLineEnd,
-          oldPrefixLength: oldMarker.length,
-          newPrefixLength: newMarker.length,
-        });
-
-        return `${indent}${newMarker}${content}`;
-      });
-
-      const replacedBlock = replacedLines.join("\n");
-      const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-
-      if (next !== text) {
-        setText(next);
-        const {marks, setMarks} = getActiveMarksState(field);
-        const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
-        setMarks(nextMarks);
-        restoreListActionSelection(
-          field,
-          ref,
-          {start: lineStart, end: lineStart + replacedBlock.length},
-          next,
-          nextMarks
-        );
-        return;
-      }
-
-      restoreListActionSelection(
-        field,
-        ref,
-        {start: lineStart, end: lineStart + replacedBlock.length},
-        text,
-        getActiveMarksState(field).marks
-      );
-    }
-
-    function applyNumbered() {
-      const target = getListActionTarget();
-      if (!target) return;
-      const {field, text, setText, ref, s, e} = target;
-      if (s === e && applyCollapsedListPrefix("numbered")) return;
-
-      const {lineStart, lineEnd} = getSelectedLineBlock(text, s, e);
-      const block = text.slice(lineStart, lineEnd);
-      const lines = block.split("\n");
-      const contentLines = lines.filter((line) => line.trim());
-      const removeNumbers =
-          contentLines.length > 0 &&
-          contentLines.every((line) => /^\s*\d+\.\s+/.test(line));
-
-      let offset = lineStart;
-      let nonEmptyIdx = 0;
-      const changes: LinePrefixChange[] = [];
-
-      const replacedLines = lines.map((line) => {
-        const oldLineStart = offset;
-        const oldLineEnd = oldLineStart + line.length;
-        offset = oldLineEnd + 1;
-
-        const trimmed = line.trim();
-        if (!trimmed) return line;
-
-        const indent = line.match(/^\s*/)?.[0] ?? "";
-        const contentWithMarker = line.slice(indent.length);
-        const oldMarker = contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
-        const content = contentWithMarker.slice(oldMarker.length);
-        const newMarker = removeNumbers ? "" : `${(nonEmptyIdx += 1)}. `;
-
-        changes.push({
-          oldLineStart: oldLineStart + indent.length,
-          oldLineEnd,
-          oldPrefixLength: oldMarker.length,
-          newPrefixLength: newMarker.length,
-        });
-
-        return `${indent}${newMarker}${content}`;
-      });
-
-      const replacedBlock = replacedLines.join("\n");
-      const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
-
-      if (next !== text) {
-        setText(next);
-        const {marks, setMarks} = getActiveMarksState(field);
-        const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
-        setMarks(nextMarks);
-        restoreListActionSelection(
-          field,
-          ref,
-          {start: lineStart, end: lineStart + replacedBlock.length},
-          next,
-          nextMarks
-        );
-        return;
-      }
-
-      restoreListActionSelection(
-        field,
-        ref,
-        {start: lineStart, end: lineStart + replacedBlock.length},
-        text,
-        getActiveMarksState(field).marks
-      );
-    }
-
-    function handleNumberedListEnter(
-        field: "body" | "caption",
-        e: React.KeyboardEvent<HTMLElement>
-    ) {
-      if (
-          e.key !== "Enter" ||
-          e.shiftKey ||
-          e.altKey ||
-          e.ctrlKey ||
-          e.metaKey
-      ) {
-        return;
-      }
-
-      const {text, setText, ref} = getEditorFieldControl(field);
-      const el = ref.current as HTMLTextAreaElement | null;
-      if (!el) return;
-
-      const s = el.selectionStart ?? 0;
-      const selectionEnd = el.selectionEnd ?? s;
-      const lineStart = text.lastIndexOf("\n", Math.max(0, s - 1)) + 1;
-      const nextLineBreak = text.indexOf("\n", s);
-      const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak;
-      const line = text.slice(lineStart, lineEnd);
-      const match = line.match(/^(\s*)(\d+)\.\s(.*)$/);
-      if (!match) return;
-
-      e.preventDefault();
-      setActiveField(field);
-
-      const indent = match[1];
-      const currentNumber = Number(match[2]);
-      const marker = `${match[2]}. `;
-      const content = match[3];
-      const markerStart = lineStart + indent.length;
-      const markerEnd = markerStart + marker.length;
-
-      if (!content.trim()) {
-        const next = text.slice(0, markerStart) + text.slice(markerEnd);
-        if (next !== text) {
-          setText(next);
-          const {marks, setMarks} = getActiveMarksState(field);
-          setMarks(
-              remapMarksForLinePrefixChanges(marks, [
-                {
-                  oldLineStart: markerStart,
-                  oldLineEnd: lineEnd,
-                  oldPrefixLength: marker.length,
-                  newPrefixLength: 0,
-                },
-              ])
-          );
-        }
-
-        requestAnimationFrame(() => {
-          const node = ref.current;
-          if (!node) return;
-          node.focus();
-          node.setSelectionRange(markerStart, markerStart);
-        });
-        return;
-      }
-
-      const insert = `\n${indent}${currentNumber + 1}. `;
-      const next = text.slice(0, s) + insert + text.slice(selectionEnd);
+    if (next !== text) {
       setText(next);
-
-      const {marks, setMarks} = getActiveMarksState(field);
-      setMarks(
-          shiftMarksAfterTextChange(
-              marks,
-              s,
-              selectionEnd,
-              insert.length - (selectionEnd - s)
-          )
+      const { marks, setMarks } = getActiveMarksState(field);
+      const nextMarks = remapMarksForLinePrefixChanges(marks, [
+        {
+          oldLineStart: lineStart,
+          oldLineEnd: lineEnd,
+          oldPrefixLength: oldMarker.length,
+          newPrefixLength: newMarker.length,
+        },
+      ]);
+      setMarks(nextMarks);
+      restoreListActionSelection(
+        field,
+        ref,
+        { start: nextCursor, end: nextCursor },
+        next,
+        nextMarks,
       );
+    }
+
+    return true;
+  }
+
+  function applyBullet() {
+    const target = getListActionTarget();
+    if (!target) return;
+    const { field, text, setText, ref, s, e } = target;
+    if (s === e && applyCollapsedListPrefix("bullet")) return;
+
+    const { lineStart, lineEnd } = getSelectedLineBlock(text, s, e);
+    const block = text.slice(lineStart, lineEnd);
+    const lines = block.split("\n");
+    const contentLines = lines.filter((line) => line.trim());
+    const removeBullets =
+      contentLines.length > 0 &&
+      contentLines.every((line) => /^\s*\u2022\s+/.test(line));
+
+    let offset = lineStart;
+    const changes: LinePrefixChange[] = [];
+
+    const replacedLines = lines.map((line) => {
+      const oldLineStart = offset;
+      const oldLineEnd = oldLineStart + line.length;
+      offset = oldLineEnd + 1;
+
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+
+      const indent = line.match(/^\s*/)?.[0] ?? "";
+      const contentWithMarker = line.slice(indent.length);
+      const oldMarker =
+        contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
+      const content = contentWithMarker.slice(oldMarker.length);
+      const newMarker = removeBullets ? "" : "\u2022 ";
+
+      changes.push({
+        oldLineStart: oldLineStart + indent.length,
+        oldLineEnd,
+        oldPrefixLength: oldMarker.length,
+        newPrefixLength: newMarker.length,
+      });
+
+      return `${indent}${newMarker}${content}`;
+    });
+
+    const replacedBlock = replacedLines.join("\n");
+    const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
+
+    if (next !== text) {
+      setText(next);
+      const { marks, setMarks } = getActiveMarksState(field);
+      const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
+      setMarks(nextMarks);
+      restoreListActionSelection(
+        field,
+        ref,
+        { start: lineStart, end: lineStart + replacedBlock.length },
+        next,
+        nextMarks,
+      );
+      return;
+    }
+
+    restoreListActionSelection(
+      field,
+      ref,
+      { start: lineStart, end: lineStart + replacedBlock.length },
+      text,
+      getActiveMarksState(field).marks,
+    );
+  }
+
+  function applyNumbered() {
+    const target = getListActionTarget();
+    if (!target) return;
+    const { field, text, setText, ref, s, e } = target;
+    if (s === e && applyCollapsedListPrefix("numbered")) return;
+
+    const { lineStart, lineEnd } = getSelectedLineBlock(text, s, e);
+    const block = text.slice(lineStart, lineEnd);
+    const lines = block.split("\n");
+    const contentLines = lines.filter((line) => line.trim());
+    const removeNumbers =
+      contentLines.length > 0 &&
+      contentLines.every((line) => /^\s*\d+\.\s+/.test(line));
+
+    let offset = lineStart;
+    let nonEmptyIdx = 0;
+    const changes: LinePrefixChange[] = [];
+
+    const replacedLines = lines.map((line) => {
+      const oldLineStart = offset;
+      const oldLineEnd = oldLineStart + line.length;
+      offset = oldLineEnd + 1;
+
+      const trimmed = line.trim();
+      if (!trimmed) return line;
+
+      const indent = line.match(/^\s*/)?.[0] ?? "";
+      const contentWithMarker = line.slice(indent.length);
+      const oldMarker =
+        contentWithMarker.match(/^(\u2022|\d+\.)\s+/)?.[0] ?? "";
+      const content = contentWithMarker.slice(oldMarker.length);
+      const newMarker = removeNumbers ? "" : `${(nonEmptyIdx += 1)}. `;
+
+      changes.push({
+        oldLineStart: oldLineStart + indent.length,
+        oldLineEnd,
+        oldPrefixLength: oldMarker.length,
+        newPrefixLength: newMarker.length,
+      });
+
+      return `${indent}${newMarker}${content}`;
+    });
+
+    const replacedBlock = replacedLines.join("\n");
+    const next = text.slice(0, lineStart) + replacedBlock + text.slice(lineEnd);
+
+    if (next !== text) {
+      setText(next);
+      const { marks, setMarks } = getActiveMarksState(field);
+      const nextMarks = remapMarksForLinePrefixChanges(marks, changes);
+      setMarks(nextMarks);
+      restoreListActionSelection(
+        field,
+        ref,
+        { start: lineStart, end: lineStart + replacedBlock.length },
+        next,
+        nextMarks,
+      );
+      return;
+    }
+
+    restoreListActionSelection(
+      field,
+      ref,
+      { start: lineStart, end: lineStart + replacedBlock.length },
+      text,
+      getActiveMarksState(field).marks,
+    );
+  }
+
+  function handleNumberedListEnter(
+    field: "body" | "caption",
+    e: React.KeyboardEvent<HTMLElement>,
+  ) {
+    if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
+      return;
+    }
+
+    const { text, setText, ref } = getEditorFieldControl(field);
+    const el = ref.current as HTMLTextAreaElement | null;
+    if (!el) return;
+
+    const s = el.selectionStart ?? 0;
+    const selectionEnd = el.selectionEnd ?? s;
+    const lineStart = text.lastIndexOf("\n", Math.max(0, s - 1)) + 1;
+    const nextLineBreak = text.indexOf("\n", s);
+    const lineEnd = nextLineBreak === -1 ? text.length : nextLineBreak;
+    const line = text.slice(lineStart, lineEnd);
+    const match = line.match(/^(\s*)(\d+)\.\s(.*)$/);
+    if (!match) return;
+
+    e.preventDefault();
+    setActiveField(field);
+
+    const indent = match[1];
+    const currentNumber = Number(match[2]);
+    const marker = `${match[2]}. `;
+    const content = match[3];
+    const markerStart = lineStart + indent.length;
+    const markerEnd = markerStart + marker.length;
+
+    if (!content.trim()) {
+      const next = text.slice(0, markerStart) + text.slice(markerEnd);
+      if (next !== text) {
+        setText(next);
+        const { marks, setMarks } = getActiveMarksState(field);
+        setMarks(
+          remapMarksForLinePrefixChanges(marks, [
+            {
+              oldLineStart: markerStart,
+              oldLineEnd: lineEnd,
+              oldPrefixLength: marker.length,
+              newPrefixLength: 0,
+            },
+          ]),
+        );
+      }
 
       requestAnimationFrame(() => {
         const node = ref.current;
         if (!node) return;
-        const nextPos = s + insert.length;
         node.focus();
-        node.setSelectionRange(nextPos, nextPos);
+        node.setSelectionRange(markerStart, markerStart);
       });
+      return;
     }
 
-    function applyHashtag() {
-      withActiveSelection((text, s, e) => {
-        const result = applyOnSelectionOrWord(text, s, e, (selected) => {
-            if (!selected.trim()) return selected;
-            if (/^#\S+$/.test(selected.trim())) {
-              const leading = selected.match(/^\s*/)?.[0] ?? "";
-              const trailing = selected.match(/\s*$/)?.[0] ?? "";
-              const inner = selected.trim().replace(/^#+/, "");
-              return `${leading}${inner}${trailing}`;
-            }
-            const tag = toHashtag(selected);
-            return tag || selected;
-        });
+    const insert = `\n${indent}${currentNumber + 1}. `;
+    const next = text.slice(0, s) + insert + text.slice(selectionEnd);
+    setText(next);
 
-        return {
-          ...result,
-          preserveReplacementMarks: result.replaceEnd > result.replaceStart,
-        };
+    const { marks, setMarks } = getActiveMarksState(field);
+    setMarks(
+      shiftMarksAfterTextChange(
+        marks,
+        s,
+        selectionEnd,
+        insert.length - (selectionEnd - s),
+      ),
+    );
+
+    requestAnimationFrame(() => {
+      const node = ref.current;
+      if (!node) return;
+      const nextPos = s + insert.length;
+      node.focus();
+      node.setSelectionRange(nextPos, nextPos);
+    });
+  }
+
+  function applyHashtag() {
+    withActiveSelection((text, s, e) => {
+      const result = applyOnSelectionOrWord(text, s, e, (selected) => {
+        if (!selected.trim()) return selected;
+        if (/^#\S+$/.test(selected.trim())) {
+          const leading = selected.match(/^\s*/)?.[0] ?? "";
+          const trailing = selected.match(/\s*$/)?.[0] ?? "";
+          const inner = selected.trim().replace(/^#+/, "");
+          return `${leading}${inner}${trailing}`;
+        }
+        const tag = toHashtag(selected);
+        return tag || selected;
       });
-    }
 
-    function insertEmoji(emoji: string) {
-      withActiveSelection((text, s, e) =>
-          applyOnSelection(text, s, e, (selected) => {
-            if (!selected) return `${emoji} `;
-            return `${emoji} ${selected}`;
-          })
-      );
-    }
+      return {
+        ...result,
+        preserveReplacementMarks: result.replaceEnd > result.replaceStart,
+      };
+    });
+  }
 
-    function applyHighlightSelection() {
-      applyStyleSelection({}, "toggleHighlight");
-    }
+  function insertEmoji(emoji: string) {
+    withActiveSelection((text, s, e) =>
+      applyOnSelection(text, s, e, (selected) => {
+        if (!selected) return `${emoji} `;
+        return `${emoji} ${selected}`;
+      }),
+    );
+  }
 
-    function applyHighlightColorSelection(color: string | null) {
-      if (color) {
-        applyStyleSelection({highlight: true, highlightColor: color});
-        setActiveTextStyle({highlight: true, highlightColor: color});
-      } else {
-        applyStyleSelection({highlight: undefined, highlightColor: undefined});
-        setActiveTextStyle({highlight: false, highlightColor: undefined});
-      }
-    }
+  function applyHighlightSelection() {
+    applyStyleSelection({}, "toggleHighlight");
+  }
 
-    function applyColorSelection(color: string) {
-      applyStyleSelection({color});
-      setActiveTextStyle({color});
+  function applyHighlightColorSelection(color: string | null) {
+    if (color) {
+      applyStyleSelection({ highlight: true, highlightColor: color });
+      setActiveTextStyle({ highlight: true, highlightColor: color });
+    } else {
+      applyStyleSelection({ highlight: undefined, highlightColor: undefined });
+      setActiveTextStyle({ highlight: false, highlightColor: undefined });
     }
+  }
 
-    function applySizeSelection(size: number) {
-      applyStyleSelection({fontSize: size});
-      setActiveTextStyle({fontSize: size});
+  function applyColorSelection(color: string) {
+    applyStyleSelection({ color });
+    setActiveTextStyle({ color });
+  }
+
+  function applySizeSelection(size: number) {
+    applyStyleSelection({ fontSize: size });
+    setActiveTextStyle({ fontSize: size });
+  }
+
+  function applyFontSelection(fontFamily: string) {
+    applyStyleSelection({ fontFamily });
+    setActiveTextStyle({ fontFamily });
+  }
+
+  function applyAlignSelection(textAlign: "left" | "center" | "right") {
+    const field = isRichEditField(editField) ? editField : activeField;
+    if (!isRichEditField(field)) return;
+    const nextBase = { ...getFieldBoxStyle(field), textAlign };
+    setFieldTextAlign(field, textAlign);
+    const range = richEditSelectionRef.current[field];
+    if (range.start !== range.end) {
+      syncFloatingToolbarFormatting(field, range, undefined, nextBase);
     }
+  }
 
-    function applyFontSelection(fontFamily: string) {
-      applyStyleSelection({fontFamily});
-      setActiveTextStyle({fontFamily});
-    }
+  async function copyCaption() {
+    const { text, ref } = getEditorFieldControl();
+    const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
+    const ok = await copyTextToClipboard(text, el);
+    if (!ok) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
-    function applyAlignSelection(textAlign: "left" | "center" | "right") {
-      const field = isRichEditField(editField) ? editField : activeField;
-      if (!isRichEditField(field)) return;
-      const nextBase = {...getFieldBoxStyle(field), textAlign};
-      setFieldTextAlign(field, textAlign);
-      const range = richEditSelectionRef.current[field];
-      if (range.start !== range.end) {
-        syncFloatingToolbarFormatting(field, range, undefined, nextBase);
-      }
-    }
-
-    async function copyCaption() {
-      const {text, ref} = getEditorFieldControl();
-      const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
-      const ok = await copyTextToClipboard(text, el);
-      if (!ok) return;
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-
-    function setActiveTextStyle(patch: Partial<TextStyle>) {
-      setToolbarStyles((prev) => ({
-        ...prev,
-        [activeField]: {
-          ...prev[activeField],
-          ...patch,
-          mixed: {
-            ...prev[activeField].mixed,
-            ...(patch.fontFamily !== undefined ? {fontFamily: false} : null),
-            ...(patch.fontSize !== undefined ? {fontSize: false} : null),
-            ...(patch.color !== undefined ? {color: false} : null),
-            ...(patch.highlightColor !== undefined ? {highlightColor: false} : null),
-          },
+  function setActiveTextStyle(patch: Partial<TextStyle>) {
+    setToolbarStyles((prev) => ({
+      ...prev,
+      [activeField]: {
+        ...prev[activeField],
+        ...patch,
+        mixed: {
+          ...prev[activeField].mixed,
+          ...(patch.fontFamily !== undefined ? { fontFamily: false } : null),
+          ...(patch.fontSize !== undefined ? { fontSize: false } : null),
+          ...(patch.color !== undefined ? { color: false } : null),
+          ...(patch.highlightColor !== undefined
+            ? { highlightColor: false }
+            : null),
         },
+      },
+    }));
+  }
+
+  const activeTextStyle = toolbarStyles[activeField];
+
+  useEffect(() => {
+    if (!isPdf || !payload) return;
+
+    setCanvasPreset(payload.canvasPreset ?? "linkedin");
+
+    setHeadline(payload.headline ?? "");
+    setSubline(payload.subline ?? "");
+    setBadgeText(payload.badgeText ?? "");
+    setTitle(payload.linkTitle ?? "");
+    _setBody(payload.bodyText ?? "");
+    setBadgeMarks(payload.badgeMarks ?? []);
+    setTitleMarks(payload.titleMarks ?? []);
+    setBodyMarks(payload.bodyMarks ?? []);
+    setCompanyMarks(payload.companyMarks ?? []);
+    setCaptionMarks(payload.captionMarks ?? []);
+    setLink(
+      payload.link
+        ? payload.link
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+    );
+    setCompany(payload.company ?? "PROTOS-3D Metrology GmbH");
+
+    setProductImage(payload.productImageBase64 ?? payload.productImage ?? "");
+    setProductOrientation(payload.productOrientation ?? "landscape");
+    setProductAlign(payload.productAlign ?? "center");
+    setImageLayout(payload.imageLayout ?? "manual");
+    setFramePresetId(payload.framePresetId ?? FRAME_PRESETS[0].id);
+    setFrameSlotsState(
+      payload.frameSlots?.length
+        ? payload.frameSlots
+        : resolveFrameSlots(
+            payload.framePresetId ?? FRAME_PRESETS[0].id,
+            payload.canvasPreset ?? "linkedin",
+          ),
+    );
+    if (payload.mediaBox) setMediaBox(payload.mediaBox);
+
+    if (payload.images?.length) {
+      const nextImages: ImageItem[] = payload.images.map((img) => ({
+        id: img.id,
+        src: img.base64 ?? img.src ?? "",
+        base64: img.base64,
+        orientation: img.orientation,
+        frameSlotId: img.frameSlotId,
+        x: img.x,
+        y: img.y,
+        w: img.w,
+        h: img.h,
+        rotation: img.rotation ?? 0,
+        cropX: img.cropX ?? 50,
+        cropY: img.cropY ?? 50,
+        cropScale: img.cropScale ?? 1,
       }));
+      setImages(nextImages);
     }
 
-    const activeTextStyle = toolbarStyles[activeField];
+    if (payload.titleStyle) setTitleStyle(payload.titleStyle);
+    if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
+    if (payload.badgeStyle) setBadgeStyle(payload.badgeStyle);
+    if (payload.companyStyle) setCompanyStyle(payload.companyStyle);
+    if (payload.headlineStyle) setHeadlineStyle(payload.headlineStyle);
+    if (payload.sublineStyle) setSublineStyle(payload.sublineStyle);
+  }, [isPdf, payload]);
 
-    useEffect(() => {
-      if (!isPdf || !payload) return;
-
-      setCanvasPreset(payload.canvasPreset ?? "linkedin");
-
-      setHeadline(payload.headline ?? "");
-      setSubline(payload.subline ?? "");
-      setBadgeText(payload.badgeText ?? "");
-      setTitle(payload.linkTitle ?? "");
-      _setBody(payload.bodyText ?? "");
-      setBadgeMarks(payload.badgeMarks ?? []);
-      setTitleMarks(payload.titleMarks ?? []);
-      setBodyMarks(payload.bodyMarks ?? []);
-      setCompanyMarks(payload.companyMarks ?? []);
-      setCaptionMarks(payload.captionMarks ?? []);
-      setLink(
-          payload.link
-              ? payload.link
-                  .split("\n")
-                  .map((s) => s.trim())
-                  .filter(Boolean)
-              : []
-      );
-      setCompany(payload.company ?? "PROTOS-3D Metrology GmbH");
-
-      setProductImage(payload.productImageBase64 ?? payload.productImage ?? "");
-      setProductOrientation(payload.productOrientation ?? "landscape");
-      setProductAlign(payload.productAlign ?? "center");
-      setImageLayout(payload.imageLayout ?? "manual");
-      setFramePresetId(payload.framePresetId ?? FRAME_PRESETS[0].id);
-      setFrameSlotsState(
-        payload.frameSlots?.length
-          ? payload.frameSlots
-          : resolveFrameSlots(payload.framePresetId ?? FRAME_PRESETS[0].id, payload.canvasPreset ?? "linkedin")
-      );
-      if (payload.mediaBox) setMediaBox(payload.mediaBox);
-
-      if (payload.images?.length) {
-        const nextImages: ImageItem[] = payload.images.map((img) => ({
+  const effective = useMemo(() => {
+    if (isPdf && payload) {
+      const raw = payload.link ?? "";
+      const payloadImages =
+        payload.images?.map((img) => ({
           id: img.id,
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
@@ -4071,1161 +4392,1182 @@ export default function TemplateAClient({
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
-        }));
-        setImages(nextImages);
-      }
-
-      if (payload.titleStyle) setTitleStyle(payload.titleStyle);
-      if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
-      if (payload.badgeStyle) setBadgeStyle(payload.badgeStyle);
-      if (payload.companyStyle) setCompanyStyle(payload.companyStyle);
-      if (payload.headlineStyle) setHeadlineStyle(payload.headlineStyle);
-      if (payload.sublineStyle) setSublineStyle(payload.sublineStyle);
-    }, [isPdf, payload]);
-
-    const effective = useMemo(() => {
-      if (isPdf && payload) {
-        const raw = payload.link ?? "";
-        const payloadImages =
-            payload.images?.map((img) => ({
-              id: img.id,
-              src: img.base64 ?? img.src ?? "",
-              base64: img.base64,
-              orientation: img.orientation,
-              frameSlotId: img.frameSlotId,
-              x: img.x,
-              y: img.y,
-              w: img.w,
-              h: img.h,
-              rotation: img.rotation ?? 0,
-              cropX: img.cropX ?? 50,
-              cropY: img.cropY ?? 50,
-              cropScale: img.cropScale ?? 1,
-            })) ?? [];
-
-        return {
-          profileImage: payload.profileImage,
-          name: payload.name || "—",
-          role: payload.role || "—",
-          productImage:
-              payload.productImageBase64 ?? payload.productImage ?? undefined,
-          productImages: payloadImages,
-          productOrientation: payload.productOrientation ?? "landscape",
-          productAlign: payload.productAlign ?? "center",
-          imageLayout: payload.imageLayout ?? "manual",
-          framePresetId: payload.framePresetId ?? FRAME_PRESETS[0].id,
-          frameSlots:
-            payload.frameSlots?.length
-              ? payload.frameSlots
-              : resolveFrameSlots(
-                  payload.framePresetId ?? FRAME_PRESETS[0].id,
-                  payload.canvasPreset ?? "linkedin"
-                ),
-          mediaBox: payload.mediaBox ?? mediaBox,
-          badgeText: payload.badgeText?.trim() ? payload.badgeText.trim() : undefined,
-          badgeMarks: payload.badgeMarks ?? [],
-          linkTitle: payload.linkTitle ?? "",
-          titleMarks: payload.titleMarks ?? [],
-          company: payload.company ?? "",
-          companyMarks: payload.companyMarks ?? [],
-          bodyText: payload.bodyText ?? "",
-          bodyMarks: payload.bodyMarks ?? [],
-          linkUrl: raw.trim() ? raw : undefined,
-          headline: payload.headline?.trim() ? payload.headline.trim() : undefined,
-          subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
-
-          titleStyle: payload.titleStyle ?? titleStyle,
-          bodyStyle: payload.bodyStyle ?? bodyBoxStyle,
-          badgeStyle: payload.badgeStyle ?? badgeStyle,
-          companyStyle: payload.companyStyle ?? companyStyle,
-          headlineStyle: payload.headlineStyle ?? headlineStyle,
-          sublineStyle: payload.sublineStyle ?? sublineStyle,
-          canvasPreset: payload.canvasPreset ?? canvasPreset,
-        };
-      }
+        })) ?? [];
 
       return {
-        profileImage: sessionProfileImage,
-        name: sessionName || "—",
-        role: sessionRole || "—",
-        productImage: productImage || undefined,
-        productImages: images,
-        productOrientation,
-        productAlign,
-        imageLayout,
-        framePresetId,
-        frameSlots: frameSlotsState,
-        mediaBox,
-        badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
-        badgeMarks,
-        linkTitle: title || "",
-        titleMarks,
-        company: company || "",
-        companyMarks,
-        bodyText: body || "",
-        bodyMarks,
-        linkUrl: normalizedLink,
-        headline: headline?.trim() ? headline.trim() : undefined,
-        subline: subline?.trim() ? subline.trim() : undefined,
+        profileImage: payload.profileImage,
+        name: payload.name || "—",
+        role: payload.role || "—",
+        productImage:
+          payload.productImageBase64 ?? payload.productImage ?? undefined,
+        productImages: payloadImages,
+        productOrientation: payload.productOrientation ?? "landscape",
+        productAlign: payload.productAlign ?? "center",
+        imageLayout: payload.imageLayout ?? "manual",
+        framePresetId: payload.framePresetId ?? FRAME_PRESETS[0].id,
+        frameSlots: payload.frameSlots?.length
+          ? payload.frameSlots
+          : resolveFrameSlots(
+              payload.framePresetId ?? FRAME_PRESETS[0].id,
+              payload.canvasPreset ?? "linkedin",
+            ),
+        mediaBox: payload.mediaBox ?? mediaBox,
+        badgeText: payload.badgeText?.trim()
+          ? payload.badgeText.trim()
+          : undefined,
+        badgeMarks: payload.badgeMarks ?? [],
+        linkTitle: payload.linkTitle ?? "",
+        titleMarks: payload.titleMarks ?? [],
+        company: payload.company ?? "",
+        companyMarks: payload.companyMarks ?? [],
+        bodyText: payload.bodyText ?? "",
+        bodyMarks: payload.bodyMarks ?? [],
+        linkUrl: raw.trim() ? raw : undefined,
+        headline: payload.headline?.trim()
+          ? payload.headline.trim()
+          : undefined,
+        subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
 
-        titleStyle,
-        bodyStyle: bodyBoxStyle,
-        badgeStyle,
-        companyStyle,
-        headlineStyle,
-        sublineStyle,
-        canvasPreset,
+        titleStyle: payload.titleStyle ?? titleStyle,
+        bodyStyle: payload.bodyStyle ?? bodyBoxStyle,
+        badgeStyle: payload.badgeStyle ?? badgeStyle,
+        companyStyle: payload.companyStyle ?? companyStyle,
+        headlineStyle: payload.headlineStyle ?? headlineStyle,
+        sublineStyle: payload.sublineStyle ?? sublineStyle,
+        canvasPreset: payload.canvasPreset ?? canvasPreset,
       };
-    }, [
-      isPdf,
-      payload,
-      sessionProfileImage,
-      sessionName,
-      sessionRole,
-      productImage,
-      images,
+    }
+
+    return {
+      profileImage: sessionProfileImage,
+      name: sessionName || "—",
+      role: sessionRole || "—",
+      productImage: productImage || undefined,
+      productImages: images,
       productOrientation,
       productAlign,
       imageLayout,
       framePresetId,
-      frameSlotsState,
+      frameSlots: frameSlotsState,
       mediaBox,
-      badgeText,
+      badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
       badgeMarks,
-      title,
+      linkTitle: title || "",
       titleMarks,
-      company,
+      company: company || "",
       companyMarks,
-      body,
+      bodyText: body || "",
       bodyMarks,
-      normalizedLink,
-      headline,
-      subline,
+      linkUrl: normalizedLink,
+      headline: headline?.trim() ? headline.trim() : undefined,
+      subline: subline?.trim() ? subline.trim() : undefined,
+
       titleStyle,
-      bodyBoxStyle,
+      bodyStyle: bodyBoxStyle,
       badgeStyle,
       companyStyle,
       headlineStyle,
       sublineStyle,
       canvasPreset,
-    ]);
+    };
+  }, [
+    isPdf,
+    payload,
+    sessionProfileImage,
+    sessionName,
+    sessionRole,
+    productImage,
+    images,
+    productOrientation,
+    productAlign,
+    imageLayout,
+    framePresetId,
+    frameSlotsState,
+    mediaBox,
+    badgeText,
+    badgeMarks,
+    title,
+    titleMarks,
+    company,
+    companyMarks,
+    body,
+    bodyMarks,
+    normalizedLink,
+    headline,
+    subline,
+    titleStyle,
+    bodyBoxStyle,
+    badgeStyle,
+    companyStyle,
+    headlineStyle,
+    sublineStyle,
+    canvasPreset,
+  ]);
 
-    useEffect(() => {
-      return () => {
-        if (finalUrl) URL.revokeObjectURL(finalUrl);
-      };
-    }, [finalUrl]);
+  useEffect(() => {
+    return () => {
+      if (finalUrl) URL.revokeObjectURL(finalUrl);
+    };
+  }, [finalUrl]);
 
-    useEffect(() => {
-      if (!videoFile) {
-        setVideoPreviewUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return null;
-        });
-        return;
-      }
-
-      const url = URL.createObjectURL(videoFile);
-      const pendingBox = pendingVideoBoxRef.current;
-      pendingVideoBoxRef.current = null;
-      setVideoBox(pendingBox ?? getInitialVideoBox());
-      if (!pendingBox) {
-        bringVideoObjectToFront();
-      }
+  useEffect(() => {
+    if (!videoFile) {
       setVideoPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
-        return url;
+        return null;
+      });
+      return;
+    }
+
+    const url = URL.createObjectURL(videoFile);
+    const pendingBox = pendingVideoBoxRef.current;
+    pendingVideoBoxRef.current = null;
+    setVideoBox(pendingBox ?? getInitialVideoBox());
+    if (!pendingBox) {
+      bringVideoObjectToFront();
+    }
+    setVideoPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+
+    return () => {
+      URL.revokeObjectURL(url);
+    };
+  }, [videoFile]);
+
+  function resetMessages() {
+    setSuccessMsg("");
+    setErrorMsg("");
+  }
+
+  function validate(): boolean {
+    const next: FieldErrors = {};
+    if (!title.trim()) next.title = "*";
+    if (!body.trim()) next.body = "*";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  }
+
+  async function downloadPDF(e?: React.MouseEvent<HTMLButtonElement>) {
+    e?.preventDefault();
+    e?.stopPropagation();
+
+    resetMessages();
+
+    if (!validate()) {
+      setErrorMsg("please fill all of the Fields");
+      return;
+    }
+
+    setLoadingPdf(true);
+    try {
+      const legacyProductImageBase64 =
+        productImageFile != null
+          ? await fileToBase64(productImageFile)
+          : undefined;
+
+      const imagePayload: ImagePayloadItem[] = images.map((img) => ({
+        id: img.id,
+        src: img.src,
+        base64: img.base64,
+        orientation: img.orientation,
+        frameSlotId: img.frameSlotId,
+        x: img.x,
+        y: img.y,
+        w: img.w,
+        h: img.h,
+        rotation: img.rotation,
+        cropX: img.cropX ?? 50,
+        cropY: img.cropY ?? 50,
+        cropScale: img.cropScale ?? 1,
+      }));
+
+      const data: PdfPayload = {
+        profileImage: sessionProfileImage,
+        name: sessionName,
+        role: sessionRole,
+
+        productImage: productImage?.trim() ? productImage : undefined,
+        productOrientation,
+        productAlign,
+        imageLayout,
+        framePresetId,
+        frameSlots: frameSlotsState,
+        productImageBase64: legacyProductImageBase64,
+        mediaBox,
+
+        images: imagePayload,
+
+        badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+        badgeMarks,
+        badgeStyle,
+        linkTitle: title?.trim() ? title.trim() : "",
+        titleMarks,
+        company: company?.trim() ? company.trim() : "",
+        companyMarks,
+        bodyText: body ?? "",
+        bodyMarks,
+        captionMarks,
+
+        titleStyle,
+        bodyStyle: bodyBoxStyle,
+        companyStyle,
+        headlineStyle,
+        sublineStyle,
+
+        headline: headline?.trim() ? headline.trim() : undefined,
+        subline: subline?.trim() ? subline.trim() : undefined,
+
+        link: link.length ? link.join("\n") : "",
+        canvasPreset,
+      };
+
+      const res = await fetch("/api/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
 
-      return () => {
-        URL.revokeObjectURL(url);
-      };
-    }, [videoFile]);
-
-    function resetMessages() {
-      setSuccessMsg("");
-      setErrorMsg("");
-    }
-
-    function validate(): boolean {
-      const next: FieldErrors = {};
-      if (!title.trim()) next.title = "*";
-      if (!body.trim()) next.body = "*";
-      setErrors(next);
-      return Object.keys(next).length === 0;
-    }
-
-    async function downloadPDF(e?: React.MouseEvent<HTMLButtonElement>) {
-      e?.preventDefault();
-      e?.stopPropagation();
-
-      resetMessages();
-
-      if (!validate()) {
-        setErrorMsg("please fill all of the Fields");
-        return;
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t || "PDF API failed");
       }
 
-      setLoadingPdf(true);
-      try {
-        const legacyProductImageBase64 =
-            productImageFile != null ? await fileToBase64(productImageFile) : undefined;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
 
-        const imagePayload: ImagePayloadItem[] = images.map((img) => ({
-          id: img.id,
-          src: img.src,
-          base64: img.base64,
-          orientation: img.orientation,
-          frameSlotId: img.frameSlotId,
-          x: img.x,
-          y: img.y,
-          w: img.w,
-          h: img.h,
-          rotation: img.rotation,
-          cropX: img.cropX ?? 50,
-          cropY: img.cropY ?? 50,
-          cropScale: img.cropScale ?? 1,
-        }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "linkedin-template-a.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
 
-        const data: PdfPayload = {
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setSuccessMsg("PDF is created successfully.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "PDF is not created";
+      setErrorMsg(message);
+    } finally {
+      setLoadingPdf(false);
+    }
+  }
+
+  async function generateFinal(e?: React.MouseEvent<HTMLButtonElement>) {
+    e?.preventDefault();
+    e?.stopPropagation();
+
+    resetMessages();
+
+    if (!validate()) {
+      setErrorMsg("Please fill in the form completely!");
+      return;
+    }
+    if (!videoFile) {
+      setErrorMsg("first choose a Video!");
+      return;
+    }
+
+    setFinalLoading(true);
+    try {
+      const imagePayload: ImagePayloadItem[] = images.map((img) => ({
+        id: img.id,
+        src: img.src,
+        base64: img.base64,
+        orientation: img.orientation,
+        frameSlotId: img.frameSlotId,
+        x: img.x,
+        y: img.y,
+        w: img.w,
+        h: img.h,
+        rotation: img.rotation,
+        cropX: img.cropX ?? 50,
+        cropY: img.cropY ?? 50,
+        cropScale: img.cropScale ?? 1,
+      }));
+
+      const form = new FormData();
+      form.append(
+        "data",
+        JSON.stringify({
           profileImage: sessionProfileImage,
           name: sessionName,
           role: sessionRole,
-
-          productImage: productImage?.trim() ? productImage : undefined,
-          productOrientation,
-          productAlign,
-          imageLayout,
-          framePresetId,
-          frameSlots: frameSlotsState,
-          productImageBase64: legacyProductImageBase64,
-          mediaBox,
-
-          images: imagePayload,
-
-          badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+          linkTitle: title,
+          titleMarks,
+          bodyText: body,
+          bodyMarks,
+          headline,
+          subline,
+          badgeText,
           badgeMarks,
           badgeStyle,
-          linkTitle: title?.trim() ? title.trim() : "",
-          titleMarks,
-          company: company?.trim() ? company.trim() : "",
+          company,
           companyMarks,
-          bodyText: body ?? "",
-          bodyMarks,
-          captionMarks,
-
+          link: link.length ? link.join("\n") : "",
+          mediaBox,
+          images: imagePayload,
           titleStyle,
           bodyStyle: bodyBoxStyle,
           companyStyle,
           headlineStyle,
           sublineStyle,
-
-          headline: headline?.trim() ? headline.trim() : undefined,
-          subline: subline?.trim() ? subline.trim() : undefined,
-
-          link: link.length ? link.join("\n") : "",
           canvasPreset,
-        };
-
-        const res = await fetch("/api/pdf", {
-          method: "POST",
-          headers: {"Content-Type": "application/json"},
-          body: JSON.stringify(data),
-        });
-
-        if (!res.ok) {
-          const t = await res.text();
-          throw new Error(t || "PDF API failed");
-        }
-
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "linkedin-template-a.pdf";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-
-        window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-        setSuccessMsg("PDF is created successfully.");
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "PDF is not created";
-        setErrorMsg(message);
-      } finally {
-        setLoadingPdf(false);
-      }
-    }
-
-    async function generateFinal(e?: React.MouseEvent<HTMLButtonElement>) {
-      e?.preventDefault();
-      e?.stopPropagation();
-
-      resetMessages();
-
-      if (!validate()) {
-        setErrorMsg("Please fill in the form completely!");
-        return;
-      }
-      if (!videoFile) {
-        setErrorMsg("first choose a Video!");
-        return;
-      }
-
-      setFinalLoading(true);
-      try {
-        const imagePayload: ImagePayloadItem[] = images.map((img) => ({
-          id: img.id,
-          src: img.src,
-          base64: img.base64,
-          orientation: img.orientation,
-          frameSlotId: img.frameSlotId,
-          x: img.x,
-          y: img.y,
-          w: img.w,
-          h: img.h,
-          rotation: img.rotation,
-          cropX: img.cropX ?? 50,
-          cropY: img.cropY ?? 50,
-          cropScale: img.cropScale ?? 1,
-        }));
-
-        const form = new FormData();
-        form.append(
-            "data",
-            JSON.stringify({
-              profileImage: sessionProfileImage,
-              name: sessionName,
-              role: sessionRole,
-              linkTitle: title,
-              titleMarks,
-              bodyText: body,
-              bodyMarks,
-              headline,
-              subline,
-              badgeText,
-              badgeMarks,
-              badgeStyle,
-              company,
-              companyMarks,
-              link: link.length ? link.join("\n") : "",
-              mediaBox,
-              images: imagePayload,
-              titleStyle,
-              bodyStyle: bodyBoxStyle,
-              companyStyle,
-              headlineStyle,
-              sublineStyle,
-              canvasPreset,
-              productOrientation,
-              productAlign,
-              imageLayout,
-              framePresetId,
-              frameSlots: frameSlotsState,
-            })
-        );
-        form.append(
-          "videoBox",
-          JSON.stringify({
-            x: videoBox.x,
-            y: videoBox.y,
-            w: videoBox.w,
-            h: videoBox.h,
-          })
-        );
-        form.append("video", videoFile);
-
-        const res = await fetch("/api/video/final", {
-          method: "POST",
-          body: form,
-        });
-        if (!res.ok) throw new Error(await res.text());
-
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-
-        setFinalUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return url;
-        });
-
-        setSuccessMsg("final.mp4 is created!");
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "the creation failed.";
-        setErrorMsg(message);
-      } finally {
-        setFinalLoading(false);
-      }
-    }
-
-    const selectedImage = getSelectedImage();
-    const frameSlots = useMemo(
-      () =>
-        resolveFrameSlots(framePresetId, canvasPreset).map((slot) => ({
-          ...slot,
-          imageId: images.find((img) => img.frameSlotId === slot.id)?.id,
-        })),
-      [framePresetId, canvasPreset, images]
-    );
-
-    const selectionHandles: SelectionHandle[] = selectedRect
-        ? [
-          {
-            key: "nw",
-            left: -8,
-            top: -8,
-            cursor: "nwse-resize",
-            mode: "resize-nw" as DragMode,
-          },
-          {
-            key: "n",
-            left: "50%",
-            top: -8,
-            transform: "translateX(-50%)",
-            cursor: "ns-resize",
-            mode: "resize-n" as DragMode,
-          },
-          {
-            key: "ne",
-            right: -8,
-            top: -8,
-            cursor: "nesw-resize",
-            mode: "resize-ne" as DragMode,
-          },
-          {
-            key: "e",
-            right: -8,
-            top: "50%",
-            transform: "translateY(-50%)",
-            cursor: "ew-resize",
-            mode: "resize-e" as DragMode,
-          },
-          {
-            key: "se",
-            right: -8,
-            bottom: -8,
-            cursor: "nwse-resize",
-            mode: "resize-se" as DragMode,
-          },
-          {
-            key: "s",
-            left: "50%",
-            bottom: -8,
-            transform: "translateX(-50%)",
-            cursor: "ns-resize",
-            mode: "resize-s" as DragMode,
-          },
-          {
-            key: "sw",
-            left: -8,
-            bottom: -8,
-            cursor: "nesw-resize",
-            mode: "resize-sw" as DragMode,
-          },
-          {
-            key: "w",
-            left: -8,
-            top: "50%",
-            transform: "translateY(-50%)",
-            cursor: "ew-resize",
-            mode: "resize-w" as DragMode,
-          },
-        ]
-        : [];
-
-    if (isPdf) {
-      return (
-          <div
-              style={{
-                width: currentCanvas.w,
-                background: "#ffffff",
-                overflow: "visible",
-              }}
-          >
-            <LinkedInTemplate2
-                scale={1}
-                canvasPreset={effective.canvasPreset}
-                productImage={effective.productImage}
-                productImages={effective.productImages}
-                productOrientation={effective.productOrientation}
-                productAlign={effective.productAlign}
-                imageLayout={effective.imageLayout}
-                framePresetId={effective.framePresetId}
-                frameSlots={effective.frameSlots}
-                mediaBox={effective.mediaBox}
-                profileImage={effective.profileImage}
-                name={effective.name}
-                role={effective.role}
-                badgeText={effective.badgeText}
-                badgeMarks={effective.badgeMarks}
-                linkTitle={effective.linkTitle}
-                titleMarks={effective.titleMarks}
-                company={effective.company}
-                companyMarks={effective.companyMarks}
-                bodyText={effective.bodyText}
-                bodyMarks={effective.bodyMarks}
-                linkUrl={effective.linkUrl}
-                headline={effective.headline}
-                subline={effective.subline}
-                companyLogo="/logo.png"
-                titleStyle={effective.titleStyle}
-                bodyStyle={effective.bodyStyle}
-                badgeStyle={effective.badgeStyle}
-                companyStyle={effective.companyStyle}
-                headlineStyle={effective.headlineStyle}
-                sublineStyle={effective.sublineStyle}
-            />
-          </div>
+          productOrientation,
+          productAlign,
+          imageLayout,
+          framePresetId,
+          frameSlots: frameSlotsState,
+        }),
       );
+      form.append(
+        "videoBox",
+        JSON.stringify({
+          x: videoBox.x,
+          y: videoBox.y,
+          w: videoBox.w,
+          h: videoBox.h,
+        }),
+      );
+      form.append("video", videoFile);
+
+      const res = await fetch("/api/video/final", {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) throw new Error(await res.text());
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+
+      setFinalUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return url;
+      });
+
+      setSuccessMsg("final.mp4 is created!");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "the creation failed.";
+      setErrorMsg(message);
+    } finally {
+      setFinalLoading(false);
     }
+  }
 
+  const selectedImage = getSelectedImage();
+  const frameSlots = useMemo(
+    () =>
+      resolveFrameSlots(framePresetId, canvasPreset).map((slot) => ({
+        ...slot,
+        imageId: images.find((img) => img.frameSlotId === slot.id)?.id,
+      })),
+    [framePresetId, canvasPreset, images],
+  );
+
+  const selectionHandles: SelectionHandle[] = selectedRect
+    ? [
+        {
+          key: "nw",
+          left: -8,
+          top: -8,
+          cursor: "nwse-resize",
+          mode: "resize-nw" as DragMode,
+        },
+        {
+          key: "n",
+          left: "50%",
+          top: -8,
+          transform: "translateX(-50%)",
+          cursor: "ns-resize",
+          mode: "resize-n" as DragMode,
+        },
+        {
+          key: "ne",
+          right: -8,
+          top: -8,
+          cursor: "nesw-resize",
+          mode: "resize-ne" as DragMode,
+        },
+        {
+          key: "e",
+          right: -8,
+          top: "50%",
+          transform: "translateY(-50%)",
+          cursor: "ew-resize",
+          mode: "resize-e" as DragMode,
+        },
+        {
+          key: "se",
+          right: -8,
+          bottom: -8,
+          cursor: "nwse-resize",
+          mode: "resize-se" as DragMode,
+        },
+        {
+          key: "s",
+          left: "50%",
+          bottom: -8,
+          transform: "translateX(-50%)",
+          cursor: "ns-resize",
+          mode: "resize-s" as DragMode,
+        },
+        {
+          key: "sw",
+          left: -8,
+          bottom: -8,
+          cursor: "nesw-resize",
+          mode: "resize-sw" as DragMode,
+        },
+        {
+          key: "w",
+          left: -8,
+          top: "50%",
+          transform: "translateY(-50%)",
+          cursor: "ew-resize",
+          mode: "resize-w" as DragMode,
+        },
+      ]
+    : [];
+
+  if (isPdf) {
     return (
-        <LinkedInEditorBaseClient
-            title="LinkedIn - Template A"
-            successMsg={successMsg}
-            errorMsg={errorMsg}
-        >
-          <LinkedInEditorLayout
-              preview={
-                <>
-                  <div className="editor-previewShell">
-                    <div className="editor-previewHeader">
-                      <div>
-                        <div className="editor-previewEyebrow">Live canvas</div>
-                        <h2 className="editor-previewTitle">Preview</h2>
-                        <p className="editor-previewText">
-                          Edit directly on canvas, then fine-tune details from the side panels.
-                        </p>
-                      </div>
+      <div
+        style={{
+          width: currentCanvas.w,
+          background: "#ffffff",
+          overflow: "visible",
+        }}
+      >
+        <LinkedInTemplate2
+          scale={1}
+          canvasPreset={effective.canvasPreset}
+          productImage={effective.productImage}
+          productImages={effective.productImages}
+          productOrientation={effective.productOrientation}
+          productAlign={effective.productAlign}
+          imageLayout={effective.imageLayout}
+          framePresetId={effective.framePresetId}
+          frameSlots={effective.frameSlots}
+          mediaBox={effective.mediaBox}
+          profileImage={effective.profileImage}
+          name={effective.name}
+          role={effective.role}
+          badgeText={effective.badgeText}
+          badgeMarks={effective.badgeMarks}
+          linkTitle={effective.linkTitle}
+          titleMarks={effective.titleMarks}
+          company={effective.company}
+          companyMarks={effective.companyMarks}
+          bodyText={effective.bodyText}
+          bodyMarks={effective.bodyMarks}
+          linkUrl={effective.linkUrl}
+          headline={effective.headline}
+          subline={effective.subline}
+          companyLogo="/logo.png"
+          titleStyle={effective.titleStyle}
+          bodyStyle={effective.bodyStyle}
+          badgeStyle={effective.badgeStyle}
+          companyStyle={effective.companyStyle}
+          headlineStyle={effective.headlineStyle}
+          sublineStyle={effective.sublineStyle}
+        />
+      </div>
+    );
+  }
 
-                      <label className="editor-previewControl">
-                        <span>Canvas</span>
-                      <select
-                          value={canvasPreset}
-                          onChange={(e) => {
-                            const v = e.target.value as CanvasPresetKey;
-                            setCanvasPreset(v);
-                            clearSelection();
-                          }}
-                          className="editor-previewSelect"
-                      >
-                        <option value="linkedin">{CANVAS_LABELS.linkedin}</option>
-                        <option value="instagram">{CANVAS_LABELS.instagram}</option>
-                        <option value="instagramStory">
-                          {CANVAS_LABELS.instagramStory}
-                        </option>
-                      </select>
-                      </label>
+  return (
+    <LinkedInEditorBaseClient
+      title="LinkedIn - Template A"
+      successMsg={successMsg}
+      errorMsg={errorMsg}
+    >
+      <LinkedInEditorLayout
+        preview={
+          <>
+            <div className="editor-previewShell">
+              <div className="editor-previewHeader">
+                <div>
+                  <div className="editor-previewEyebrow">Live canvas</div>
+                  <h2 className="editor-previewTitle">Preview</h2>
+                  <p className="editor-previewText">
+                    Edit directly on canvas, then fine-tune details from the
+                    side panels.
+                  </p>
+                </div>
+
+                <label className="editor-previewControl">
+                  <span>Canvas</span>
+                  <select
+                    value={canvasPreset}
+                    onChange={(e) => {
+                      const v = e.target.value as CanvasPresetKey;
+                      setCanvasPreset(v);
+                      clearSelection();
+                    }}
+                    className="editor-previewSelect"
+                  >
+                    <option value="linkedin">{CANVAS_LABELS.linkedin}</option>
+                    <option value="instagram">{CANVAS_LABELS.instagram}</option>
+                    <option value="instagramStory">
+                      {CANVAS_LABELS.instagramStory}
+                    </option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="preview-stage">
+                <div
+                  ref={canvasWrapRef}
+                  className="preview-canvasWrap"
+                  style={{
+                    width: previewViewportW,
+                    height: previewViewportH,
+                    position: "relative",
+                    overflow: "hidden",
+                    userSelect: editField ? "text" : "none",
+                  }}
+                  onClick={onCanvasClick}
+                  onDoubleClick={onCanvasDoubleClick}
+                >
+                  <div
+                    ref={stageRef}
+                    className="li2-stage"
+                    style={{
+                      width: currentCanvas.w,
+                      height: previewContentHeight,
+                      transform: `scale(${previewScale})`,
+                      transformOrigin: "top left",
+                      position: "absolute",
+                      left: 0,
+                      top: 0,
+                    }}
+                  >
+                    <div className="li2-template">
+                      <LinkedInTemplate2
+                        scale={1}
+                        mode="edit"
+                        canvasPreset={canvasPreset}
+                        productImage={effective.productImage}
+                        productImages={effective.productImages}
+                        editorHideProductMedia
+                        editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
+                        productOrientation={effective.productOrientation}
+                        productAlign={effective.productAlign}
+                        imageLayout={effective.imageLayout}
+                        framePresetId={effective.framePresetId}
+                        frameSlots={effective.frameSlots}
+                        mediaBox={effective.mediaBox}
+                        profileImage={effective.profileImage}
+                        name={effective.name}
+                        role={effective.role}
+                        badgeText={effective.badgeText}
+                        badgeMarks={effective.badgeMarks}
+                        linkTitle={effective.linkTitle}
+                        titleMarks={effective.titleMarks}
+                        company={effective.company}
+                        companyMarks={effective.companyMarks}
+                        bodyText={effective.bodyText}
+                        bodyMarks={effective.bodyMarks}
+                        companyLogo="/logo.png"
+                        linkUrl={effective.linkUrl}
+                        headline={effective.headline}
+                        subline={effective.subline}
+                        titleStyle={effective.titleStyle}
+                        bodyStyle={effective.bodyStyle}
+                        badgeStyle={effective.badgeStyle}
+                        companyStyle={effective.companyStyle}
+                        headlineStyle={effective.headlineStyle}
+                        sublineStyle={effective.sublineStyle}
+                        onStartFrameImageDrag={startFrameImageDrag}
+                        onSelectableClick={(field, event) => {
+                          event.stopPropagation();
+                          selectCanvasField(field, event.currentTarget);
+                        }}
+                        onSelectableDoubleClick={(field, event) => {
+                          event.stopPropagation();
+                          activateCanvasField(field, event.currentTarget);
+                        }}
+                      />
                     </div>
 
-                    <div className="preview-stage">
-                      <div
-                        ref={canvasWrapRef}
-                        className="preview-canvasWrap"
-                        style={{
-                          width: previewViewportW,
-                          height: previewViewportH,
-                          position: "relative",
-                          overflow: "hidden",
-                          userSelect: editField ? "text" : "none",
-                        }}
-                        onClick={onCanvasClick}
-                        onDoubleClick={onCanvasDoubleClick}
-                      >
+                    {editorMediaImages.map((img) => {
+                      const cropX = Number.isFinite(img.cropX)
+                        ? Number(img.cropX)
+                        : 50;
+                      const cropY = Number.isFinite(img.cropY)
+                        ? Number(img.cropY)
+                        : 50;
+                      const cropScale = Number.isFinite(img.cropScale)
+                        ? Number(img.cropScale)
+                        : 1;
+
+                      return (
                         <div
-                          ref={stageRef}
-                          className="li2-stage"
+                          key={`editor-media-${img.id}`}
+                          data-select="productImage"
+                          data-image-id={img.id}
+                          data-frame-slot-id={img.frameSlotId}
+                          aria-label="Product image"
                           style={{
-                            width: currentCanvas.w,
-                            height: previewContentHeight,
-                            transform: `scale(${previewScale})`,
-                            transformOrigin: "top left",
                             position: "absolute",
-                            left: 0,
-                            top: 0,
+                            left: img.x,
+                            top: img.y,
+                            width: img.w,
+                            height: img.h,
+                            zIndex: img.zIndex,
+                            overflow: "hidden",
+                            borderRadius: img.radius,
+                            clipPath: img.clipPath,
+                            transform: `rotate(${img.rotation}deg)`,
+                            transformOrigin: "center center",
+                            border:
+                              imageLayout === "collage"
+                                ? "1px solid rgba(255,255,255,0.92)"
+                                : "1px solid rgba(15,23,42,0.10)",
+                            background:
+                              imageLayout === "collage"
+                                ? "#ffffff"
+                                : "transparent",
+                            pointerEvents: "auto",
+                            boxSizing: "border-box",
                           }}
+                          onMouseDown={(e) =>
+                            startMediaInteraction(e, "move", img)
+                          }
                         >
-                        <div className="li2-template">
-                          <LinkedInTemplate2
-                            scale={1}
-                            mode="edit"
-                            canvasPreset={canvasPreset}
-                            productImage={effective.productImage}
-                            productImages={effective.productImages}
-                            editorHideProductMedia
-                            editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
-                            productOrientation={effective.productOrientation}
-                            productAlign={effective.productAlign}
-                            imageLayout={effective.imageLayout}
-                            framePresetId={effective.framePresetId}
-                            frameSlots={effective.frameSlots}
-                            mediaBox={effective.mediaBox}
-                            profileImage={effective.profileImage}
-                            name={effective.name}
-                            role={effective.role}
-                            badgeText={effective.badgeText}
-                            badgeMarks={effective.badgeMarks}
-                            linkTitle={effective.linkTitle}
-                            titleMarks={effective.titleMarks}
-                            company={effective.company}
-                            companyMarks={effective.companyMarks}
-                            bodyText={effective.bodyText}
-                            bodyMarks={effective.bodyMarks}
-                            companyLogo="/logo.png"
-                            linkUrl={effective.linkUrl}
-                            headline={effective.headline}
-                            subline={effective.subline}
-                            titleStyle={effective.titleStyle}
-                            bodyStyle={effective.bodyStyle}
-                            badgeStyle={effective.badgeStyle}
-                            companyStyle={effective.companyStyle}
-                            headlineStyle={effective.headlineStyle}
-                            sublineStyle={effective.sublineStyle}
-                            onStartFrameImageDrag={startFrameImageDrag}
-                            onSelectableClick={(field, event) => {
-                              event.stopPropagation();
-                              selectCanvasField(field, event.currentTarget);
-                            }}
-                            onSelectableDoubleClick={(field, event) => {
-                              event.stopPropagation();
-                              activateCanvasField(field, event.currentTarget);
+                          <img
+                            src={img.src}
+                            alt="product"
+                            draggable={false}
+                            style={{
+                              position: "absolute",
+                              left: `${cropX}%`,
+                              top: `${cropY}%`,
+                              width: `${cropScale * 100}%`,
+                              height: `${cropScale * 100}%`,
+                              maxWidth: "none",
+                              maxHeight: "none",
+                              transform: "translate(-50%, -50%)",
+                              objectFit: "cover",
+                              display: "block",
+                              userSelect: "none",
+                              pointerEvents: "none",
                             }}
                           />
                         </div>
+                      );
+                    })}
 
-                        {editorMediaImages.map((img) => {
-                          const cropX = Number.isFinite(img.cropX) ? Number(img.cropX) : 50;
-                          const cropY = Number.isFinite(img.cropY) ? Number(img.cropY) : 50;
-                          const cropScale = Number.isFinite(img.cropScale)
-                            ? Number(img.cropScale)
-                            : 1;
+                    {videoPreviewUrl ? (
+                      <div
+                        data-select="video"
+                        aria-label="Uploaded video preview"
+                        style={{
+                          position: "absolute",
+                          left: videoBox.x,
+                          top: videoBox.y,
+                          width: videoBox.w,
+                          height: videoBox.h,
+                          zIndex: videoPreviewZIndex,
+                          overflow: "hidden",
+                          borderRadius: 20,
+                          transformOrigin: "center center",
+                          border: "1px solid rgba(15,23,42,0.10)",
+                          background: "#111827",
+                          pointerEvents: "auto",
+                          boxSizing: "border-box",
+                        }}
+                        onMouseDown={(e) => startVideoInteraction(e, "move")}
+                      >
+                        <video
+                          src={videoPreviewUrl}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            pointerEvents: "none",
+                            userSelect: "none",
+                          }}
+                        />
+                      </div>
+                    ) : null}
 
-                          return (
-                            <div
-                              key={`editor-media-${img.id}`}
-                              data-select="productImage"
-                              data-image-id={img.id}
-                              data-frame-slot-id={img.frameSlotId}
-                              aria-label="Product image"
-                              style={{
-                                position: "absolute",
-                                left: img.x,
-                                top: img.y,
-                                width: img.w,
-                                height: img.h,
-                                zIndex: img.zIndex,
-                                overflow: "hidden",
-                                borderRadius: img.radius,
-                                clipPath: img.clipPath,
-                                transform: `rotate(${img.rotation}deg)`,
-                                transformOrigin: "center center",
-                                border: imageLayout === "collage"
-                                  ? "1px solid rgba(255,255,255,0.92)"
-                                  : "1px solid rgba(15,23,42,0.10)",
-                                background: imageLayout === "collage" ? "#ffffff" : "transparent",
-                                pointerEvents: "auto",
-                                boxSizing: "border-box",
-                              }}
-                              onMouseDown={(e) => startMediaInteraction(e, "move", img)}
-                            >
-                              <img
-                                src={img.src}
-                                alt="product"
-                                draggable={false}
+                    {selectedRect ? (
+                      <div
+                        className={`editor-canvasSelection ${
+                          isPreviewTextSelectableId(selectedId)
+                            ? "editor-canvasSelection--text"
+                            : "editor-canvasSelection--media"
+                        }`}
+                        data-selection-overlay="true"
+                        data-media-selection-ui="true"
+                        data-select={selectedId ?? undefined}
+                        data-image-id={
+                          selectedId === "productImage"
+                            ? (selectedImageId ?? undefined)
+                            : undefined
+                        }
+                        data-active-element={selectedId ?? undefined}
+                        style={{
+                          position: "absolute",
+                          left: selectedRect.x,
+                          top: selectedRect.y,
+                          width: selectedRect.width,
+                          height: selectedRect.height,
+                          pointerEvents:
+                            (selectedId === "productImage" ||
+                              selectedId === "frameSlot" ||
+                              selectedId === "video") &&
+                            !editField
+                              ? "auto"
+                              : "none",
+                          boxSizing: "border-box",
+                          cursor:
+                            selectedId === "productImage"
+                              ? imageLayout === "frame"
+                                ? "grab"
+                                : "move"
+                              : selectedId === "video"
+                                ? "move"
+                                : "default",
+                          zIndex: 9999,
+                        }}
+                        onMouseDown={
+                          selectedId === "productImage"
+                            ? (e) => {
+                                e.stopPropagation();
+                                startMediaInteraction(
+                                  e,
+                                  imageLayout === "frame"
+                                    ? "frame-image-pan"
+                                    : "move",
+                                );
+                              }
+                            : selectedId === "video"
+                              ? (e) => {
+                                  e.stopPropagation();
+                                  startVideoInteraction(e, "move");
+                                }
+                              : undefined
+                        }
+                      >
+                        {(selectedId === "productImage" &&
+                          !editField &&
+                          imageLayout !== "frame") ||
+                        (selectedId === "video" && !editField) ||
+                        (imageLayout === "frame" &&
+                          !editField &&
+                          (selectedId === "productImage" ||
+                            selectedId === "frameSlot")) ? (
+                          <>
+                            {selectionHandles.map((h) => (
+                              <div
+                                key={h.key}
+                                data-resize-handle="true"
                                 style={{
                                   position: "absolute",
-                                  left: `${cropX}%`,
-                                  top: `${cropY}%`,
-                                  width: `${cropScale * 100}%`,
-                                  height: `${cropScale * 100}%`,
-                                  maxWidth: "none",
-                                  maxHeight: "none",
-                                  transform: "translate(-50%, -50%)",
-                                  objectFit: "cover",
-                                  display: "block",
-                                  userSelect: "none",
-                                  pointerEvents: "none",
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 999,
+                                  background: "#2563eb",
+                                  border: "2px solid #fff",
+                                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                                  cursor: h.cursor,
+                                  left: h.left,
+                                  right: h.right,
+                                  top: h.top,
+                                  bottom: h.bottom,
+                                  transform: h.transform,
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (selectedId === "video") {
+                                    startVideoInteraction(e, h.mode);
+                                  } else if (
+                                    imageLayout === "frame" &&
+                                    selectedId === "frameSlot"
+                                  ) {
+                                    const current = getSelectedFrameSlot();
+                                    if (!current) return;
+                                    dragStateRef.current = {
+                                      mode: h.mode,
+                                      startClientX: e.clientX,
+                                      startClientY: e.clientY,
+                                      startImage: selectedImage,
+                                      startFrameSlot: current,
+                                      startAngle: 0,
+                                      centerX: 0,
+                                      centerY: 0,
+                                    };
+                                  } else {
+                                    startMediaInteraction(e, h.mode);
+                                  }
                                 }}
                               />
-                            </div>
-                          );
-                        })}
+                            ))}
 
-                        {videoPreviewUrl ? (
-                          <div
-                            data-select="video"
-                            aria-label="Uploaded video preview"
-                            style={{
-                              position: "absolute",
-                              left: videoBox.x,
-                              top: videoBox.y,
-                              width: videoBox.w,
-                              height: videoBox.h,
-                              zIndex: videoPreviewZIndex,
-                              overflow: "hidden",
-                              borderRadius: 20,
-                              transformOrigin: "center center",
-                              border: "1px solid rgba(15,23,42,0.10)",
-                              background: "#111827",
-                              pointerEvents: "auto",
-                              boxSizing: "border-box",
-                            }}
-                            onMouseDown={(e) => startVideoInteraction(e, "move")}
-                          >
-                            <video
-                              src={videoPreviewUrl}
-                              muted
-                              playsInline
-                              preload="metadata"
-                              style={{
-                                display: "block",
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "cover",
-                                pointerEvents: "none",
-                                userSelect: "none",
-                              }}
-                            />
-                          </div>
-                        ) : null}
-
-                        {selectedRect ? (
-                          <div
-                            className={`editor-canvasSelection ${
-                              isPreviewTextSelectableId(selectedId)
-                                ? "editor-canvasSelection--text"
-                                : "editor-canvasSelection--media"
-                            }`}
-                            data-selection-overlay="true"
-                            data-media-selection-ui="true"
-                            data-select={selectedId ?? undefined}
-                            data-image-id={
-                              selectedId === "productImage" ? selectedImageId ?? undefined : undefined
-                            }
-                            data-active-element={selectedId ?? undefined}
-                            style={{
-                              position: "absolute",
-                              left: selectedRect.x,
-                              top: selectedRect.y,
-                              width: selectedRect.width,
-                              height: selectedRect.height,
-                              pointerEvents:
-                                (selectedId === "productImage" ||
-                                  selectedId === "frameSlot" ||
-                                  selectedId === "video") &&
-                                !editField
-                                  ? "auto"
-                                  : "none",
-                              boxSizing: "border-box",
-                              cursor:
-                                selectedId === "productImage"
-                                  ? imageLayout === "frame"
-                                    ? "grab"
-                                    : "move"
-                                  : selectedId === "video"
-                                  ? "move"
-                                  : "default",
-                              zIndex: 9999,
-
-                            }}
-                            onMouseDown={
-                              selectedId === "productImage"
-                                ? (e) => {
-                                    e.stopPropagation();
-                                    startMediaInteraction(
-                                      e,
-                                      imageLayout === "frame" ? "frame-image-pan" : "move"
-                                    );
-                                  }
-                                : selectedId === "video"
-                                ? (e) => {
-                                    e.stopPropagation();
-                                    startVideoInteraction(e, "move");
-                                  }
-                                : undefined
-                            }
-                          >
-                            {((selectedId === "productImage" && !editField && imageLayout !== "frame") ||
-                              (selectedId === "video" && !editField) ||
-                              (imageLayout === "frame" && !editField && (selectedId === "productImage" || selectedId === "frameSlot"))) ? (
-                              <>
-                                {selectionHandles.map((h) => (
-                                  <div
-                                    key={h.key}
-                                    data-resize-handle="true"
-                                    style={{
-                                      position: "absolute",
-                                      width: 16,
-                                      height: 16,
-                                      borderRadius: 999,
-                                      background: "#2563eb",
-                                      border: "2px solid #fff",
-                                      boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                      cursor: h.cursor,
-                                      left: h.left,
-                                      right: h.right,
-                                      top: h.top,
-                                      bottom: h.bottom,
-                                      transform: h.transform,
-                                    }}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      if (selectedId === "video") {
-                                        startVideoInteraction(e, h.mode);
-                                      } else if (imageLayout === "frame" && selectedId === "frameSlot") {
-                                        const current = getSelectedFrameSlot();
-                                        if (!current) return;
-                                        dragStateRef.current = {
-                                          mode: h.mode,
-                                          startClientX: e.clientX,
-                                          startClientY: e.clientY,
-                                          startImage: selectedImage,
-                                          startFrameSlot: current,
-                                          startAngle: 0,
-                                          centerX: 0,
-                                          centerY: 0,
-                                        };
-                                      } else {
-                                        startMediaInteraction(e, h.mode);
-                                      }
-                                    }}
-                                  />
-                                ))}
-
-                                {imageLayout !== "frame" && selectedId === "productImage" ? (
-                                  <div
-                                    style={{
-                                      position: "absolute",
-                                      left: "50%",
-                                      top: -34,
-                                      width: 16,
-                                      height: 16,
-                                      borderRadius: 999,
-                                      background: "#111827",
-                                      border: "2px solid #fff",
-                                      transform: "translateX(-50%)",
-                                      cursor: "grab",
-                                      boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                    }}
-                                    onMouseDown={(e) => startMediaInteraction(e, "rotate")}
-                                  />
-                                ) : null}
-
-                                {imageLayout === "frame" && selectedId === "productImage" ? (
-                                  <div
-                                    title="Drag to move image inside frame"
-                                    style={{
-                                      position: "absolute",
-                                      left: 16,
-                                      bottom: 16,
-                                      height: 28,
-                                      padding: "0 10px",
-                                      borderRadius: 999,
-                                      border: "1px solid rgba(0,0,0,0.12)",
-                                      background: "rgba(255,255,255,0.96)",
-                                      fontSize: 12,
-                                      display: "flex",
-                                      alignItems: "center",
-                                      cursor: "grab",
-                                    }}
-                                    onMouseDown={(e) => startMediaInteraction(e, "frame-image-pan")}
-                                  >
-                                    Move image
-                                  </div>
-                                ) : null}
-
-                                {imageLayout === "frame" && selectedId === "productImage" ? (
-                                  <div
-                                    title="Resize image inside frame"
-                                    style={{
-                                      position: "absolute",
-                                      right: 18,
-                                      bottom: 18,
-                                      width: 18,
-                                      height: 18,
-                                      borderRadius: 6,
-                                      background: "#111827",
-                                      border: "2px solid #fff",
-                                      cursor: "nwse-resize",
-                                      boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                    }}
-                                    onMouseDown={(e) => startMediaInteraction(e, "frame-image-scale")}
-                                  />
-                                ) : null}
-
-                                {selectedId === "productImage" ? (
-                                <button
-                                  type="button"
-                                  style={{
-                                    position: "absolute",
-                                    right: -8,
-                                    top: -40,
-                                    height: 28,
-                                    padding: "0 8px",
-                                    borderRadius: 999,
-                                    border: "1px solid rgba(0,0,0,0.12)",
-                                    background: "#fff",
-                                    fontSize: 12,
-                                    cursor: "pointer",
-                                  }}
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeSelectedImage();
-                                  }}
-                                >
-                                  Remove
-                                </button>
-                                ) : null}
-                              </>
+                            {imageLayout !== "frame" &&
+                            selectedId === "productImage" ? (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  left: "50%",
+                                  top: -34,
+                                  width: 16,
+                                  height: 16,
+                                  borderRadius: 999,
+                                  background: "#111827",
+                                  border: "2px solid #fff",
+                                  transform: "translateX(-50%)",
+                                  cursor: "grab",
+                                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                                }}
+                                onMouseDown={(e) =>
+                                  startMediaInteraction(e, "rotate")
+                                }
+                              />
                             ) : null}
-                          </div>
-                        ) : null}
 
-                        {isRichEditField(editField) && selectedRect ? (
-                          <div
-                            ref={
-                              editField === "title"
-                                ? titleEditRef
-                                : editField === "badge"
-                                ? badgeEditRef
-                                : editField === "company"
-                                ? companyEditRef
-                                : bodyEditRef
-                            }
-                            contentEditable
-                            suppressContentEditableWarning
-                            role="textbox"
-                            aria-multiline={editField === "badge" ? false : true}
-                            tabIndex={0}
-                            onInput={() => handleRichEditableInput(editField)}
-                            onBlur={onEditBlur}
-                            onKeyDown={onEditKeyDown}
-                            onKeyUp={() => updateFloatingTextToolbar(editField)}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onMouseUp={() => updateFloatingTextToolbar(editField)}
-                            onClick={(e) => e.stopPropagation()}
-                            onDoubleClick={(e) => e.stopPropagation()}
-                            spellCheck={false}
-                            style={{
-                              position: "absolute",
-                              left: selectedRect.x,
-                              top: selectedRect.y,
-                              width: selectedRect.width,
-                              height:
-                                editField === "badge"
-                                  ? selectedRect.height
-                                  : Math.max(selectedRect.height, 140),
-                              border: "1px dashed rgba(59,130,246,0.85)",
-                              outline: "none",
-                              resize: "none",
-                              overflow: editField === "badge" ? "visible" : "auto",
-                              padding: editField === "badge" ? "0" : "6px 8px",
-                              caretColor: "#111",
-                              whiteSpace: editField === "badge" ? "nowrap" : "pre-wrap",
-                              wordBreak: editField === "badge" ? "normal" : "break-word",
-                              boxSizing: "border-box",
-                              zIndex: 10000,
-                              ...editStyle,
-                              ...(editField === "badge"
-                                ? {
-                                    background: "transparent",
-                                    backgroundColor: "transparent",
-                                    minHeight: selectedRect.height,
-                                    lineHeight: editStyle.lineHeight,
-                                  }
-                                : null),
-                            }}
-                          />
-                        ) : null}
-                        </div>
-                        {floatingTextToolbar.visible && floatingTextToolbar.activeField ? (
-                          <div
-                            ref={floatingTextToolbarRef}
-                            className={`editor-floatingTextToolbar editor-floatingTextToolbar--${floatingTextToolbar.placement}`}
-                            style={{
-                              left: floatingTextToolbar.x,
-                              top: floatingTextToolbar.y,
-                            }}
-                            onMouseDown={(e) => {
-                              const target = e.target;
-                              if (
-                                target instanceof HTMLElement &&
-                                !target.closest("select,input")
-                              ) {
-                                e.preventDefault();
-                              }
-                              e.stopPropagation();
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <TextToolbar
-                              variant="floating"
-                              activeField={floatingTextToolbar.activeField}
-                              copied={copied}
-                              applyUnicodeStyle={applyUnicodeStyle}
-                              applyBullet={applyBullet}
-                              applyNumbered={applyNumbered}
-                              applyHashtag={applyHashtag}
-                              copyActive={copyCaption}
-                              insertEmoji={insertEmoji}
-                              EMOJIS={EMOJIS}
-                              activeTextStyle={activeTextStyle}
-                              setActiveTextStyle={setActiveTextStyle}
-                              applyHighlightSelection={applyHighlightSelection}
-                              applyHighlightColorSelection={applyHighlightColorSelection}
-                              applyFontSelection={applyFontSelection}
-                              applySizeSelection={applySizeSelection}
-                              applyColorSelection={applyColorSelection}
-                              applyAlignSelection={applyAlignSelection}
-                            />
-                          </div>
+                            {imageLayout === "frame" &&
+                            selectedId === "productImage" ? (
+                              <div
+                                title="Drag to move image inside frame"
+                                style={{
+                                  position: "absolute",
+                                  left: 16,
+                                  bottom: 16,
+                                  height: 28,
+                                  padding: "0 10px",
+                                  borderRadius: 999,
+                                  border: "1px solid rgba(0,0,0,0.12)",
+                                  background: "rgba(255,255,255,0.96)",
+                                  fontSize: 12,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  cursor: "grab",
+                                }}
+                                onMouseDown={(e) =>
+                                  startMediaInteraction(e, "frame-image-pan")
+                                }
+                              >
+                                Move image
+                              </div>
+                            ) : null}
+
+                            {imageLayout === "frame" &&
+                            selectedId === "productImage" ? (
+                              <div
+                                title="Resize image inside frame"
+                                style={{
+                                  position: "absolute",
+                                  right: 18,
+                                  bottom: 18,
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: 6,
+                                  background: "#111827",
+                                  border: "2px solid #fff",
+                                  cursor: "nwse-resize",
+                                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
+                                }}
+                                onMouseDown={(e) =>
+                                  startMediaInteraction(e, "frame-image-scale")
+                                }
+                              />
+                            ) : null}
+
+                            {selectedId === "productImage" ? (
+                              <button
+                                type="button"
+                                style={{
+                                  position: "absolute",
+                                  right: -8,
+                                  top: -40,
+                                  height: 28,
+                                  padding: "0 8px",
+                                  borderRadius: 999,
+                                  border: "1px solid rgba(0,0,0,0.12)",
+                                  background: "#fff",
+                                  fontSize: 12,
+                                  cursor: "pointer",
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeSelectedImage();
+                                }}
+                              >
+                                Remove
+                              </button>
+                            ) : null}
+                          </>
                         ) : null}
                       </div>
-                    </div>
-                  </div>
+                    ) : null}
 
-                  {finalUrl ? (
-                    <div className="preview-videoWrap">
-                      <video className="preview-video" src={finalUrl} controls playsInline />
+                    {isRichEditField(editField) && selectedRect ? (
+                      <div
+                        ref={
+                          editField === "title"
+                            ? titleEditRef
+                            : editField === "badge"
+                              ? badgeEditRef
+                              : editField === "company"
+                                ? companyEditRef
+                                : bodyEditRef
+                        }
+                        contentEditable
+                        suppressContentEditableWarning
+                        role="textbox"
+                        aria-multiline={editField === "badge" ? false : true}
+                        tabIndex={0}
+                        onInput={() => handleRichEditableInput(editField)}
+                        onBlur={onEditBlur}
+                        onKeyDown={onEditKeyDown}
+                        onKeyUp={() => updateFloatingTextToolbar(editField)}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onMouseUp={() => updateFloatingTextToolbar(editField)}
+                        onClick={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        spellCheck={false}
+                        style={{
+                          position: "absolute",
+                          left: selectedRect.x,
+                          top: selectedRect.y,
+                          width: selectedRect.width,
+                          height:
+                            editField === "badge"
+                              ? selectedRect.height
+                              : Math.max(selectedRect.height, 140),
+                          border: "1px dashed rgba(59,130,246,0.85)",
+                          outline: "none",
+                          resize: "none",
+                          overflow: editField === "badge" ? "visible" : "auto",
+                          padding: editField === "badge" ? "0" : "6px 8px",
+                          caretColor: "#111",
+                          whiteSpace:
+                            editField === "badge" ? "nowrap" : "pre-wrap",
+                          wordBreak:
+                            editField === "badge" ? "normal" : "break-word",
+                          boxSizing: "border-box",
+                          zIndex: 10000,
+                          ...editStyle,
+                          ...(editField === "badge"
+                            ? {
+                                background: "transparent",
+                                backgroundColor: "transparent",
+                                minHeight: selectedRect.height,
+                                lineHeight: editStyle.lineHeight,
+                              }
+                            : null),
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                  {floatingTextToolbar.visible &&
+                  floatingTextToolbar.activeField ? (
+                    <div
+                      ref={floatingTextToolbarRef}
+                      className={`editor-floatingTextToolbar editor-floatingTextToolbar--${floatingTextToolbar.placement}`}
+                      style={{
+                        left: floatingTextToolbar.x,
+                        top: floatingTextToolbar.y,
+                      }}
+                      onMouseDown={(e) => {
+                        const target = e.target;
+                        if (
+                          target instanceof HTMLElement &&
+                          !target.closest("select,input")
+                        ) {
+                          e.preventDefault();
+                        }
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <TextToolbar
+                        variant="floating"
+                        activeField={floatingTextToolbar.activeField}
+                        copied={copied}
+                        applyUnicodeStyle={applyUnicodeStyle}
+                        applyBullet={applyBullet}
+                        applyNumbered={applyNumbered}
+                        applyHashtag={applyHashtag}
+                        copyActive={copyCaption}
+                        insertEmoji={insertEmoji}
+                        EMOJIS={EMOJIS}
+                        activeTextStyle={activeTextStyle}
+                        setActiveTextStyle={setActiveTextStyle}
+                        applyHighlightSelection={applyHighlightSelection}
+                        applyHighlightColorSelection={
+                          applyHighlightColorSelection
+                        }
+                        applyFontSelection={applyFontSelection}
+                        applySizeSelection={applySizeSelection}
+                        applyColorSelection={applyColorSelection}
+                        applyAlignSelection={applyAlignSelection}
+                      />
                     </div>
                   ) : null}
-                </>
-              }
-              toolbar={
-                <TextToolbar
-                  activeField={activeField}
-                  copied={copied}
-                  applyUnicodeStyle={applyUnicodeStyle}
-                  applyBullet={applyBullet}
-                  applyNumbered={applyNumbered}
-                  applyHashtag={applyHashtag}
-                  copyActive={copyCaption}
-                  insertEmoji={insertEmoji}
-                  EMOJIS={EMOJIS}
-                  activeTextStyle={activeTextStyle}
-                  setActiveTextStyle={setActiveTextStyle}
-                  applyHighlightSelection={applyHighlightSelection}
-                  applyHighlightColorSelection={applyHighlightColorSelection}
-                  applyFontSelection={applyFontSelection}
-                  applySizeSelection={applySizeSelection}
-                  applyColorSelection={applyColorSelection}
-                  applyAlignSelection={applyAlignSelection}
-                />
-              }
-              toolbox={
-                <LinkedInToolbox
-                    badgeText={badgeText}
-                    setBadgeText={setBadgeTextValue}
-                    badgeRef={badgeRef}
-                    title={title}
-                    setTitle={setTitleValue}
-                    titleRef={titleRef}
-                    body={body}
-                    setBody={setBody}
-                    bodyRef={bodyRef}
-                    bodyStyle={bodyStyle}
-                    bodyMarks={bodyMarks}
-                    caption={caption}
-                    setCaption={setCaption}
-                    captionRef={captionRef}
-                    captionStyle={captionStyle}
-                    captionMarks={captionMarks}
-                    activeField={activeField}
-                    setActiveField={setActiveField}
-                    activeTextStyle={activeTextStyle}
-                    setActiveTextStyle={setActiveTextStyle}
-                    copied={copied}
-                    applyUnicodeStyle={applyUnicodeStyle}
-                    applyBullet={applyBullet}
-                    applyNumbered={applyNumbered}
-                    applyHashtag={applyHashtag}
-                    copyCaption={copyCaption}
-                    insertEmoji={insertEmoji}
-                    EMOJIS={EMOJIS}
-                    link={link}
-                    setLink={setLink}
-                    linkInput={linkInput}
-                    setLinkInput={setLinkInput}
-                    handleAddLink={handleAddLink}
-                    onTextChange={handleTextChange}
-                    onTextKeyDown={handleNumberedListEnter}
-                    company={company}
-                    setCompany={setCompanyValue}
-                    companyRef={companyRef}
-                    onPickProductImage={onPickProductImage}
-                    productAlign={productAlign}
-                    setProductAlign={setProductAlignValue}
-                    imageLayout={imageLayout}
-                    setImageLayout={setImageLayoutMode}
-                    framePresetId={framePresetId}
-                    setFramePresetId={setFramePresetValue}
-                    frameSlots={frameSlots}
-                    selectedFrameSlotId={selectedFrameSlotId}
-                    onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
-                    setVideoFile={setVideoFile}
-                    loadingPdf={loadingPdf}
-                    downloadPDF={downloadPDF}
-                    finalLoading={finalLoading}
-                    hasVideo={hasVideo}
-                    generateFinal={generateFinal}
-                    finalUrl={finalUrl}
-                    selectedImageId={selectedImageId}
-                    selectedImageRotation={selectedImage?.rotation ?? 0}
-                    onRotateSelectedImage={rotateSelectedImage}
-                    onSetSelectedImageRotation={setSelectedImageRotation}
-                    imageCount={images.length}
-                    onDeleteSelectedImage={removeSelectedImage}
-                    onDuplicateSelectedImage={duplicateSelectedImage}
-                />
-              }
-              properties={
-                <div className="export-actions-panel">
-                  <div className="export-actions-panel__header">
-                    <h3>Export</h3>
-                    <p>Generate or download the final content.</p>
-                  </div>
-
-                  <div className="export-actions-panel__actions">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        downloadPDF(e);
-                      }}
-                      disabled={loadingPdf || hasVideo}
-                      className="tb__action tb__action--primary"
-                    >
-                      {loadingPdf ? "Generating PDF..." : "Download PDF"}
-                    </button>
-                    {hasVideo ? (
-                      <p className="export-actions-panel__hint">
-                        PDF export is disabled while a video object is on the canvas. Please use Generate final.mp4.
-                      </p>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      onClick={(e) => generateFinal(e)}
-                      disabled={finalLoading || !hasVideo}
-                      className="tb__action tb__action--dark"
-                    >
-                      {finalLoading ? "Generating..." : "Generate final.mp4"}
-                    </button>
-
-                    {finalUrl ? (
-                      <a href={finalUrl} download="final.mp4" className="tb__download">
-                        Download generated video
-                      </a>
-                    ) : null}
-                  </div>
                 </div>
-              }
-          />
-        </LinkedInEditorBaseClient>
-    );
+              </div>
+            </div>
 
+            {finalUrl ? (
+              <div className="preview-videoWrap">
+                <video
+                  className="preview-video"
+                  src={finalUrl}
+                  controls
+                  playsInline
+                />
+              </div>
+            ) : null}
+          </>
+        }
+        toolbar={
+          <TextToolbar
+            activeField={activeField}
+            copied={copied}
+            applyUnicodeStyle={applyUnicodeStyle}
+            applyBullet={applyBullet}
+            applyNumbered={applyNumbered}
+            applyHashtag={applyHashtag}
+            copyActive={copyCaption}
+            insertEmoji={insertEmoji}
+            EMOJIS={EMOJIS}
+            activeTextStyle={activeTextStyle}
+            setActiveTextStyle={setActiveTextStyle}
+            applyHighlightSelection={applyHighlightSelection}
+            applyHighlightColorSelection={applyHighlightColorSelection}
+            applyFontSelection={applyFontSelection}
+            applySizeSelection={applySizeSelection}
+            applyColorSelection={applyColorSelection}
+            applyAlignSelection={applyAlignSelection}
+          />
+        }
+        toolbox={
+          <LinkedInToolbox
+            badgeText={badgeText}
+            setBadgeText={setBadgeTextValue}
+            badgeRef={badgeRef}
+            title={title}
+            setTitle={setTitleValue}
+            titleRef={titleRef}
+            body={body}
+            setBody={setBody}
+            bodyRef={bodyRef}
+            bodyStyle={bodyStyle}
+            bodyMarks={bodyMarks}
+            caption={caption}
+            setCaption={setCaption}
+            captionRef={captionRef}
+            captionStyle={captionStyle}
+            captionMarks={captionMarks}
+            activeField={activeField}
+            setActiveField={setActiveField}
+            activeTextStyle={activeTextStyle}
+            setActiveTextStyle={setActiveTextStyle}
+            copied={copied}
+            applyUnicodeStyle={applyUnicodeStyle}
+            applyBullet={applyBullet}
+            applyNumbered={applyNumbered}
+            applyHashtag={applyHashtag}
+            copyCaption={copyCaption}
+            insertEmoji={insertEmoji}
+            EMOJIS={EMOJIS}
+            link={link}
+            setLink={setLink}
+            linkInput={linkInput}
+            setLinkInput={setLinkInput}
+            handleAddLink={handleAddLink}
+            onTextChange={handleTextChange}
+            onTextKeyDown={handleNumberedListEnter}
+            company={company}
+            setCompany={setCompanyValue}
+            companyRef={companyRef}
+            onPickProductImage={onPickProductImage}
+            productAlign={productAlign}
+            setProductAlign={setProductAlignValue}
+            imageLayout={imageLayout}
+            setImageLayout={setImageLayoutMode}
+            framePresetId={framePresetId}
+            setFramePresetId={setFramePresetValue}
+            frameSlots={frameSlots}
+            selectedFrameSlotId={selectedFrameSlotId}
+            onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
+            setVideoFile={setVideoFile}
+            loadingPdf={loadingPdf}
+            downloadPDF={downloadPDF}
+            finalLoading={finalLoading}
+            hasVideo={hasVideo}
+            generateFinal={generateFinal}
+            finalUrl={finalUrl}
+            selectedImageId={selectedImageId}
+            selectedImageRotation={selectedImage?.rotation ?? 0}
+            onRotateSelectedImage={rotateSelectedImage}
+            onSetSelectedImageRotation={setSelectedImageRotation}
+            imageCount={images.length}
+            onDeleteSelectedImage={removeSelectedImage}
+            onDuplicateSelectedImage={duplicateSelectedImage}
+          />
+        }
+        properties={
+          <div className="export-actions-panel">
+            <div className="export-actions-panel__header">
+              <h3>Export</h3>
+              <p>Generate or download the final content.</p>
+            </div>
+
+            <div className="export-actions-panel__actions">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  downloadPDF(e);
+                }}
+                disabled={loadingPdf || hasVideo}
+                className="tb__action tb__action--primary"
+              >
+                {loadingPdf ? "Generating PDF..." : "Download PDF"}
+              </button>
+              {hasVideo ? (
+                <p className="export-actions-panel__hint">
+                  PDF export is disabled while a video object is on the canvas.
+                  Please use Generate final.mp4.
+                </p>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={(e) => generateFinal(e)}
+                disabled={finalLoading || !hasVideo}
+                className="tb__action tb__action--dark"
+              >
+                {finalLoading ? "Generating..." : "Generate final.mp4"}
+              </button>
+
+              {finalUrl ? (
+                <a
+                  href={finalUrl}
+                  download="final.mp4"
+                  className="tb__download"
+                >
+                  Download generated video
+                </a>
+              ) : null}
+            </div>
+          </div>
+        }
+      />
+    </LinkedInEditorBaseClient>
+  );
 }

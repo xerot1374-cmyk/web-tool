@@ -73,11 +73,11 @@ type Props = {
   onTextChange?: (
     field: EditorTextField,
     value: string,
-    selectionStart: number | null
+    selectionStart: number | null,
   ) => void;
   onTextKeyDown?: (
     field: "body" | "caption",
-    e: React.KeyboardEvent<HTMLTextAreaElement>
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => void;
 
   company: string;
@@ -133,7 +133,11 @@ function renderMarkedText(text: string, marks: TextMark[] = []) {
 
   safeMarks.forEach((mark, index) => {
     if (mark.start > pos) {
-      out.push(<React.Fragment key={`t-${pos}`}>{text.slice(pos, mark.start)}</React.Fragment>);
+      out.push(
+        <React.Fragment key={`t-${pos}`}>
+          {text.slice(pos, mark.start)}
+        </React.Fragment>,
+      );
     }
 
     out.push(
@@ -145,18 +149,22 @@ function renderMarkedText(text: string, marks: TextMark[] = []) {
           color: mark.style.color,
           fontWeight: mark.style.fontWeight,
           fontStyle: mark.style.fontStyle,
-          background: mark.style.highlight ? "rgba(250,204,21,0.28)" : undefined,
+          background: mark.style.highlight
+            ? "rgba(250,204,21,0.28)"
+            : undefined,
         }}
       >
         {text.slice(mark.start, mark.end)}
-      </span>
+      </span>,
     );
 
     pos = mark.end;
   });
 
   if (pos < text.length) {
-    out.push(<React.Fragment key={`t-${pos}`}>{text.slice(pos)}</React.Fragment>);
+    out.push(
+      <React.Fragment key={`t-${pos}`}>{text.slice(pos)}</React.Fragment>,
+    );
   }
 
   return out;
@@ -241,7 +249,11 @@ export default function LinkedInToolbox({
               onDoubleClick={() => setActiveField("badge")}
               onChange={(e) => {
                 if (onTextChange) {
-                  onTextChange("badge", e.target.value, e.target.selectionStart);
+                  onTextChange(
+                    "badge",
+                    e.target.value,
+                    e.target.selectionStart,
+                  );
                 } else {
                   setBadgeText(e.target.value);
                 }
@@ -260,7 +272,11 @@ export default function LinkedInToolbox({
               onDoubleClick={() => setActiveField("title")}
               onChange={(e) => {
                 if (onTextChange) {
-                  onTextChange("title", e.target.value, e.target.selectionStart);
+                  onTextChange(
+                    "title",
+                    e.target.value,
+                    e.target.selectionStart,
+                  );
                 } else {
                   setTitle(e.target.value);
                 }
@@ -279,7 +295,11 @@ export default function LinkedInToolbox({
               onDoubleClick={() => setActiveField("company")}
               onChange={(e) => {
                 if (onTextChange) {
-                  onTextChange("company", e.target.value, e.target.selectionStart);
+                  onTextChange(
+                    "company",
+                    e.target.value,
+                    e.target.selectionStart,
+                  );
                 } else {
                   setCompany(e.target.value);
                 }
@@ -312,12 +332,17 @@ export default function LinkedInToolbox({
                 onScroll={(e) => {
                   if (bodyMirrorRef.current) {
                     bodyMirrorRef.current.scrollTop = e.currentTarget.scrollTop;
-                    bodyMirrorRef.current.scrollLeft = e.currentTarget.scrollLeft;
+                    bodyMirrorRef.current.scrollLeft =
+                      e.currentTarget.scrollLeft;
                   }
                 }}
                 onChange={(e) => {
                   if (onTextChange) {
-                    onTextChange("body", e.target.value, e.target.selectionStart);
+                    onTextChange(
+                      "body",
+                      e.target.value,
+                      e.target.selectionStart,
+                    );
                   } else {
                     setBody(e.target.value);
                   }
@@ -359,7 +384,9 @@ export default function LinkedInToolbox({
                         type="button"
                         className="tb__linkRemove"
                         onClick={() =>
-                          setLink((prev: string[]) => prev.filter((_, idx) => idx !== i))
+                          setLink((prev: string[]) =>
+                            prev.filter((_, idx) => idx !== i),
+                          )
                         }
                       >
                         x
@@ -390,7 +417,9 @@ export default function LinkedInToolbox({
             <label className="editor-label">Image Layout</label>
             <select
               value={imageLayout}
-              onChange={(e) => setImageLayout(e.target.value as ImageLayoutMode)}
+              onChange={(e) =>
+                setImageLayout(e.target.value as ImageLayoutMode)
+              }
               style={{ width: "100%" }}
             >
               <option value="manual">Manual Layout</option>
@@ -398,7 +427,8 @@ export default function LinkedInToolbox({
               <option value="frame">Frame Layout</option>
             </select>
             <div className="tb__hint tb__hint--left">
-              Frame Layout lets users choose a template and place each image into a specific slot.
+              Frame Layout lets users choose a template and place each image
+              into a specific slot.
             </div>
           </div>
 
@@ -418,7 +448,9 @@ export default function LinkedInToolbox({
                       }
                       onClick={() => setFramePresetId(preset.id)}
                     >
-                      <div className={`tb__frameMini tb__frameMini--${preset.id}`}>
+                      <div
+                        className={`tb__frameMini tb__frameMini--${preset.id}`}
+                      >
                         <div className="tb__frameMiniBackdrop" />
                         {preset.slots.map((slot) => (
                           <span
@@ -437,7 +469,9 @@ export default function LinkedInToolbox({
                         ))}
                       </div>
                       <span className="tb__frameCardTitle">{preset.label}</span>
-                      <span className="tb__frameCardMeta">{preset.description}</span>
+                      <span className="tb__frameCardMeta">
+                        {preset.description}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -463,12 +497,12 @@ export default function LinkedInToolbox({
                   ))}
                 </div>
                 <div className="tb__hint tb__hint--left">
-                  Select a slot, then upload an image or move the selected image into that slot.
+                  Select a slot, then upload an image or move the selected image
+                  into that slot.
                 </div>
               </div>
             </>
           ) : null}
-
         </section>
 
         <section className="tb__section">
@@ -501,7 +535,11 @@ export default function LinkedInToolbox({
             value={caption}
             onChange={(e) => {
               if (onTextChange) {
-                onTextChange("caption", e.target.value, e.target.selectionStart);
+                onTextChange(
+                  "caption",
+                  e.target.value,
+                  e.target.selectionStart,
+                );
               } else {
                 setCaption(e.target.value);
               }
@@ -520,17 +558,22 @@ export default function LinkedInToolbox({
             <div className="tb__captionPreview">
               <div className="tb__captionPreviewHeader">
                 <div className="tb__captionPreviewTitle">Preview</div>
-                <button type="button" onClick={copyCaption} className="tb__copyBtn">
+                <button
+                  type="button"
+                  onClick={copyCaption}
+                  className="tb__copyBtn"
+                >
                   {copied ? "Copied" : "Copy Caption"}
                 </button>
               </div>
 
-              <div className="tb__captionText">{renderMarkedText(caption, captionMarks)}</div>
+              <div className="tb__captionText">
+                {renderMarkedText(caption, captionMarks)}
+              </div>
             </div>
           ) : null}
         </section>
       </div>
-
     </aside>
   );
 }

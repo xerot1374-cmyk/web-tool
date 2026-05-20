@@ -125,7 +125,11 @@ function renderMarkedHtml(text: string, marks?: TextMark[]) {
     .sort((a, b) => a.start - b.start);
 
   const boundaries = Array.from(
-    new Set([0, value.length, ...safeMarks.flatMap((mark) => [mark.start, mark.end])])
+    new Set([
+      0,
+      value.length,
+      ...safeMarks.flatMap((mark) => [mark.start, mark.end]),
+    ]),
   ).sort((a, b) => a - b);
 
   let out = "";
@@ -142,7 +146,7 @@ function renderMarkedHtml(text: string, marks?: TextMark[]) {
           ...acc,
           ...mark.style,
         }),
-        {}
+        {},
       );
 
     const styles: string[] = [];
@@ -151,9 +155,10 @@ function renderMarkedHtml(text: string, marks?: TextMark[]) {
     }
     if (activeStyle.fontSize !== undefined && activeStyle.fontSize !== null) {
       const rawSize = String(activeStyle.fontSize);
-      const size = typeof activeStyle.fontSize === "number" || !rawSize.endsWith("px")
-        ? `${rawSize}px`
-        : rawSize;
+      const size =
+        typeof activeStyle.fontSize === "number" || !rawSize.endsWith("px")
+          ? `${rawSize}px`
+          : rawSize;
       styles.push(`font-size:${escapeHtml(size)}`);
     }
     if (activeStyle.color) {
@@ -218,7 +223,7 @@ function getHeaderHeight(preset?: CanvasPreset) {
 
 function getFinalVideoBox(
   preset: CanvasPreset | undefined,
-  mediaBox?: { x: number; y: number; w: number; h: number }
+  mediaBox?: { x: number; y: number; w: number; h: number },
 ) {
   const canvas = getCanvasFrame(preset);
   const headerHeight = getHeaderHeight(preset);
@@ -226,15 +231,13 @@ function getFinalVideoBox(
     preset === "instagramStory" ? 360 : preset === "instagram" ? 260 : 320;
   const targetWidth = Math.max(
     1,
-    Math.round(
-      Math.max(canvas.w * 0.99, mediaBox?.w ? mediaBox.w * 1.8 : 0)
-    )
+    Math.round(Math.max(canvas.w * 0.99, mediaBox?.w ? mediaBox.w * 1.8 : 0)),
   );
   const targetHeight = Math.max(
     1,
     Math.round(
-      Math.max(headerHeight * 0.99, mediaBox?.h ? mediaBox.h * 1.8 : 0)
-    )
+      Math.max(headerHeight * 0.99, mediaBox?.h ? mediaBox.h * 1.8 : 0),
+    ),
   );
 
   const width = Math.min(targetWidth, canvas.w);
@@ -253,7 +256,7 @@ function renderVideoTemplateHtml(
   req: Request,
   data: Payload,
   box: { x: number; y: number; w: number; h: number },
-  mode: "base" | "foreground" = "base"
+  mode: "base" | "foreground" = "base",
 ) {
   const canvas = getCanvasFrame(data.canvasPreset);
   const presetClass = getPresetClass(data.canvasPreset);
@@ -302,7 +305,7 @@ function renderVideoTemplateHtml(
             />
           </div>
         </div>
-      `
+      `,
     )
     .join("");
 
@@ -432,7 +435,7 @@ function renderVideoTemplateHtml(
                               (href) =>
                                 `<a class="li2-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">
                                   ${escapeHtml(linkLabel(href))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
-                                </a>`
+                                </a>`,
                             )
                             .join("")}
                         </div>`
@@ -466,7 +469,11 @@ function getPuppeteerLaunchOptions() {
 
   return {
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
     ...(executablePath ? { executablePath } : {}),
   };
 }
@@ -520,7 +527,7 @@ async function screenshotCoverPng(
   req: Request,
   data: Payload,
   outPngPath: string,
-  mode: "base" | "foreground" = "base"
+  mode: "base" | "foreground" = "base",
 ): Promise<{ x: number; y: number; w: number; h: number }> {
   const puppeteer = (await import("puppeteer")).default;
 
@@ -551,29 +558,36 @@ async function screenshotCoverPng(
 
     await page.waitForSelector(".li2-root", { timeout: 60000 });
 
-    await page.waitForFunction(async () => {
-      const fontsReady =
-        "fonts" in document
-          ? (document as Document & { fonts: FontFaceSet }).fonts.ready
-          : Promise.resolve();
-      await fontsReady;
+    await page.waitForFunction(
+      async () => {
+        const fontsReady =
+          "fonts" in document
+            ? (document as Document & { fonts: FontFaceSet }).fonts.ready
+            : Promise.resolve();
+        await fontsReady;
 
-      const imgs = Array.from(document.images);
-      return imgs.every((img) => img.complete);
-    }, { timeout: 60000 });
+        const imgs = Array.from(document.images);
+        return imgs.every((img) => img.complete);
+      },
+      { timeout: 60000 },
+    );
 
-    const clip = await page.$eval(".li2-root", (node, frameWidth) => {
-      const el = node as HTMLElement;
-      const rect = el.getBoundingClientRect();
-      const rawHeight = Math.max(1, Math.ceil(rect.height));
-      const evenHeight = rawHeight % 2 === 0 ? rawHeight : rawHeight + 1;
-      return {
-        x: Math.max(0, Math.floor(rect.left)),
-        y: Math.max(0, Math.floor(rect.top)),
-        width: Math.ceil(frameWidth as number),
-        height: evenHeight,
-      };
-    }, frame.w);
+    const clip = await page.$eval(
+      ".li2-root",
+      (node, frameWidth) => {
+        const el = node as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        const rawHeight = Math.max(1, Math.ceil(rect.height));
+        const evenHeight = rawHeight % 2 === 0 ? rawHeight : rawHeight + 1;
+        return {
+          x: Math.max(0, Math.floor(rect.left)),
+          y: Math.max(0, Math.floor(rect.top)),
+          width: Math.ceil(frameWidth as number),
+          height: evenHeight,
+        };
+      },
+      frame.w,
+    );
 
     const buffer = await page.screenshot({
       type: "png",
@@ -593,7 +607,7 @@ async function buildVideoInsideTemplateWithAudio(
   userMp4Path: string,
   foregroundPngPath: string,
   outputMp4Path: string,
-  box: { x: number; y: number; w: number; h: number }
+  box: { x: number; y: number; w: number; h: number },
 ) {
   let ffErr = "";
 
@@ -621,7 +635,7 @@ async function buildVideoInsideTemplateWithAudio(
       ])
       .on("stderr", (line) => (ffErr += line + "\n"))
       .on("error", (err) =>
-        reject(new Error((err?.message || "ffmpeg failed") + "\n" + ffErr))
+        reject(new Error((err?.message || "ffmpeg failed") + "\n" + ffErr)),
       )
       .on("end", () => resolve())
       .save(outputMp4Path);
@@ -644,7 +658,7 @@ export async function POST(req: Request) {
     if (!rawData) {
       return NextResponse.json(
         { error: "Missing form field 'data'" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -657,7 +671,7 @@ export async function POST(req: Request) {
     if (!(videoField instanceof File) || videoField.size === 0) {
       return NextResponse.json(
         { error: "No video uploaded (field name must be 'video')" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -670,7 +684,7 @@ export async function POST(req: Request) {
       uploadedVideoPath,
       foregroundPng,
       finalMp4,
-      box
+      box,
     );
 
     const out = await fs.readFile(finalMp4);
@@ -683,7 +697,7 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "final video failed" },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     try {

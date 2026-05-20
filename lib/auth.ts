@@ -1,4 +1,8 @@
-import { randomUUID, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import {
+  randomUUID,
+  scrypt as scryptCallback,
+  timingSafeEqual,
+} from "node:crypto";
 import { promisify } from "node:util";
 import type { NextResponse } from "next/server";
 
@@ -24,7 +28,9 @@ function getSessionCookieOptions(maxAge?: number) {
 }
 
 export function getProfileImage(profileImage?: string | null) {
-  return profileImage && profileImage.length > 0 ? profileImage : DEFAULT_PROFILE_IMAGE;
+  return profileImage && profileImage.length > 0
+    ? profileImage
+    : DEFAULT_PROFILE_IMAGE;
 }
 
 export async function hashPassword(password: string) {
@@ -61,7 +67,7 @@ export function setSessionCookie(res: NextResponse, user: SessionUser) {
       profileImage: getProfileImage(user.profileImage),
       isAdmin: user.isAdmin,
     }),
-    getSessionCookieOptions(60 * 60 * 24 * 7)
+    getSessionCookieOptions(60 * 60 * 24 * 7),
   );
 }
 

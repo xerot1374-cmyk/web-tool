@@ -13,17 +13,15 @@ const styleOptions = [
 export default function TemplateB() {
   const [style, setStyle] = useState("template-style-2"); // B: default dark
 
-  const [headline, setHeadline] = useState(
-    "Starkes Statement von Protos 3D"
-  );
+  const [headline, setHeadline] = useState("Starkes Statement von Protos 3D");
   const [subline, setSubline] = useState("Kurzer Insight oder starkes Zitat.");
   const [body, setBody] = useState(
-    "Hier steht ein kurzer, prÃ¤gnanter Text â€“ z.B. ein Learning oder eine These."
+    "Hier steht ein kurzer, prÃ¤gnanter Text â€“ z.B. ein Learning oder eine These.",
   );
   const [cta, setCta] = useState("Diskussion starten");
 
   const [caption, setCaption] = useState(
-    "ðŸ’¡ Starkes Statement von Protos 3D.\nMehr dazu: https://protos3d.de\n#protos3d #3dprinting #innovation"
+    "ðŸ’¡ Starkes Statement von Protos 3D.\nMehr dazu: https://protos3d.de\n#protos3d #3dprinting #innovation",
   );
 
   return (

@@ -25,7 +25,10 @@ export default function AdminUsersManager({
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function runAction(userId: string, action: "block" | "unblock" | "delete") {
+  async function runAction(
+    userId: string,
+    action: "block" | "unblock" | "delete",
+  ) {
     setError(null);
     setPendingKey(`${userId}:${action}`);
 
@@ -39,7 +42,9 @@ export default function AdminUsersManager({
       });
 
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        const body = (await res.json().catch(() => null)) as {
+          message?: string;
+        } | null;
         throw new Error(body?.message ?? "Action failed");
       }
 
@@ -49,7 +54,9 @@ export default function AdminUsersManager({
         }
 
         return currentUsers.map((user) =>
-          user.id === userId ? { ...user, isBlocked: action === "block" } : user
+          user.id === userId
+            ? { ...user, isBlocked: action === "block" }
+            : user,
         );
       });
     } catch (err) {
@@ -62,7 +69,14 @@ export default function AdminUsersManager({
   return (
     <section className="portal-panel">
       {error && (
-        <div style={{ marginBottom: 16, padding: 12, border: "1px solid #f99", color: "#900" }}>
+        <div
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            border: "1px solid #f99",
+            color: "#900",
+          }}
+        >
           {error}
         </div>
       )}
@@ -93,14 +107,28 @@ export default function AdminUsersManager({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}>{user.name}</div>
-                  <div style={{ color: "#4b5563", marginTop: 4 }}>{user.email}</div>
+                  <div
+                    style={{ fontSize: 20, fontWeight: 700, color: "#111827" }}
+                  >
+                    {user.name}
+                  </div>
+                  <div style={{ color: "#4b5563", marginTop: 4 }}>
+                    {user.email}
+                  </div>
                   <div style={{ color: "#6b7280", marginTop: 6 }}>
-                    {user.role || "No job title"} - Created {new Date(user.createdAt).toLocaleDateString()}
+                    {user.role || "No job title"} - Created{" "}
+                    {new Date(user.createdAt).toLocaleDateString()}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    alignItems: "flex-start",
+                  }}
+                >
                   {user.isAdmin && (
                     <span
                       style={{
@@ -146,7 +174,14 @@ export default function AdminUsersManager({
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 18 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  marginTop: 18,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => runAction(user.id, blockAction)}
@@ -156,7 +191,8 @@ export default function AdminUsersManager({
                     borderRadius: 10,
                     border: "1px solid #cbd5e1",
                     background: "#f8fafc",
-                    cursor: isCurrentUser || pendingKey ? "not-allowed" : "pointer",
+                    cursor:
+                      isCurrentUser || pendingKey ? "not-allowed" : "pointer",
                   }}
                 >
                   {isBlocking
@@ -178,7 +214,8 @@ export default function AdminUsersManager({
                     border: "1px solid #fecaca",
                     background: "#fef2f2",
                     color: "#b91c1c",
-                    cursor: isCurrentUser || pendingKey ? "not-allowed" : "pointer",
+                    cursor:
+                      isCurrentUser || pendingKey ? "not-allowed" : "pointer",
                   }}
                 >
                   {isDeleting ? "Deleting..." : "Delete account"}

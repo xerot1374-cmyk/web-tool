@@ -36,11 +36,17 @@ export default async function UserAdminPage() {
         <div className="portal-header-row">
           <div>
             <p className="portal-eyebrow">Administration</p>
-            <h1 className="main-heading portal-heading">Manage user accounts</h1>
+            <h1 className="main-heading portal-heading">
+              Manage user accounts
+            </h1>
             <p className="description portal-description">
-              Admins can block, unblock, or permanently delete accounts from here.
+              Admins can block, unblock, or permanently delete accounts from
+              here.
             </p>
-            <p className="description portal-description" style={{ marginTop: 12 }}>
+            <p
+              className="description portal-description"
+              style={{ marginTop: 12 }}
+            >
               Current configured admins: {getAdminUserNames().join(", ")}
             </p>
           </div>
@@ -50,7 +56,10 @@ export default async function UserAdminPage() {
           </Link>
         </div>
 
-        <AdminUsersManager currentUserId={currentUser.id} initialUsers={adminUsers} />
+        <AdminUsersManager
+          currentUserId={currentUser.id}
+          initialUsers={adminUsers}
+        />
       </div>
     </main>
   );

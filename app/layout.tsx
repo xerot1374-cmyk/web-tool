@@ -28,6 +28,7 @@ export default function RootLayout({
         {/* ✅ shared CSS for Preview + PDF + Video */}
         <link rel="stylesheet" href="/li2.css" />
         <link rel="stylesheet" href="/li2-edit.css" />
+        <title>LinkedIn Template Editor</title>
       </head>
 
       <body

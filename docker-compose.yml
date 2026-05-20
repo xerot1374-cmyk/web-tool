@@ -14,7 +14,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "PGPASSWORD=\"$${POSTGRES_PASSWORD}\" psql -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\" -c \"select 1\"",
+          'PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h 127.0.0.1 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -c "select 1"',
         ]
       interval: 5s
       timeout: 5s

@@ -37,7 +37,9 @@ export default function LoginPage() {
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Login</h1>
 
       {error && (
-        <div style={{ padding: 10, border: "1px solid #f99", marginBottom: 12 }}>
+        <div
+          style={{ padding: 10, border: "1px solid #f99", marginBottom: 12 }}
+        >
           {error}
         </div>
       )}
@@ -63,7 +65,11 @@ export default function LoginPage() {
           />
         </div>
 
-        <button type="submit" disabled={loading} style={{ width: "100%", padding: 10 }}>
+        <button
+          type="submit"
+          disabled={loading}
+          style={{ width: "100%", padding: 10 }}
+        >
           {loading ? "..." : "Login"}
         </button>
       </form>

@@ -22,7 +22,9 @@ export default function LinkedInEditorLayout({
         {toolbox}
       </aside>
       <main className="editor-preview">{preview}</main>
-      <aside className="editor-properties editor-shell-card">{properties}</aside>
+      <aside className="editor-properties editor-shell-card">
+        {properties}
+      </aside>
     </div>
   );
 }

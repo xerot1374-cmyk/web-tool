@@ -1,6 +1,4 @@
-
-
- :root {
+:root {
   --brand-red: #a4072f;
   --brand-red-dark: #860425;
   --brand-red-soft: #d9a9b5;
@@ -14,7 +12,6 @@
   --shadow-soft: rgba(80, 52, 59, 0.12);
 }
 
-
 /* =========================
    Base layout / Home page
    ========================= */
@@ -25,7 +22,9 @@ body {
   padding: 0;
   width: 100%;
   height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
+    Cantarell, sans-serif;
 }
 
 html {
@@ -35,7 +34,11 @@ html {
 .app-container {
   width: 100%;
   min-height: 100%;
-  background: linear-gradient(135deg, var(--surface) 0%, var(--brand-gray-soft) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--surface) 0%,
+    var(--brand-gray-soft) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;
@@ -130,7 +133,6 @@ a {
   color: inherit;
 }
 
-
 /* =========================
    LinkedIn / Instagram lists
    (template selection page)
@@ -155,7 +157,9 @@ a {
   border: 1px solid var(--border-soft);
   box-shadow: 0 18px 36px var(--shadow-soft);
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .template-grid .template-card:hover {
@@ -188,7 +192,6 @@ a {
   font-size: 12px;
   color: var(--brand-gray);
 }
-
 
 /* =========================
    Editor (left side for Template A/B)
@@ -253,7 +256,6 @@ a {
   align-items: center;
   gap: 12px;
 }
-
 
 /* =========================
    TemplateBase (main card)
@@ -381,7 +383,6 @@ a {
   text-align: left;
 }
 
-
 /* =========================
    Variants (template-style-1..4)
    ========================= */
@@ -393,23 +394,18 @@ a {
 }
 
 /* Style 2: Dark Bold */
-.template-style-2{
-    background: var(--brand-red);
-  color: var(--surface);}
-
-
-
+.template-style-2 {
+  background: var(--brand-red);
+  color: var(--surface);
+}
 
 .template-style-2 .template-subline,
 .template-style-2 .template-body,
 .template-style-2 .user-role,
 .template-style-2 .template-title-main,
-.template-style-2 .user-name{
-  color: rgba(255,255,255,0.82);
+.template-style-2 .user-name {
+  color: rgba(255, 255, 255, 0.82);
 }
-
-
-
 
 /* Style 3: Gradient */
 .template-style-3 {
@@ -431,7 +427,7 @@ a {
 
 .template-style-4 .template-subline,
 .template-style-4 .template-body {
-  color: rgba(255,255,255,0.82);
+  color: rgba(255, 255, 255, 0.82);
 }
 
 /* =========================
@@ -506,7 +502,11 @@ a {
   border-radius: 999px;
   font-size: 14px;
   font-weight: 700;
-  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    color 0.18s ease,
+    border-color 0.18s ease;
 }
 
 .portal-nav__link {
@@ -616,7 +616,9 @@ a {
 .portal-card {
   padding: 24px;
   text-align: left;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .portal-card:hover {
@@ -842,7 +844,9 @@ a {
   font-size: 15px;
   box-sizing: border-box;
   outline: none;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
 .portal-form__input:focus {

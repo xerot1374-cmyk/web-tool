@@ -4,7 +4,9 @@ import { useState } from "react";
 
 export default function ProductIntroTemplatePage() {
   const [headline, setHeadline] = useState("Neues Produkt-Highlight");
-  const [subline, setSubline] = useState("Kurz das wichtigste Feature erklÃ¤ren.");
+  const [subline, setSubline] = useState(
+    "Kurz das wichtigste Feature erklÃ¤ren.",
+  );
   const [cta, setCta] = useState("Mehr erfahren");
 
   return (
@@ -12,49 +14,50 @@ export default function ProductIntroTemplatePage() {
       <div className="content-wrapper">
         <h1 className="main-heading">LinkedIn â€“ Produktvorstellung</h1>
         <p className="description">
-          Bearbeiten Sie die Texte und sehen Sie rechts die Vorschau des Templates.
+          Bearbeiten Sie die Texte und sehen Sie rechts die Vorschau des
+          Templates.
         </p>
 
         <div className="editor-layout">
           {/* Left panel - form */}
-          <div className="editor-panel">{/* Buttons */}
-<div style={{ marginTop: "20px", display: "flex", gap: "12px" }}>
+          <div className="editor-panel">
+            {/* Buttons */}
+            <div style={{ marginTop: "20px", display: "flex", gap: "12px" }}>
+              {/* Back button */}
+              <a
+                href="/linkedin"
+                style={{
+                  padding: "10px 18px",
+                  backgroundColor: "#e5e7eb",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                  textDecoration: "none",
+                  color: "#111827",
+                  flex: 1,
+                  textAlign: "center",
+                  cursor: "pointer",
+                }}
+              >
+                â† ZurÃ¼ck
+              </a>
 
-  {/* Back button */}
-  <a
-    href="/linkedin"
-    style={{
-      padding: "10px 18px",
-      backgroundColor: "#e5e7eb",
-      borderRadius: "8px",
-      fontWeight: "600",
-      textDecoration: "none",
-      color: "#111827",
-      flex: 1,
-      textAlign: "center",
-      cursor: "pointer"
-    }}
-  >
-    â† ZurÃ¼ck
-  </a>
-
-  {/* Fake download button */}
-  <button
-    onClick={() => alert("Download kommt spÃ¤ter ðŸ˜‰")}
-    style={{
-      padding: "10px 18px",
-      backgroundColor: "#4f46e5",
-      color: "#ffffff",
-      borderRadius: "8px",
-      fontWeight: "600",
-      flex: 1,
-      border: "none",
-      cursor: "pointer"
-    }}
-  >
-    Download
-  </button>
-</div>
+              {/* Fake download button */}
+              <button
+                onClick={() => alert("Download kommt spÃ¤ter ðŸ˜‰")}
+                style={{
+                  padding: "10px 18px",
+                  backgroundColor: "#4f46e5",
+                  color: "#ffffff",
+                  borderRadius: "8px",
+                  fontWeight: "600",
+                  flex: 1,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Download
+              </button>
+            </div>
 
             <h2>Inhalte bearbeiten</h2>
 

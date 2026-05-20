@@ -10,7 +10,9 @@ export function getAdminUserNames() {
 
 export function isConfiguredAdminName(name: string) {
   const normalized = normalizeName(name);
-  return ADMIN_USER_NAMES.some((adminName) => normalizeName(adminName) === normalized);
+  return ADMIN_USER_NAMES.some(
+    (adminName) => normalizeName(adminName) === normalized,
+  );
 }
 
 export function isAdminUser(user: { name: string; isAdmin: boolean }) {

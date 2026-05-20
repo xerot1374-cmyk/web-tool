@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import puppeteer from "puppeteer";
 
-import { absUrl, getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
+import {
+  absUrl,
+  getCanvasFrame,
+  type CanvasPreset,
+} from "@/app/lib/renderUtils";
 
 type Payload = {
   canvasPreset?: CanvasPreset;
@@ -15,7 +19,11 @@ function getPuppeteerLaunchOptions() {
 
   return {
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ],
     ...(executablePath ? { executablePath } : {}),
   };
 }
@@ -39,7 +47,8 @@ export async function POST(req: Request) {
 
       await page.emulateMediaType("screen");
       await page.evaluateOnNewDocument((payload) => {
-        (window as unknown as { __PDF_PAYLOAD__?: unknown }).__PDF_PAYLOAD__ = payload;
+        (window as unknown as { __PDF_PAYLOAD__?: unknown }).__PDF_PAYLOAD__ =
+          payload;
       }, data);
 
       await page.goto(renderUrl, { waitUntil: "networkidle0", timeout: 60000 });
@@ -55,7 +64,7 @@ export async function POST(req: Request) {
           const imgs = Array.from(document.images);
           return imgs.every((img) => img.complete);
         },
-        { timeout: 60000 }
+        { timeout: 60000 },
       );
 
       const exportHeight = await page.$eval(".li2-root", (node) => {

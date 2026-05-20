@@ -24,7 +24,9 @@ export async function POST(req: Request, context: RouteContext) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
-  const body = (await req.json().catch(() => null)) as { action?: string } | null;
+  const body = (await req.json().catch(() => null)) as {
+    action?: string;
+  } | null;
   const action = body?.action;
 
   if (!action || !["block", "unblock", "delete"].includes(action)) {
@@ -34,7 +36,10 @@ export async function POST(req: Request, context: RouteContext) {
   const { userId } = await context.params;
 
   if (!userId) {
-    return NextResponse.json({ message: "User id is required" }, { status: 400 });
+    return NextResponse.json(
+      { message: "User id is required" },
+      { status: 400 },
+    );
   }
 
   const targetUser = await prisma.user.findUnique({
@@ -48,7 +53,7 @@ export async function POST(req: Request, context: RouteContext) {
   if (targetUser.id === actor.id && action !== "unblock") {
     return NextResponse.json(
       { message: "You cannot block or delete your own account." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
