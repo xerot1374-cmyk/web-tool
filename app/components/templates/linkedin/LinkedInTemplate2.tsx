@@ -53,7 +53,9 @@ export type ImageLayoutMode = "manual" | "collage" | "frame";
 type Props = LinkedInTemplate2Data & {
   scale?: number;
   mode?: "edit" | "preview" | "export";
-  editorActiveField?: "badge" | "title" | "body" | "company" | null;
+  activeRichTextEditor?: React.ComponentProps<
+    typeof LinkedInTemplate2Renderer
+  >["activeRichTextEditor"];
 
   bodyStyle?: BoxTextStyle;
   bodyMarks?: TextMark[];
@@ -115,7 +117,7 @@ export default function LinkedInTemplate2(props: Props) {
     onStartFrameImageDrag,
     onSelectableClick,
     onSelectableDoubleClick,
-    editorActiveField,
+    activeRichTextEditor,
     ...rest
   } = props;
 
@@ -144,7 +146,7 @@ export default function LinkedInTemplate2(props: Props) {
       }}
       mode={mode}
       scale={scale}
-      editorActiveField={editorActiveField}
+      activeRichTextEditor={activeRichTextEditor}
       onStartFrameImageDrag={onStartFrameImageDrag}
       onSelectableClick={onSelectableClick}
       onSelectableDoubleClick={onSelectableDoubleClick}

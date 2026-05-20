@@ -680,7 +680,7 @@ export default function LinkedInTemplate2Renderer({
               pointerEvents: "auto",
             }}
           >
-            <span
+            <div
               data-select="badge"
               onClick={(event) => onSelectableClick?.("badge", event)}
               onDoubleClick={(event) =>
@@ -690,7 +690,7 @@ export default function LinkedInTemplate2Renderer({
             >
               {renderActiveRichTextEditor("badge") ??
                 (vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0")}
-            </span>
+            </div>
           </div>
 
           <div className="li2-userTop">

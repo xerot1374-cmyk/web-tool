@@ -13,9 +13,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import TextToolbar from "@/app/components/templates/linkedin-shared/TextToolbar";
-import LexicalInlineEditor, {
-  type LexicalInlineEditorHandle,
-} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import { type LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
 import {
@@ -1872,8 +1870,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       padding: "0",
       margin: 0,
       color: cs.color || "#111827",
-      background: "rgba(255,255,255,0.92)",
-      borderRadius: 8,
+      background: "transparent",
+      borderRadius: 0,
     });
   }
 
@@ -1930,6 +1928,9 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         editor?.focus();
         const root = getRichEditRoot(editField);
         restoreContentEditableSelection(root, next);
+        requestAnimationFrame(() =>
+          updateFloatingTextToolbar(editField, true),
+        );
         return;
       }
       editRef.current?.focus();
@@ -2800,15 +2801,53 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     );
   }
 
-  function updateFloatingTextToolbar(field: RichEditField) {
+  function getCollapsedFormatting(
+    field: RichEditField,
+    caretPosition: number,
+  ): TextStyle {
+    const base = getFieldBoxStyle(field);
+    const { marks } = getActiveMarksState(field);
+    const text = getRichEditText(field);
+    const sampleStart =
+      text.length === 0
+        ? 0
+        : Math.max(0, Math.min(caretPosition, text.length) - (caretPosition >= text.length ? 1 : 0));
+    const sampleEnd = text.length === 0 ? 0 : Math.min(text.length, sampleStart + 1);
+    const inlineStyle =
+      sampleEnd > sampleStart
+        ? styleForSegment(marks, sampleStart, sampleEnd)
+        : {};
+
+    return {
+      fontFamily: String(inlineStyle.fontFamily ?? base.fontFamily),
+      fontSize: Number(inlineStyle.fontSize ?? base.fontSize) || base.fontSize,
+      color: String(inlineStyle.color ?? base.color),
+      highlight: inlineStyle.highlight === true,
+      highlightColor: String(
+        inlineStyle.highlightColor ?? "rgba(250,204,21,0.18)",
+      ),
+      bold:
+        inlineStyle.fontWeight === 800 ||
+        inlineStyle.fontWeight === "800" ||
+        inlineStyle.fontWeight === "bold",
+      italic: inlineStyle.fontStyle === "italic",
+      textAlign: base.textAlign,
+      mixed: {
+        fontFamily: false,
+        fontSize: false,
+        color: false,
+        highlightColor: false,
+      },
+    };
+  }
+
+  function updateFloatingTextToolbar(
+    field: RichEditField,
+    showForCollapsedSelection = false,
+  ) {
     const root = getRichEditRoot(field);
     const selection = window.getSelection();
-    if (
-      !root ||
-      !selection ||
-      selection.rangeCount === 0 ||
-      selection.isCollapsed
-    ) {
+    if (!root || !selection || selection.rangeCount === 0) {
       hideFloatingTextToolbar();
       return;
     }
@@ -2823,14 +2862,18 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
 
     const selectionRange = readContentEditableSelection(field, root);
-    if (selectionRange.start === selectionRange.end) {
+    const isCollapsed = selectionRange.start === selectionRange.end;
+    if (isCollapsed && !showForCollapsedSelection) {
       hideFloatingTextToolbar();
       return;
     }
-    const selectionFormatting = getSelectionFormatting(field, selectionRange);
 
-    const rect = range.getBoundingClientRect();
-    const fallbackRect = range.getClientRects()[0];
+    const selectionFormatting = isCollapsed
+      ? getCollapsedFormatting(field, selectionRange.start)
+      : getSelectionFormatting(field, selectionRange);
+
+    const rect = isCollapsed ? root.getBoundingClientRect() : range.getBoundingClientRect();
+    const fallbackRect = isCollapsed ? rect : range.getClientRects()[0];
     const targetRect = rect.width || rect.height ? rect : fallbackRect;
 
     if (!targetRect) {
@@ -2906,8 +2949,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
     const root = getRichEditRoot(field);
     const selection = readContentEditableSelection(field, root);
-    if (selection.start === selection.end) hideFloatingTextToolbar();
     richEditSelectionRef.current[field] = selection;
+    requestAnimationFrame(() => updateFloatingTextToolbar(field, true));
 
     if (field === "badge") {
       requestAnimationFrame(() => remeasureBadgeSelection());
@@ -4061,6 +4104,50 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   const activeTextStyle = toolbarStyles[activeField];
+  const activeRichTextEditor = isRichEditField(editField)
+    ? {
+        field: editField,
+        editorRef:
+          editField === "title"
+            ? titleEditRef
+            : editField === "badge"
+              ? badgeEditRef
+              : editField === "company"
+                ? companyEditRef
+                : bodyEditRef,
+        text: getRichEditText(editField),
+        marks: getRichEditMarks(editField),
+        multiline: editField !== "badge",
+        className: "template-inline-editor",
+        style: {
+          display: "block",
+          width: "100%",
+          minHeight:
+            editField === "body" ? Math.max(selectedRect?.height ?? 0, 140) : undefined,
+          padding: 0,
+          margin: 0,
+          border: "none",
+          background: "transparent",
+          boxShadow: "none",
+          outline: "none",
+          overflow: editField === "badge" ? "visible" : "hidden",
+          whiteSpace: editField === "badge" ? "nowrap" : "pre-wrap",
+          wordBreak: editField === "badge" ? "normal" : "break-word",
+          caretColor: String(editStyle.color ?? "#111827"),
+          ...editStyle,
+        } satisfies CSSProperties,
+        onChange: (payload: { text: string; marks: TextMark[] }) =>
+          handleRichEditableInput(editField, payload),
+        onBlur: onEditBlur,
+        onKeyDown: onEditKeyDown,
+        onKeyUp: () => updateFloatingTextToolbar(editField, true),
+        onPointerDown: (e) => e.stopPropagation(),
+        onMouseDown: (e) => e.stopPropagation(),
+        onMouseUp: () => updateFloatingTextToolbar(editField, true),
+        onClick: (e) => e.stopPropagation(),
+        onDoubleClick: (e) => e.stopPropagation(),
+      }
+    : null;
 
   useEffect(() => {
     if (!isPdf || !payload) return;
@@ -4680,77 +4767,83 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                     width: previewViewportW,
                     height: previewViewportH,
                     position: "relative",
-                    overflow: "hidden",
+                    overflow: "visible",
                     userSelect: editField ? "text" : "none",
                   }}
                   onClick={onCanvasClick}
                   onDoubleClick={onCanvasDoubleClick}
                 >
                   <div
-                    ref={stageRef}
-                    className="li2-stage"
                     style={{
-                      width: currentCanvas.w,
-                      height: previewContentHeight,
-                      transform: `scale(${previewScale})`,
-                      transformOrigin: "top left",
                       position: "absolute",
-                      left: 0,
-                      top: 0,
+                      inset: 0,
+                      overflow: "hidden",
+                      borderRadius: "inherit",
                     }}
                   >
-                    <div className="li2-template">
-                      <LinkedInTemplate2
-                        scale={1}
-                        mode="edit"
-                        editorActiveField={
-                          isRichEditField(editField) ? editField : null
-                        }
-                        canvasPreset={canvasPreset}
-                        productImage={effective.productImage}
-                        productImages={effective.productImages}
-                        editorHideProductMedia
-                        editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
-                        productOrientation={effective.productOrientation}
-                        productAlign={effective.productAlign}
-                        imageLayout={effective.imageLayout}
-                        framePresetId={effective.framePresetId}
-                        frameSlots={effective.frameSlots}
-                        mediaBox={effective.mediaBox}
-                        profileImage={effective.profileImage}
-                        name={effective.name}
-                        role={effective.role}
-                        badgeText={effective.badgeText}
-                        badgeMarks={effective.badgeMarks}
-                        linkTitle={effective.linkTitle}
-                        titleMarks={effective.titleMarks}
-                        company={effective.company}
-                        companyMarks={effective.companyMarks}
-                        bodyText={effective.bodyText}
-                        bodyMarks={effective.bodyMarks}
-                        companyLogo="/logo.png"
-                        linkUrl={effective.linkUrl}
-                        headline={effective.headline}
-                        subline={effective.subline}
-                        titleStyle={effective.titleStyle}
-                        bodyStyle={effective.bodyStyle}
-                        badgeStyle={effective.badgeStyle}
-                        companyStyle={effective.companyStyle}
-                        headlineStyle={effective.headlineStyle}
-                        sublineStyle={effective.sublineStyle}
-                        onStartFrameImageDrag={startFrameImageDrag}
-                        onSelectableClick={(field, event) => {
-                          event.stopPropagation();
-                          selectCanvasField(field, event.currentTarget);
-                        }}
-                        onSelectableDoubleClick={(field, event) => {
-                          event.stopPropagation();
-                          activateCanvasField(field, event.currentTarget);
-                        }}
-                      />
-                    </div>
+                    <div
+                      ref={stageRef}
+                      className="li2-stage"
+                      style={{
+                        width: currentCanvas.w,
+                        height: previewContentHeight,
+                        transform: `scale(${previewScale})`,
+                        transformOrigin: "top left",
+                        position: "absolute",
+                        left: 0,
+                        top: 0,
+                      }}
+                    >
+                      <div className="li2-template">
+                        <LinkedInTemplate2
+                          scale={1}
+                          mode="edit"
+                          activeRichTextEditor={activeRichTextEditor}
+                          canvasPreset={canvasPreset}
+                          productImage={effective.productImage}
+                          productImages={effective.productImages}
+                          editorHideProductMedia
+                          editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
+                          productOrientation={effective.productOrientation}
+                          productAlign={effective.productAlign}
+                          imageLayout={effective.imageLayout}
+                          framePresetId={effective.framePresetId}
+                          frameSlots={effective.frameSlots}
+                          mediaBox={effective.mediaBox}
+                          profileImage={effective.profileImage}
+                          name={effective.name}
+                          role={effective.role}
+                          badgeText={effective.badgeText}
+                          badgeMarks={effective.badgeMarks}
+                          linkTitle={effective.linkTitle}
+                          titleMarks={effective.titleMarks}
+                          company={effective.company}
+                          companyMarks={effective.companyMarks}
+                          bodyText={effective.bodyText}
+                          bodyMarks={effective.bodyMarks}
+                          companyLogo="/logo.png"
+                          linkUrl={effective.linkUrl}
+                          headline={effective.headline}
+                          subline={effective.subline}
+                          titleStyle={effective.titleStyle}
+                          bodyStyle={effective.bodyStyle}
+                          badgeStyle={effective.badgeStyle}
+                          companyStyle={effective.companyStyle}
+                          headlineStyle={effective.headlineStyle}
+                          sublineStyle={effective.sublineStyle}
+                          onStartFrameImageDrag={startFrameImageDrag}
+                          onSelectableClick={(field, event) => {
+                            event.stopPropagation();
+                            selectCanvasField(field, event.currentTarget);
+                          }}
+                          onSelectableDoubleClick={(field, event) => {
+                            event.stopPropagation();
+                            activateCanvasField(field, event.currentTarget);
+                          }}
+                        />
+                      </div>
 
-                    {editorMediaImages.map((img) => {
+                      {editorMediaImages.map((img) => {
                       const cropX = Number.isFinite(img.cropX)
                         ? Number(img.cropX)
                         : 50;
@@ -4818,7 +4911,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                       );
                     })}
 
-                    {videoPreviewUrl ? (
+                      {videoPreviewUrl ? (
                       <div
                         data-select="video"
                         aria-label="Uploaded video preview"
@@ -4856,8 +4949,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                       </div>
                     ) : null}
 
-                    {selectedRect &&
-                    !(editField && isPreviewTextSelectableId(selectedId)) ? (
+                      {selectedRect &&
+                      !(editField && isPreviewTextSelectableId(selectedId)) ? (
                       <div
                         className={`editor-canvasSelection ${
                           isPreviewTextSelectableId(selectedId)
@@ -5069,80 +5162,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                           </>
                         ) : null}
                       </div>
-                    ) : null}
-
-                    {isRichEditField(editField) && selectedRect ? (
-                      <LexicalInlineEditor
-                        ref={
-                          editField === "title"
-                            ? titleEditRef
-                            : editField === "badge"
-                              ? badgeEditRef
-                              : editField === "company"
-                                ? companyEditRef
-                                : bodyEditRef
-                        }
-                        text={getRichEditText(editField)}
-                        marks={getRichEditMarks(editField)}
-                        multiline={editField !== "badge"}
-                        onChange={(payload) =>
-                          handleRichEditableInput(editField, payload)
-                        }
-                        onBlur={onEditBlur}
-                        onKeyDown={onEditKeyDown}
-                        onKeyUp={() => updateFloatingTextToolbar(editField)}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onMouseUp={() => updateFloatingTextToolbar(editField)}
-                        onClick={(e) => e.stopPropagation()}
-                        onDoubleClick={(e) => e.stopPropagation()}
-                        className="template-inline-editor"
-                        style={{
-                          position: "absolute",
-                          left: selectedRect.x,
-                          top: selectedRect.y,
-                          width: selectedRect.width,
-                          height:
-                            editField === "badge"
-                              ? selectedRect.height
-                              : Math.max(selectedRect.height, 140),
-                          border:
-                            editField === "badge"
-                              ? "1px solid rgba(255,255,255,0.26)"
-                              : "1px solid rgba(255,255,255,0.66)",
-                          outline: "none",
-                          resize: "none",
-                          overflow: editField === "badge" ? "visible" : "auto",
-                          padding:
-                            editField === "badge" ? "0 6px" : "18px 18px 16px",
-                          caretColor: "#111",
-                          whiteSpace:
-                            editField === "badge" ? "nowrap" : "pre-wrap",
-                          wordBreak:
-                            editField === "badge" ? "normal" : "break-word",
-                          boxSizing: "border-box",
-                          zIndex: 10000,
-                          boxShadow:
-                            editField === "badge"
-                              ? "0 10px 24px rgba(15,23,42,0.12)"
-                              : "0 24px 60px rgba(15,23,42,0.18)",
-                          ...editStyle,
-                          ...(editField === "badge"
-                            ? {
-                                background: "rgba(255,255,255,0.08)",
-                                backgroundColor: "rgba(255,255,255,0.08)",
-                                minHeight: selectedRect.height,
-                                lineHeight: editStyle.lineHeight,
-                                borderRadius: 999,
-                              }
-                            : {
-                                background: "rgba(255,255,255,0.94)",
-                                backdropFilter: "blur(14px)",
-                                borderRadius: 20,
-                              }),
-                        }}
-                      />
-                    ) : null}
+                      ) : null}
+                    </div>
                   </div>
                   {floatingTextToolbar.visible &&
                   floatingTextToolbar.activeField ? (
