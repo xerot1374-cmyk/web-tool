@@ -12,7 +12,6 @@ import {
   type CSSProperties,
 } from "react";
 import { useRouter } from "next/navigation";
-import TextToolbar from "@/app/components/templates/linkedin-shared/TextToolbar";
 import { type LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
@@ -801,15 +800,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   const [editField, setEditField] = useState<EditField>(null);
   const editRef = useRef<HTMLTextAreaElement | null>(null);
-  const [floatingTextToolbar, setFloatingTextToolbar] =
-    useState<FloatingTextToolbarState>({
-      visible: false,
-      x: 0,
-      y: 0,
-      placement: "above",
-      activeField: null,
-    });
-  const floatingTextToolbarRef = useRef<HTMLDivElement | null>(null);
   const titleEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const bodyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const companyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
@@ -884,6 +874,15 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   const [activeField, setActiveField] = useState<EditorTextField>("caption");
   const [copied, setCopied] = useState(false);
+  const [floatingTextToolbar, setFloatingTextToolbar] =
+    useState<FloatingTextToolbarState>({
+      visible: false,
+      x: 0,
+      y: 0,
+      placement: "above",
+      activeField: null,
+    });
+  const floatingTextToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const badgeRef = useRef<HTMLInputElement | null>(null);
   const titleRef = useRef<HTMLInputElement | null>(null);
@@ -932,7 +931,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     color: "#374151",
     textAlign: "left",
   });
-
   const [toolbarStyles, setToolbarStyles] = useState<
     Record<EditorTextField, TextStyle>
   >({
@@ -972,6 +970,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       textAlign: "left",
     },
   });
+
   const [pendingTextStyles, setPendingTextStyles] = useState<
     Record<EditorTextField, RichStyle>
   >({
@@ -1928,9 +1927,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         editor?.focus();
         const root = getRichEditRoot(editField);
         restoreContentEditableSelection(root, next);
-        requestAnimationFrame(() =>
-          updateFloatingTextToolbar(editField, true),
-        );
         return;
       }
       editRef.current?.focus();
@@ -1940,20 +1936,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }, [editField]);
 
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
-    const nextTarget = e.relatedTarget;
-    if (
-      nextTarget instanceof Node &&
-      floatingTextToolbarRef.current?.contains(nextTarget)
-    ) {
-      return;
-    }
-
     setEditField(null);
-    setFloatingTextToolbar((prev) => ({
-      ...prev,
-      visible: false,
-      activeField: null,
-    }));
   }
 
   function handleBodyBulletEnter(e: React.KeyboardEvent<HTMLElement>) {
@@ -2950,7 +2933,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     const root = getRichEditRoot(field);
     const selection = readContentEditableSelection(field, root);
     richEditSelectionRef.current[field] = selection;
-    requestAnimationFrame(() => updateFloatingTextToolbar(field, true));
 
     if (field === "badge") {
       requestAnimationFrame(() => remeasureBadgeSelection());
@@ -3323,10 +3305,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
 
     setActiveField(field);
-    setToolbarStyles((prev) => ({
-      ...prev,
-      [field]: { ...prev[field], textAlign },
-    }));
     if (editField === field) {
       setEditStyle((prev) => ({ ...prev, textAlign }));
     }
@@ -4136,14 +4114,16 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           caretColor: String(editStyle.color ?? "#111827"),
           ...editStyle,
         } satisfies CSSProperties,
+        onAlignChange: (align: "left" | "center" | "right") =>
+          setFieldTextAlign(editField, align),
         onChange: (payload: { text: string; marks: TextMark[] }) =>
           handleRichEditableInput(editField, payload),
         onBlur: onEditBlur,
         onKeyDown: onEditKeyDown,
-        onKeyUp: () => updateFloatingTextToolbar(editField, true),
+        onKeyUp: () => {},
         onPointerDown: (e) => e.stopPropagation(),
         onMouseDown: (e) => e.stopPropagation(),
-        onMouseUp: () => updateFloatingTextToolbar(editField, true),
+        onMouseUp: () => {},
         onClick: (e) => e.stopPropagation(),
         onDoubleClick: (e) => e.stopPropagation(),
       }
@@ -5165,51 +5145,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                       ) : null}
                     </div>
                   </div>
-                  {floatingTextToolbar.visible &&
-                  floatingTextToolbar.activeField ? (
-                    <div
-                      ref={floatingTextToolbarRef}
-                      className={`editor-floatingTextToolbar editor-floatingTextToolbar--${floatingTextToolbar.placement}`}
-                      style={{
-                        left: floatingTextToolbar.x,
-                        top: floatingTextToolbar.y,
-                      }}
-                      onMouseDown={(e) => {
-                        const target = e.target;
-                        if (
-                          target instanceof HTMLElement &&
-                          !target.closest("select,input")
-                        ) {
-                          e.preventDefault();
-                        }
-                        e.stopPropagation();
-                      }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <TextToolbar
-                        variant="floating"
-                        activeField={floatingTextToolbar.activeField}
-                        copied={copied}
-                        applyUnicodeStyle={applyUnicodeStyle}
-                        applyBullet={applyBullet}
-                        applyNumbered={applyNumbered}
-                        applyHashtag={applyHashtag}
-                        copyActive={copyCaption}
-                        insertEmoji={insertEmoji}
-                        EMOJIS={EMOJIS}
-                        activeTextStyle={activeTextStyle}
-                        setActiveTextStyle={setActiveTextStyle}
-                        applyHighlightSelection={applyHighlightSelection}
-                        applyHighlightColorSelection={
-                          applyHighlightColorSelection
-                        }
-                        applyFontSelection={applyFontSelection}
-                        applySizeSelection={applySizeSelection}
-                        applyColorSelection={applyColorSelection}
-                        applyAlignSelection={applyAlignSelection}
-                      />
-                    </div>
-                  ) : null}
                 </div>
               </div>
             </div>
