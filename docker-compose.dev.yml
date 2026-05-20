@@ -1,13 +1,12 @@
 services:
   db:
     image: postgres:16-alpine
-    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
-    expose:
-      - "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-social_media_tool}
+    ports:
+      - "${DB_BIND_ADDRESS:-127.0.0.1}:${DB_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -26,30 +25,41 @@ services:
       context: .
       target: deps
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-social_media_tool}?schema=public
     command: ["npx", "prisma", "migrate", "deploy"]
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
 
-  app:
+  vite:
     build:
       context: .
-      target: runner
-    init: true
-    restart: unless-stopped
-    shm_size: "1gb"
+      target: dev
+    command:
+      [
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "--hostname",
+        "0.0.0.0",
+        "--port",
+        "${APP_PORT:-3100}",
+      ]
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:?Set POSTGRES_USER in .env}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:?Set POSTGRES_DB in .env}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-social_media_tool}?schema=public
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
-      FFMPEG_PATH: /usr/bin/ffmpeg
-      FFPROBE_PATH: /usr/bin/ffprobe
       HOSTNAME: 0.0.0.0
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: ${APP_PORT:-3100}
+      NEXT_TELEMETRY_DISABLED: 1
     ports:
       - "${APP_PORT:-3100}:${APP_PORT:-3100}"
+    volumes:
+      - .:/app
+      - node-modules:/app/node_modules
+      - next-cache:/app/.next
     depends_on:
       db:
         condition: service_healthy
@@ -59,3 +69,7 @@ services:
 volumes:
   postgres-data:
     name: ${POSTGRES_VOLUME:-web-tool_postgres-data}
+  node-modules:
+    name: ${NODE_MODULES_VOLUME:-web-tool_node-modules}
+  next-cache:
+    name: ${NEXT_CACHE_VOLUME:-web-tool_next-cache}

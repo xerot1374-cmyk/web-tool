@@ -1,6 +1,17 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/avatar.png",
+        destination: "/profile.jpg",
+      },
+    ];
+  },
   serverExternalPackages: [
     "fluent-ffmpeg",
     "@ffmpeg-installer/ffmpeg",

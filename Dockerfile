@@ -14,6 +14,14 @@ COPY prisma ./prisma
 COPY lib/env.ts ./lib/env.ts
 RUN npm ci
 
+FROM deps AS dev
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    chromium \
+    ffmpeg \
+  && rm -rf /var/lib/apt/lists/*
+
 FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 

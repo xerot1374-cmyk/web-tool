@@ -754,7 +754,7 @@ export default function TemplateAClient({
 
   const sessionName = sessionUser?.name ?? "";
   const sessionRole = sessionUser?.role ?? "";
-  const sessionProfileImage = sessionUser?.profileImage ?? "/avatar.png";
+  const sessionProfileImage = sessionUser?.profileImage ?? "/profile.jpg";
 
   const [headline, setHeadline] = useState("");
   const [subline, setSubline] = useState("");
