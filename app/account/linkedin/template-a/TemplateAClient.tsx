@@ -3818,9 +3818,16 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                             pointerEvents: "auto",
                             boxSizing: "border-box",
                           }}
-                          onMouseDown={(e) =>
-                            startMediaInteraction(e, "move", img)
-                          }
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            selectImageObject(img);
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            selectImageObject(img);
+                          }}
                         >
                           <img
                             src={img.src}
@@ -3864,7 +3871,16 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                           pointerEvents: "auto",
                           boxSizing: "border-box",
                         }}
-                        onMouseDown={(e) => startVideoInteraction(e, "move")}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          selectVideoObject();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          selectVideoObject();
+                        }}
                       >
                         <video
                           src={videoPreviewUrl}

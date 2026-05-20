@@ -650,6 +650,95 @@
   outline: none;
 }
 
+.lexical-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 247, 248, 0.94));
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(18px);
+}
+
+.lexical-toolbar__button,
+.lexical-toolbar__select,
+.lexical-toolbar__color {
+  min-height: 36px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 800;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    background 0.18s ease;
+}
+
+.lexical-toolbar__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.lexical-toolbar__button:hover:not(:disabled),
+.lexical-toolbar__select:hover,
+.lexical-toolbar__color:hover {
+  transform: translateY(-1px);
+  border-color: rgba(164, 7, 47, 0.28);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+}
+
+.lexical-toolbar__button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.lexical-toolbar__button--active {
+  border-color: rgba(164, 7, 47, 0.42);
+  background: rgba(164, 7, 47, 0.1);
+  color: var(--brand-red);
+}
+
+.lexical-toolbar__select {
+  padding: 0 34px 0 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.lexical-toolbar__select:focus,
+.lexical-toolbar__color:focus,
+.lexical-toolbar__button:focus-visible {
+  outline: none;
+  border-color: var(--brand-red);
+  box-shadow: 0 0 0 4px rgba(164, 7, 47, 0.12);
+}
+
+.lexical-toolbar__select--font {
+  max-width: 140px;
+}
+
+.lexical-toolbar__select--size,
+.lexical-toolbar__select--align {
+  max-width: 88px;
+}
+
+.lexical-toolbar__color {
+  width: 38px;
+  min-width: 38px;
+  padding: 4px;
+  cursor: pointer;
+}
+
 .properties-panel {
   display: flex;
   flex-direction: column;

@@ -590,6 +590,7 @@ function NativeToolbarPlugin({
     <div
       ref={toolbarRef}
       data-lexical-toolbar="true"
+      className="lexical-toolbar"
       style={{
         position: "fixed",
         left: toolbar.x,
@@ -621,22 +622,23 @@ function NativeToolbarPlugin({
       }}
     >
       <button
+        className="lexical-toolbar__button"
         type="button"
         disabled={!toolbar.canUndo}
         onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-        style={{ opacity: toolbar.canUndo ? 1 : 0.45 }}
       >
         Undo
       </button>
       <button
+        className="lexical-toolbar__button"
         type="button"
         disabled={!toolbar.canRedo}
         onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-        style={{ opacity: toolbar.canRedo ? 1 : 0.45 }}
       >
         Redo
       </button>
       <select
+        className="lexical-toolbar__select lexical-toolbar__select--font"
         value={toolbar.fontFamily}
         onChange={(event) =>
           patchSelectionStyle({ "font-family": event.target.value })
@@ -649,6 +651,7 @@ function NativeToolbarPlugin({
         ))}
       </select>
       <select
+        className="lexical-toolbar__select lexical-toolbar__select--size"
         value={String(toolbar.fontSize)}
         onChange={(event) =>
           patchSelectionStyle({ "font-size": `${event.target.value}px` })
@@ -661,20 +664,25 @@ function NativeToolbarPlugin({
         ))}
       </select>
       <button
+        className={`lexical-toolbar__button${
+          toolbar.bold ? " lexical-toolbar__button--active" : ""
+        }`}
         type="button"
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-        style={{ fontWeight: toolbar.bold ? 800 : 500 }}
       >
         B
       </button>
       <button
+        className={`lexical-toolbar__button${
+          toolbar.italic ? " lexical-toolbar__button--active" : ""
+        }`}
         type="button"
         onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "italic")}
-        style={{ fontStyle: toolbar.italic ? "italic" : "normal" }}
       >
         I
       </button>
       <input
+        className="lexical-toolbar__color"
         type="color"
         value={toolbar.color}
         onChange={(event) =>
@@ -682,6 +690,7 @@ function NativeToolbarPlugin({
         }
       />
       <input
+        className="lexical-toolbar__color"
         type="color"
         value={rgbaToHex(toolbar.highlightColor)}
         onChange={(event) =>
@@ -692,23 +701,32 @@ function NativeToolbarPlugin({
       />
       {multiline ? (
         <button
+          className={`lexical-toolbar__button${
+            toolbar.listType === "bullet"
+              ? " lexical-toolbar__button--active"
+              : ""
+          }`}
           type="button"
           onClick={() => toggleList("bullet")}
-          style={{ fontWeight: toolbar.listType === "bullet" ? 800 : 500 }}
         >
           • List
         </button>
       ) : null}
       {multiline ? (
         <button
+          className={`lexical-toolbar__button${
+            toolbar.listType === "number"
+              ? " lexical-toolbar__button--active"
+              : ""
+          }`}
           type="button"
           onClick={() => toggleList("number")}
-          style={{ fontWeight: toolbar.listType === "number" ? 800 : 500 }}
         >
           1. List
         </button>
       ) : null}
       <select
+        className="lexical-toolbar__select lexical-toolbar__select--align"
         value={toolbar.textAlign}
         onChange={(event) =>
           setTextAlign(event.target.value as "left" | "center" | "right")
