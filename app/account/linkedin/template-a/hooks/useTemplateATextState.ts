@@ -8,9 +8,11 @@ import { copyTextToClipboard, normalizeUrl } from "../lib/templateA.utils";
 export default function useTemplateATextState() {
   const [headline, setHeadline] = useState("");
   const [subline, setSubline] = useState("");
-  const [badgeText, setBadgeText] = useState("");
-  const [title, setTitle] = useState("");
-  const [body, _setBody] = useState("");
+  const [badgeText, setBadgeText] = useState("Your Eye Catching Text");
+  const [title, setTitle] = useState("Your Tile Goes Here");
+  const [body, _setBody] = useState(
+    "The main content. You can edit using the rich text editor.",
+  );
   const [caption, _setCaption] = useState("");
 
   const [titleMarks, setTitleMarks] = useState<TextMark[]>([]);
