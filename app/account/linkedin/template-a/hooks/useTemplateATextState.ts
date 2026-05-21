@@ -22,10 +22,12 @@ export default function useTemplateATextState() {
   const [badgeHtml, setBadgeHtml] = useState("");
   const [companyHtml, setCompanyHtml] = useState("");
   const [bodyHtml, setBodyHtml] = useState("");
+  const [captionHtml, setCaptionHtml] = useState("");
   const [titleBlocks, setTitleBlocks] = useState<RichTextBlock[]>([]);
   const [badgeBlocks, setBadgeBlocks] = useState<RichTextBlock[]>([]);
   const [companyBlocks, setCompanyBlocks] = useState<RichTextBlock[]>([]);
   const [bodyBlocks, setBodyBlocks] = useState<RichTextBlock[]>([]);
+  const [captionBlocks, setCaptionBlocks] = useState<RichTextBlock[]>([]);
 
   const [link, setLink] = useState<string[]>([]);
   const [linkInput, setLinkInput] = useState("");
@@ -119,6 +121,8 @@ export default function useTemplateATextState() {
   function setCaption(v: string) {
     _setCaption(v);
     setCaptionMarks([]);
+    setCaptionBlocks([]);
+    setCaptionHtml("");
   }
 
   const normalizedLink: string | undefined = useMemo(() => {
@@ -215,6 +219,10 @@ export default function useTemplateATextState() {
     setBodyHtml,
     bodyBlocks,
     setBodyBlocks,
+    captionHtml,
+    setCaptionHtml,
+    captionBlocks,
+    setCaptionBlocks,
     captionMarks,
     setCaptionMarks,
     link,

@@ -36,7 +36,11 @@ type UseTemplateAExportParams = {
   bodyHtml: string;
   bodyMarks: TextMark[];
   bodyBlocks: RichTextBlock[];
+  caption: string;
+  captionHtml: string;
   captionMarks: TextMark[];
+  captionBlocks: RichTextBlock[];
+  captionStyle: BoxTextStyle;
   link: string[];
   normalizedLink?: string;
   headline: string;
@@ -81,7 +85,11 @@ export default function useTemplateAExport({
   bodyHtml,
   bodyMarks,
   bodyBlocks,
+  caption,
+  captionHtml,
   captionMarks,
+  captionBlocks,
+  captionStyle,
   link,
   normalizedLink,
   headline,
@@ -162,6 +170,11 @@ export default function useTemplateAExport({
         bodyHtml: payload.bodyHtml ?? "",
         bodyMarks: payload.bodyMarks ?? [],
         bodyBlocks: payload.bodyBlocks ?? [],
+        captionText: payload.captionText ?? "",
+        captionHtml: payload.captionHtml ?? "",
+        captionMarks: payload.captionMarks ?? [],
+        captionBlocks: payload.captionBlocks ?? [],
+        captionStyle: payload.captionStyle ?? captionStyle,
         linkUrl: raw.trim() ? raw : undefined,
         headline: payload.headline?.trim()
           ? payload.headline.trim()
@@ -205,6 +218,11 @@ export default function useTemplateAExport({
       bodyHtml,
       bodyMarks,
       bodyBlocks,
+      captionText: caption || "",
+      captionHtml,
+      captionMarks,
+      captionBlocks,
+      captionStyle,
       linkUrl: normalizedLink,
       headline: headline?.trim() ? headline.trim() : undefined,
       subline: subline?.trim() ? subline.trim() : undefined,
@@ -246,6 +264,11 @@ export default function useTemplateAExport({
     bodyHtml,
     bodyMarks,
     bodyBlocks,
+    caption,
+    captionHtml,
+    captionMarks,
+    captionBlocks,
+    captionStyle,
     normalizedLink,
     headline,
     subline,
@@ -338,7 +361,11 @@ export default function useTemplateAExport({
         bodyHtml,
         bodyMarks,
         bodyBlocks,
+        captionText: caption ?? "",
+        captionHtml,
         captionMarks,
+        captionBlocks,
+        captionStyle,
         titleStyle,
         bodyStyle: bodyBoxStyle,
         companyStyle,

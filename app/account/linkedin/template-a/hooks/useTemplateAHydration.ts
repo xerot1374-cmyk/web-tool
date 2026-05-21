@@ -25,6 +25,7 @@ type UseTemplateAHydrationParams = {
   setBadgeText: Setter<string>;
   setTitle: Setter<string>;
   setBodyRaw: Setter<string>;
+  setCaptionRaw: Setter<string>;
   setBadgeHtml: Setter<string>;
   setBadgeMarks: Setter<TextMark[]>;
   setBadgeBlocks: Setter<RichTextBlock[]>;
@@ -34,6 +35,8 @@ type UseTemplateAHydrationParams = {
   setBodyHtml: Setter<string>;
   setBodyMarks: Setter<TextMark[]>;
   setBodyBlocks: Setter<RichTextBlock[]>;
+  setCaptionHtml: Setter<string>;
+  setCaptionBlocks: Setter<RichTextBlock[]>;
   setCompanyHtml: Setter<string>;
   setCompanyMarks: Setter<TextMark[]>;
   setCompanyBlocks: Setter<RichTextBlock[]>;
@@ -51,6 +54,7 @@ type UseTemplateAHydrationParams = {
   setVideoRadius?: Setter<number>;
   setTitleStyle: Setter<BoxTextStyle>;
   setBodyBoxStyle: Setter<BoxTextStyle>;
+  setCaptionStyle: Setter<BoxTextStyle>;
   setBadgeStyle: Setter<BoxTextStyle>;
   setCompanyStyle: Setter<BoxTextStyle>;
   setHeadlineStyle: Setter<BoxTextStyle>;
@@ -66,6 +70,7 @@ export default function useTemplateAHydration({
   setBadgeText,
   setTitle,
   setBodyRaw,
+  setCaptionRaw,
   setBadgeHtml,
   setBadgeMarks,
   setBadgeBlocks,
@@ -75,6 +80,8 @@ export default function useTemplateAHydration({
   setBodyHtml,
   setBodyMarks,
   setBodyBlocks,
+  setCaptionHtml,
+  setCaptionBlocks,
   setCompanyHtml,
   setCompanyMarks,
   setCompanyBlocks,
@@ -92,6 +99,7 @@ export default function useTemplateAHydration({
   setVideoRadius,
   setTitleStyle,
   setBodyBoxStyle,
+  setCaptionStyle,
   setBadgeStyle,
   setCompanyStyle,
   setHeadlineStyle,
@@ -106,6 +114,7 @@ export default function useTemplateAHydration({
     setBadgeText(payload.badgeText ?? "");
     setTitle(payload.linkTitle ?? "");
     setBodyRaw(payload.bodyText ?? "");
+    setCaptionRaw(payload.captionText ?? "");
     setBadgeHtml(payload.badgeHtml ?? "");
     setBadgeMarks(payload.badgeMarks ?? []);
     setBadgeBlocks(payload.badgeBlocks ?? []);
@@ -115,6 +124,8 @@ export default function useTemplateAHydration({
     setBodyHtml(payload.bodyHtml ?? "");
     setBodyMarks(payload.bodyMarks ?? []);
     setBodyBlocks(payload.bodyBlocks ?? []);
+    setCaptionHtml(payload.captionHtml ?? "");
+    setCaptionBlocks(payload.captionBlocks ?? []);
     setCompanyHtml(payload.companyHtml ?? "");
     setCompanyMarks(payload.companyMarks ?? []);
     setCompanyBlocks(payload.companyBlocks ?? []);
@@ -169,6 +180,7 @@ export default function useTemplateAHydration({
 
     if (payload.titleStyle) setTitleStyle(payload.titleStyle);
     if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
+    if (payload.captionStyle) setCaptionStyle(payload.captionStyle);
     if (payload.badgeStyle) setBadgeStyle(payload.badgeStyle);
     if (payload.companyStyle) setCompanyStyle(payload.companyStyle);
     if (payload.headlineStyle) setHeadlineStyle(payload.headlineStyle);
@@ -182,6 +194,7 @@ export default function useTemplateAHydration({
     setBadgeText,
     setTitle,
     setBodyRaw,
+    setCaptionRaw,
     setBadgeHtml,
     setBadgeMarks,
     setBadgeBlocks,
@@ -191,6 +204,8 @@ export default function useTemplateAHydration({
     setBodyHtml,
     setBodyMarks,
     setBodyBlocks,
+    setCaptionHtml,
+    setCaptionBlocks,
     setCompanyHtml,
     setCompanyMarks,
     setCompanyBlocks,
@@ -208,6 +223,7 @@ export default function useTemplateAHydration({
     setVideoRadius,
     setTitleStyle,
     setBodyBoxStyle,
+    setCaptionStyle,
     setBadgeStyle,
     setCompanyStyle,
     setHeadlineStyle,

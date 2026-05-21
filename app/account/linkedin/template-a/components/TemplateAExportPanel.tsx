@@ -1,55 +1,10 @@
+import LexicalInlineEditor, {
+  type LexicalInlineEditorHandle,
+  type RichTextBlock,
+  type TextMark,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import EditorStatusMessage from "@/app/components/templates/linkedin-shared/EditorStatusMessage";
-import type { BoxTextStyle, TextMark } from "../lib/templateA.types";
-
-function renderMarkedText(text: string, marks: TextMark[] = []) {
-  if (!marks.length) return text;
-
-  const safeMarks = marks
-    .map((mark) => ({
-      start: Math.max(0, Math.min(mark.start, text.length)),
-      end: Math.max(0, Math.min(mark.end, text.length)),
-      style: mark.style ?? {},
-    }))
-    .filter((mark) => mark.end > mark.start)
-    .sort((a, b) => a.start - b.start);
-
-  const out: React.ReactNode[] = [];
-  let pos = 0;
-
-  safeMarks.forEach((mark, index) => {
-    if (mark.start > pos) {
-      out.push(
-        <span key={`caption-${pos}`}>{text.slice(pos, mark.start)}</span>,
-      );
-    }
-
-    out.push(
-      <span
-        key={`caption-mark-${mark.start}-${mark.end}-${index}`}
-        style={{
-          fontFamily: mark.style.fontFamily,
-          fontSize: mark.style.fontSize,
-          color: mark.style.color,
-          fontWeight: mark.style.fontWeight,
-          fontStyle: mark.style.fontStyle,
-          background: mark.style.highlight
-            ? "rgba(250,204,21,0.28)"
-            : undefined,
-        }}
-      >
-        {text.slice(mark.start, mark.end)}
-      </span>,
-    );
-
-    pos = mark.end;
-  });
-
-  if (pos < text.length) {
-    out.push(<span key={`caption-${pos}`}>{text.slice(pos)}</span>);
-  }
-
-  return out;
-}
+import type { BoxTextStyle } from "../lib/templateA.types";
 
 type TemplateAExportPanelProps = {
   loadingPdf: boolean;
@@ -58,14 +13,19 @@ type TemplateAExportPanelProps = {
   finalUrl: string | null;
   caption: string;
   captionMarks: TextMark[];
+  captionBlocks: RichTextBlock[];
   captionStyle: BoxTextStyle;
   copied: boolean;
   successMsg?: string;
   errorMsg?: string;
-  captionRef: React.RefObject<HTMLTextAreaElement | null>;
-  onCaptionChange: (value: string, selectionStart: number | null) => void;
+  captionEditorRef: React.RefObject<LexicalInlineEditorHandle | null>;
   onCaptionFocus: () => void;
-  onCaptionKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  onCaptionChange: (payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: RichTextBlock[];
+    html: string;
+  }) => void;
   onCopyCaption: () => void;
   onDownloadPdf: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onGenerateFinal: (e: React.MouseEvent<HTMLButtonElement>) => void;
@@ -78,14 +38,14 @@ export default function TemplateAExportPanel({
   finalUrl,
   caption,
   captionMarks,
+  captionBlocks,
   captionStyle,
   copied,
   successMsg,
   errorMsg,
-  captionRef,
-  onCaptionChange,
+  captionEditorRef,
   onCaptionFocus,
-  onCaptionKeyDown,
+  onCaptionChange,
   onCopyCaption,
   onDownloadPdf,
   onGenerateFinal,
@@ -132,60 +92,48 @@ export default function TemplateAExportPanel({
       <EditorStatusMessage successMsg={successMsg} errorMsg={errorMsg} />
 
       <div className="tb__section" style={{ marginTop: 16 }}>
-        <div className="tb__sectionTitle">
-          <span>Caption</span>
-          <span className="tb__sectionMeta">Social copy</span>
+        <div className="tb__captionPreviewHeader">
+          <div className="tb__sectionTitle" style={{ marginBottom: 0 }}>
+            <span>Caption</span>
+            <span className="tb__sectionMeta">Social copy</span>
+          </div>
+          <button
+            type="button"
+            onClick={onCopyCaption}
+            className="tb__copyBtn"
+          >
+            {copied ? "Copied" : "Copy Caption"}
+          </button>
         </div>
 
-        <textarea
-          ref={captionRef}
-          className="editor-textarea"
+        <div className="tb__hint">{caption.length} characters</div>
+
+        <LexicalInlineEditor
+          ref={captionEditorRef}
+          text={caption}
+          marks={captionMarks}
+          blocks={captionBlocks}
+          multiline={true}
+          className="editor-textarea template-captionEditor"
           style={{
             fontFamily: captionStyle.fontFamily,
             fontSize: captionStyle.fontSize,
             color: captionStyle.color,
             textAlign: captionStyle.textAlign,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
           }}
-          value={caption}
-          onChange={(e) =>
-            onCaptionChange(e.target.value, e.target.selectionStart)
-          }
-          onFocus={onCaptionFocus}
-          onSelect={onCaptionFocus}
-          onDoubleClick={onCaptionFocus}
-          onKeyDown={onCaptionKeyDown}
-          placeholder="Draft the supporting post caption"
-          rows={6}
+          onAlignChange={() => {}}
+          onChange={onCaptionChange}
+          onBlur={() => {}}
+          onKeyDown={() => {}}
+          onKeyUp={() => {}}
+          onPointerDown={() => onCaptionFocus()}
+          onMouseDown={() => onCaptionFocus()}
+          onMouseUp={() => {}}
+          onClick={() => onCaptionFocus()}
+          onDoubleClick={() => onCaptionFocus()}
         />
-
-        <div className="tb__hint">{caption.length} characters</div>
-
-        {caption.trim() ? (
-          <div className="tb__captionPreview">
-            <div className="tb__captionPreviewHeader">
-              <div className="tb__captionPreviewTitle">Preview</div>
-              <button
-                type="button"
-                onClick={onCopyCaption}
-                className="tb__copyBtn"
-              >
-                {copied ? "Copied" : "Copy Caption"}
-              </button>
-            </div>
-
-            <div
-              className="tb__captionText"
-              style={{
-                fontFamily: captionStyle.fontFamily,
-                fontSize: captionStyle.fontSize,
-                color: captionStyle.color,
-                textAlign: captionStyle.textAlign,
-              }}
-            >
-              {renderMarkedText(caption, captionMarks)}
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );

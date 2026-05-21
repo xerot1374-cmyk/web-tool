@@ -41,17 +41,14 @@ import {
   safePx,
 } from "./lib/templateA.utils";
 import {
-  cleanStyle,
   getContentEditablePlainText,
   getTextChangeRange,
   hasStyle,
   mergeMarks,
-  overlaps,
   readContentEditableSelection,
   remapMarksForLinePrefixChanges,
   restoreContentEditableSelection,
   shiftMarksAfterTextChange,
-  styleForSegment,
 } from "./lib/templateARichText.utils";
 
 export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
@@ -71,6 +68,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const bodyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const companyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const badgeEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const captionEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const richEditSelectionRef = useRef<
     Record<RichEditField, { start: number; end: number }>
   >({
@@ -127,6 +125,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setBodyHtml,
     bodyBlocks,
     setBodyBlocks,
+    captionHtml,
+    setCaptionHtml,
+    captionBlocks,
+    setCaptionBlocks,
     captionMarks,
     setCaptionMarks,
     link,
@@ -142,7 +144,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     badgeRef,
     titleRef,
     companyRef,
-    captionRef,
     bodyRef,
     titleStyle,
     setTitleStyle,
@@ -278,7 +279,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     bodyHtml,
     bodyMarks,
     bodyBlocks,
+    caption,
+    captionHtml,
     captionMarks,
+    captionBlocks,
+    captionStyle,
     link,
     normalizedLink,
     headline,
@@ -673,6 +678,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setBadgeText,
     setTitle,
     setBodyRaw: _setBody,
+    setCaptionRaw: _setCaption,
     setBadgeHtml,
     setBadgeMarks,
     setBadgeBlocks,
@@ -682,6 +688,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setBodyHtml,
     setBodyMarks,
     setBodyBlocks,
+    setCaptionHtml,
+    setCaptionBlocks,
     setCompanyHtml,
     setCompanyMarks,
     setCompanyBlocks,
@@ -698,6 +706,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setImages,
     setTitleStyle,
     setBodyBoxStyle,
+    setCaptionStyle,
     setBadgeStyle,
     setCompanyStyle,
     setHeadlineStyle,
@@ -748,6 +757,29 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
     if (field === "badge") {
       requestAnimationFrame(() => remeasureBadgeSelection());
+    }
+  }
+
+  function handleCaptionEditableInput(payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: ActiveRichTextEditor["blocks"];
+    html: string;
+  }) {
+    if (payload.text !== caption) {
+      _setCaption(payload.text);
+    }
+
+    if (JSON.stringify(payload.marks) !== JSON.stringify(captionMarks)) {
+      setCaptionMarks(payload.marks);
+    }
+
+    if (JSON.stringify(payload.blocks) !== JSON.stringify(captionBlocks)) {
+      setCaptionBlocks(payload.blocks);
+    }
+
+    if (payload.html !== captionHtml) {
+      setCaptionHtml(payload.html);
     }
   }
 
@@ -803,7 +835,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         return { text: body, setText: setBody, ref: refForField(bodyRef) };
       case "caption":
       default:
-        return { text: caption, setText: setCaption, ref: captionRef };
+        return { text: caption, setText: setCaption, ref: refForField(bodyRef) };
     }
   }
 
@@ -875,13 +907,9 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       return;
     }
 
-    if (activeField !== "caption") return;
-    const node = captionRef.current;
-    const start = node?.selectionStart ?? caption.length;
-    const end = node?.selectionEnd ?? caption.length;
-    const next = `${caption.slice(0, start)}${emoji}${caption.slice(end)}`;
-    handleTextChange("caption", next, start + emoji.length);
-    requestAnimationFrame(() => node?.focus());
+    if (activeField === "caption") {
+      captionEditRef.current?.insertText(emoji);
+    }
   }
 
   function getActiveMarksState(
@@ -930,187 +958,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
-  function getCaptionSelectionRange() {
-    const node = captionRef.current;
-    const start = node?.selectionStart ?? 0;
-    const end = node?.selectionEnd ?? start;
-    return { node, start: Math.min(start, end), end: Math.max(start, end) };
-  }
-
-  function focusCaptionSelection(start: number, end = start) {
-    requestAnimationFrame(() => {
-      const node = captionRef.current;
-      if (!node) return;
-      node.focus();
-      node.setSelectionRange(start, end);
-    });
-  }
-
-  function updateCaptionMarksInSelection(
-    transformStyle: (style: TextMark["style"]) => TextMark["style"],
-  ) {
-    const { node, start, end } = getCaptionSelectionRange();
-    if (!node || start === end) return;
-
-    setActiveField("caption");
-    setCaptionMarks((prevMarks) => {
-      const outside = prevMarks
-        .flatMap((mark) => {
-          if (!overlaps(mark, { start, end })) return [mark];
-
-          const pieces: TextMark[] = [];
-          if (mark.start < start) {
-            pieces.push({ ...mark, end: start });
-          }
-          if (mark.end > end) {
-            pieces.push({ ...mark, start: end });
-          }
-          return pieces;
-        })
-        .filter((mark) => mark.end > mark.start);
-
-      const boundaries = new Set<number>([start, end]);
-      prevMarks.forEach((mark) => {
-        if (!overlaps(mark, { start, end })) return;
-        boundaries.add(Math.max(start, mark.start));
-        boundaries.add(Math.min(end, mark.end));
-      });
-
-      const segments = Array.from(boundaries).sort((a, b) => a - b);
-      const nextMarks = [...outside];
-      for (let index = 0; index < segments.length - 1; index += 1) {
-        const segmentStart = segments[index];
-        const segmentEnd = segments[index + 1];
-        if (segmentEnd <= segmentStart) continue;
-
-        const nextStyle = cleanStyle(
-          transformStyle(styleForSegment(prevMarks, segmentStart, segmentEnd)),
-        );
-        if (hasStyle(nextStyle)) {
-          nextMarks.push({
-            start: segmentStart,
-            end: segmentEnd,
-            style: nextStyle,
-          });
-        }
-      }
-
-      return mergeMarks(nextMarks);
-    });
-
-    focusCaptionSelection(start, end);
-  }
-
-  function captionSelectionHasStyle(
-    predicate: (style: TextMark["style"]) => boolean,
-  ) {
-    const { start, end } = getCaptionSelectionRange();
-    if (start === end) return false;
-
-    const boundaries = new Set<number>([start, end]);
-    captionMarks.forEach((mark) => {
-      if (!overlaps(mark, { start, end })) return;
-      boundaries.add(Math.max(start, mark.start));
-      boundaries.add(Math.min(end, mark.end));
-    });
-
-    const segments = Array.from(boundaries).sort((a, b) => a - b);
-    for (let index = 0; index < segments.length - 1; index += 1) {
-      const segmentStart = segments[index];
-      const segmentEnd = segments[index + 1];
-      if (segmentEnd <= segmentStart) continue;
-      if (!predicate(styleForSegment(captionMarks, segmentStart, segmentEnd))) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  function toggleCaptionInlineStyle(
-    kind: "bold" | "italic",
-    active: boolean,
-  ) {
-    updateCaptionMarksInSelection((style) => {
-      if (kind === "bold") {
-        if (active) {
-          const rest = { ...style };
-          delete rest.fontWeight;
-          return rest;
-        }
-        return { ...style, fontWeight: 700 };
-      }
-
-      if (active) {
-        const rest = { ...style };
-        delete rest.fontStyle;
-        return rest;
-      }
-      return { ...style, fontStyle: "italic" };
-    });
-  }
-
-  function toggleCaptionList(listType: "bullet" | "number") {
-    const { node, start, end } = getCaptionSelectionRange();
-    if (!node) return;
-
-    const lineStart = caption.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
-    const lineEndLookup = caption.indexOf("\n", end);
-    const blockEnd = lineEndLookup === -1 ? caption.length : lineEndLookup;
-    const blockText = caption.slice(lineStart, blockEnd);
-    const lines = blockText.split("\n");
-    if (!lines.length) return;
-
-    const prefixMatcher =
-      listType === "bullet"
-        ? /^(\s*)•\s/
-        : /^(\s*)\d+\.\s/;
-    const shouldRemove = lines.every((line) => prefixMatcher.test(line));
-
-    let cursor = lineStart;
-    const changes = lines.map((line, index) => {
-      const match = line.match(prefixMatcher);
-      const oldPrefixLength = match?.[0].length ?? 0;
-      const indent = match?.[1] ?? line.match(/^(\s*)/)?.[1] ?? "";
-      const baseContent = match ? line.slice(match[0].length) : line.slice(indent.length);
-      const nextPrefix = shouldRemove
-        ? indent
-        : `${indent}${listType === "bullet" ? "• " : `${index + 1}. `}`;
-      const nextLine = `${nextPrefix}${baseContent}`;
-      const oldLineStart = cursor;
-      const oldLineEnd = cursor + line.length;
-      cursor += line.length + 1;
-
-      return {
-        line,
-        nextLine,
-        oldLineStart,
-        oldLineEnd,
-        oldPrefixLength,
-        newPrefixLength: nextPrefix.length,
-      };
-    });
-
-    const nextBlockText = changes.map((change) => change.nextLine).join("\n");
-    const nextCaption =
-      caption.slice(0, lineStart) + nextBlockText + caption.slice(blockEnd);
-    _setCaption(nextCaption);
-    setCaptionMarks((prevMarks) =>
-      remapMarksForLinePrefixChanges(
-        prevMarks,
-        changes.map((change) => ({
-          oldLineStart: change.oldLineStart,
-          oldLineEnd: change.oldLineEnd,
-          oldPrefixLength: change.oldPrefixLength,
-          newPrefixLength: change.newPrefixLength,
-        })),
-      ),
-    );
-
-    const nextSelectionEnd = lineStart + nextBlockText.length;
-    focusCaptionSelection(lineStart, nextSelectionEnd);
-  }
-
   function setFieldTextAlign(
     field: EditorTextField,
     textAlign: BoxTextStyle["textAlign"],
@@ -1134,7 +981,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   function handleNumberedListEnter(
-    field: "body" | "caption",
+    field: "body",
     e: React.KeyboardEvent<HTMLElement>,
   ) {
     if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
@@ -1214,9 +1061,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   async function copyCaption() {
-    const { text, ref } = getEditorFieldControl();
-    const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
-    await copyCaptionText(text, el);
+    await copyCaptionText(caption);
   }
 
   function getToolbarTextAlign() {
@@ -1350,8 +1195,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                captionRef.current?.focus();
-                document.execCommand("undo");
+                captionEditRef.current?.undo();
               }
             }}
             onRedo={() => {
@@ -1360,8 +1204,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                captionRef.current?.focus();
-                document.execCommand("redo");
+                captionEditRef.current?.redo();
               }
             }}
             onToggleBold={() => {
@@ -1370,15 +1213,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                toggleCaptionInlineStyle(
-                  "bold",
-                  captionSelectionHasStyle(
-                    (style) =>
-                      style.fontWeight === 700 ||
-                      style.fontWeight === "700" ||
-                      style.fontWeight === "bold",
-                  ),
-                );
+                captionEditRef.current?.toggleBold();
               }
             }}
             onToggleItalic={() => {
@@ -1387,12 +1222,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                toggleCaptionInlineStyle(
-                  "italic",
-                  captionSelectionHasStyle(
-                    (style) => style.fontStyle === "italic",
-                  ),
-                );
+                captionEditRef.current?.toggleItalic();
               }
             }}
             onSetFontFamily={(value) => {
@@ -1401,10 +1231,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                updateCaptionMarksInSelection((style) => ({
-                  ...style,
-                  fontFamily: value,
-                }));
+                captionEditRef.current?.setFontFamily(value);
               }
             }}
             onSetFontSize={(value) => {
@@ -1413,10 +1240,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                updateCaptionMarksInSelection((style) => ({
-                  ...style,
-                  fontSize: value,
-                }));
+                captionEditRef.current?.setFontSize(value);
               }
             }}
             onSetColor={(value) => {
@@ -1425,10 +1249,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                updateCaptionMarksInSelection((style) => ({
-                  ...style,
-                  color: value,
-                }));
+                captionEditRef.current?.setColor(value);
               }
             }}
             onSetHighlightColor={(value) => {
@@ -1437,11 +1258,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                updateCaptionMarksInSelection((style) => ({
-                  ...style,
-                  highlight: true,
-                  highlightColor: value,
-                }));
+                captionEditRef.current?.setHighlightColor(value);
               }
             }}
             onToggleList={(value) => {
@@ -1450,7 +1267,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
-                toggleCaptionList(value);
+                captionEditRef.current?.toggleList(value);
               }
             }}
             onSetTextAlign={(value) => {
@@ -1459,6 +1276,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 return;
               }
               if (activeField === "caption") {
+                captionEditRef.current?.setTextAlign(value);
                 setFieldTextAlign("caption", value);
               }
             }}
@@ -1557,16 +1375,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             finalUrl={finalUrl}
             caption={caption}
             captionMarks={captionMarks}
+            captionBlocks={captionBlocks}
             captionStyle={captionStyle}
             copied={copied}
             successMsg={successMsg}
             errorMsg={errorMsg}
-            captionRef={captionRef}
-            onCaptionChange={(value, selectionStart) =>
-              handleTextChange("caption", value, selectionStart)
-            }
+            captionEditorRef={captionEditRef}
+            onCaptionChange={handleCaptionEditableInput}
             onCaptionFocus={() => setActiveField("caption")}
-            onCaptionKeyDown={(e) => handleNumberedListEnter("caption", e)}
             onCopyCaption={copyCaption}
             onDownloadPdf={(e) => {
               e.preventDefault();
