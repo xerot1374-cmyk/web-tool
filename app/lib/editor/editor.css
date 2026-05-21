@@ -96,6 +96,7 @@
 }
 
 .editor-shell-card {
+  padding: 0;
   border: 1px solid var(--border-soft);
   border-radius: 26px;
   background: rgba(255, 255, 255, 0.9);
@@ -730,6 +731,53 @@
 
 .template-inline-editor:focus-visible {
   outline: none;
+}
+
+.template-inline-editor,
+.template-captionEditor {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.template-inline-editor > *,
+.template-captionEditor > * {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.template-inline-editor p,
+.template-inline-editor ul,
+.template-inline-editor ol,
+.template-captionEditor p,
+.template-captionEditor ul,
+.template-captionEditor ol {
+  margin: 0;
+  max-width: 100%;
+}
+
+.template-inline-editor ul,
+.template-inline-editor ol,
+.template-captionEditor ul,
+.template-captionEditor ol {
+  margin: 0;
+  padding-inline-start: 0;
+  list-style-position: inside;
+}
+
+.template-inline-editor li,
+.template-captionEditor li {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.template-inline-editor li::marker,
+.template-captionEditor li::marker {
+  font-family: var(--listitem-marker-font-family, inherit);
+  font-size: var(--listitem-marker-font-size, inherit);
+  font-style: var(--listitem-marker-font-style, inherit);
+  font-weight: var(--listitem-marker-font-weight, inherit);
+  color: var(--listitem-marker-color, inherit);
 }
 
 .lexical-toolbar {

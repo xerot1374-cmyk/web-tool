@@ -229,8 +229,10 @@
   color: #200a0a;
   line-height: 1.45;
   white-space: pre-wrap;
-  overflow: auto;
+  overflow: visible;
   padding-right: 6px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .li2-linkRow {
