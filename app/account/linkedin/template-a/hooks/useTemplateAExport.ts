@@ -42,6 +42,7 @@ type UseTemplateAExportParams = {
   captionBlocks: RichTextBlock[];
   captionStyle: BoxTextStyle;
   link: string[];
+  hashtags: string[];
   normalizedLink?: string;
   headline: string;
   subline: string;
@@ -91,6 +92,7 @@ export default function useTemplateAExport({
   captionBlocks,
   captionStyle,
   link,
+  hashtags,
   normalizedLink,
   headline,
   subline,
@@ -176,6 +178,7 @@ export default function useTemplateAExport({
         captionBlocks: payload.captionBlocks ?? [],
         captionStyle: payload.captionStyle ?? captionStyle,
         linkUrl: raw.trim() ? raw : undefined,
+        hashtags: payload.hashtags ?? "",
         headline: payload.headline?.trim()
           ? payload.headline.trim()
           : undefined,
@@ -224,6 +227,7 @@ export default function useTemplateAExport({
       captionBlocks,
       captionStyle,
       linkUrl: normalizedLink,
+      hashtags: hashtags.length ? hashtags.join("\n") : "",
       headline: headline?.trim() ? headline.trim() : undefined,
       subline: subline?.trim() ? subline.trim() : undefined,
       titleStyle,
@@ -270,6 +274,7 @@ export default function useTemplateAExport({
     captionBlocks,
     captionStyle,
     normalizedLink,
+    hashtags,
     headline,
     subline,
     titleStyle,
@@ -374,6 +379,7 @@ export default function useTemplateAExport({
         headline: headline?.trim() ? headline.trim() : undefined,
         subline: subline?.trim() ? subline.trim() : undefined,
         link: link.length ? link.join("\n") : "",
+        hashtags: hashtags.length ? hashtags.join("\n") : "",
         canvasPreset,
       };
 

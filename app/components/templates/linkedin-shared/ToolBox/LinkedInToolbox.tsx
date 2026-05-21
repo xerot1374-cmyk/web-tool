@@ -108,6 +108,11 @@ type Props = {
   setLinkInput: (v: string) => void;
 
   handleAddLink: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  hashtags: string[];
+  setHashtags: React.Dispatch<React.SetStateAction<string[]>>;
+  hashtagInput: string;
+  setHashtagInput: (v: string) => void;
+  handleAddHashtag: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onTextChange?: (
     field: EditorTextField,
     value: string,
@@ -158,6 +163,11 @@ export default function LinkedInToolbox({
   linkInput,
   setLinkInput,
   handleAddLink,
+  hashtags,
+  setHashtags,
+  hashtagInput,
+  setHashtagInput,
+  handleAddHashtag,
   onTextChange,
   onTextKeyDown,
   company,
@@ -301,6 +311,45 @@ export default function LinkedInToolbox({
                         className="tb__linkRemove"
                         onClick={() =>
                           setLink((prev: string[]) =>
+                            prev.filter((_, idx) => idx !== i),
+                          )
+                        }
+                      >
+                        x
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            ) : null}
+          </div>
+        </ToolboxSection>
+
+        <ToolboxSection title="Hashtag" meta="Opportunity" collapsible>
+          <div className="editor-field">
+            <label className="editor-label">Add Hashtag (press Enter)</label>
+
+            <input
+              className="editor-input"
+              value={hashtagInput}
+              onChange={(e) => setHashtagInput(e.target.value)}
+              onKeyDown={handleAddHashtag}
+              placeholder="#hashtag and press Enter"
+            />
+
+            {hashtags.length > 0 ? (
+              <div className="tb__links" style={{ marginTop: 10 }}>
+                {hashtags
+                  .map((hashtag: string) => hashtag.trim())
+                  .filter(Boolean)
+                  .map((hashtag: string, i: number) => (
+                    <div key={`${hashtag}-${i}`} className="tb__linkItem">
+                      <span className="tb__linkText">{hashtag}</span>
+
+                      <button
+                        type="button"
+                        className="tb__linkRemove"
+                        onClick={() =>
+                          setHashtags((prev: string[]) =>
                             prev.filter((_, idx) => idx !== i),
                           )
                         }

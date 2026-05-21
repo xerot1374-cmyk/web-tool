@@ -89,6 +89,7 @@ const PREVIEW_SELECTABLE_IDS = new Set<SelectableId>([
   "productImage",
   "frameSlot",
   "video",
+  "hashtags",
 ]);
 
 export function isPreviewTextSelectableId(

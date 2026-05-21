@@ -97,6 +97,7 @@ type Payload = {
   link?: string;
   linkUrl?: string | string[];
   linkUrls?: string[];
+  hashtags?: string | string[];
   canvasPreset?: CanvasPreset;
 };
 
@@ -206,6 +207,7 @@ export default function PdfRenderClient() {
       linkUrl:
         payload.linkUrl ?? (payload.link?.trim() ? payload.link : undefined),
       linkUrls: payload.linkUrls,
+      hashtags: payload.hashtags,
       headline: payload.headline?.trim() ? payload.headline.trim() : undefined,
       subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
       companyLogo:

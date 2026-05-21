@@ -147,6 +147,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setLink,
     linkInput,
     setLinkInput,
+    hashtags,
+    setHashtags,
+    hashtagInput,
+    setHashtagInput,
     company,
     setCompany,
     setCompanyValue,
@@ -176,6 +180,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     getRichEditMarks,
     getRichEditBlocks,
     handleAddLink,
+    handleAddHashtag,
     copyCaption: copyCaptionText,
   } = useTemplateATextState();
 
@@ -297,6 +302,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     captionBlocks,
     captionStyle,
     link,
+    hashtags,
     normalizedLink,
     headline,
     subline,
@@ -1257,6 +1263,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           bodyMarks={effective.bodyMarks}
           bodyBlocks={effective.bodyBlocks}
           linkUrl={effective.linkUrl}
+          hashtags={effective.hashtags}
           headline={effective.headline}
           subline={effective.subline}
           companyLogo="/logo.png"
@@ -1442,6 +1449,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             linkInput={linkInput}
             setLinkInput={setLinkInput}
             handleAddLink={handleAddLink}
+            hashtags={hashtags}
+            setHashtags={setHashtags}
+            hashtagInput={hashtagInput}
+            setHashtagInput={setHashtagInput}
+            handleAddHashtag={handleAddHashtag}
             onTextChange={handleTextChange}
             onTextKeyDown={handleNumberedListEnter}
             company={company}
