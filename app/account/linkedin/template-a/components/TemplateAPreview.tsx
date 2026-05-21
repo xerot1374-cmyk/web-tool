@@ -1,6 +1,7 @@
 "use client";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { type CanvasPreset } from "@/app/lib/renderUtils";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
 import { CANVAS_LABELS, getCropScale, getCropX, getCropY, isPreviewTextSelectableId } from "../lib/templateA.utils";
@@ -29,13 +30,21 @@ type EffectivePreviewData = {
   name: string;
   role: string;
   badgeText?: string;
+  badgeHtml: string;
   badgeMarks: TextMark[];
+  badgeBlocks: RichTextBlock[];
   linkTitle: string;
+  titleHtml: string;
   titleMarks: TextMark[];
+  titleBlocks: RichTextBlock[];
   company: string;
+  companyHtml: string;
   companyMarks: TextMark[];
+  companyBlocks: RichTextBlock[];
   bodyText: string;
+  bodyHtml: string;
   bodyMarks: TextMark[];
+  bodyBlocks: RichTextBlock[];
   linkUrl?: string;
   headline?: string;
   subline?: string;
@@ -249,13 +258,21 @@ export default function TemplateAPreview({
                     name={effective.name}
                     role={effective.role}
                     badgeText={effective.badgeText}
+                    badgeHtml={effective.badgeHtml}
                     badgeMarks={effective.badgeMarks}
+                    badgeBlocks={effective.badgeBlocks}
                     linkTitle={effective.linkTitle}
+                    titleHtml={effective.titleHtml}
                     titleMarks={effective.titleMarks}
+                    titleBlocks={effective.titleBlocks}
                     company={effective.company}
+                    companyHtml={effective.companyHtml}
                     companyMarks={effective.companyMarks}
+                    companyBlocks={effective.companyBlocks}
                     bodyText={effective.bodyText}
+                    bodyHtml={effective.bodyHtml}
                     bodyMarks={effective.bodyMarks}
+                    bodyBlocks={effective.bodyBlocks}
                     companyLogo="/logo.png"
                     linkUrl={effective.linkUrl}
                     headline={effective.headline}

@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useCallback } from "react";
 import { resolveFrameSlots, type FrameSlot } from "@/app/lib/imageLayouts";
 import LexicalInlineEditor, {
   type LexicalInlineEditorHandle,
+  type RichTextBlock,
 } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 export type MediaBox = {
@@ -41,18 +42,26 @@ export type LinkedInTemplate2Data = {
   editorReserveProductMediaSlot?: boolean;
 
   badgeText?: string;
+  badgeHtml?: string;
   badgeMarks?: TextMark[];
+  badgeBlocks?: RichTextBlock[];
 
   linkTitle?: string;
+  titleHtml?: string;
   titleMarks?: TextMark[];
+  titleBlocks?: RichTextBlock[];
   company?: string;
+  companyHtml?: string;
   companyMarks?: TextMark[];
+  companyBlocks?: RichTextBlock[];
   companyLogo?: string;
 
   headline?: string;
   subline?: string;
   bodyText?: string;
+  bodyHtml?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
   captionMarks?: TextMark[];
 
   titleStyle?: {
@@ -133,6 +142,7 @@ export type LinkedInTemplate2RendererProps = {
     editorRef: React.Ref<LexicalInlineEditorHandle>;
     text: string;
     marks: TextMark[];
+    blocks: RichTextBlock[];
     multiline: boolean;
     className?: string;
     style?: React.CSSProperties;
@@ -144,7 +154,12 @@ export type LinkedInTemplate2RendererProps = {
     onMouseDown: (event: React.MouseEvent<HTMLElement>) => void;
     onClick: (event: React.MouseEvent<HTMLElement>) => void;
     onDoubleClick: (event: React.MouseEvent<HTMLElement>) => void;
-    onChange: (payload: { text: string; marks: TextMark[] }) => void;
+    onChange: (payload: {
+      text: string;
+      marks: TextMark[];
+      blocks: RichTextBlock[];
+      html: string;
+    }) => void;
   } | null;
 
   onFieldChange?: (key: keyof LinkedInTemplate2Data, value: string) => void;
@@ -218,61 +233,141 @@ function EditableInput({
   );
 }
 
-function renderMarkedText(text: string, marks?: TextMark[]) {
+function renderMarkedText(
+  text: string,
+  marks?: TextMark[],
+  blocks?: RichTextBlock[],
+) {
   const t = String(text ?? "");
-  if (!marks || marks.length === 0) return t;
+  const safeMarks =
+    marks
+      ?.map((m) => ({
+        start: Math.max(0, Math.min(m.start, t.length)),
+        end: Math.max(0, Math.min(m.end, t.length)),
+        style: m.style ?? {},
+      }))
+      .filter((m) => m.end > m.start)
+      .sort((a, b) => a.start - b.start) ?? [];
 
-  const safeMarks = marks
-    .map((m) => ({
-      start: Math.max(0, Math.min(m.start, t.length)),
-      end: Math.max(0, Math.min(m.end, t.length)),
-      style: m.style ?? {},
-    }))
-    .filter((m) => m.end > m.start)
-    .sort((a, b) => a.start - b.start);
+  const renderSegment = (rangeStart: number, rangeEnd: number) => {
+    if (rangeEnd <= rangeStart) return null;
+    if (!safeMarks.length) return t.slice(rangeStart, rangeEnd);
 
-  const out: React.ReactNode[] = [];
-  let pos = 0;
+    const out: React.ReactNode[] = [];
+    let pos = rangeStart;
 
-  for (let i = 0; i < safeMarks.length; i++) {
-    const m = safeMarks[i];
+    for (let i = 0; i < safeMarks.length; i++) {
+      const m = safeMarks[i];
+      if (m.end <= rangeStart || m.start >= rangeEnd) continue;
 
-    if (m.start > pos) {
+      const start = Math.max(m.start, rangeStart);
+      const end = Math.min(m.end, rangeEnd);
+
+      if (start > pos) {
+        out.push(
+          <React.Fragment key={`t-${pos}`}>{t.slice(pos, start)}</React.Fragment>,
+        );
+      }
+
+      const style: React.CSSProperties = {
+        fontFamily: m.style.fontFamily,
+        fontSize: m.style.fontSize,
+        color: m.style.color,
+        fontWeight: m.style.fontWeight,
+        fontStyle: m.style.fontStyle,
+        background: m.style.highlight
+          ? (m.style.highlightColor ?? "rgba(250,204,21,0.18)")
+          : undefined,
+      };
+
       out.push(
-        <React.Fragment key={`t-${pos}`}>
-          {t.slice(pos, m.start)}
-        </React.Fragment>,
+        <span key={`m-${start}-${end}-${i}`} style={style}>
+          {t.slice(start, end)}
+        </span>,
+      );
+      pos = end;
+    }
+
+    if (pos < rangeEnd) {
+      out.push(
+        <React.Fragment key={`t-${pos}-end`}>{t.slice(pos, rangeEnd)}</React.Fragment>,
       );
     }
 
-    const chunk = t.slice(m.start, m.end);
-    const style: React.CSSProperties = {
-      fontFamily: m.style.fontFamily,
-      fontSize: m.style.fontSize,
-      color: m.style.color,
-      fontWeight: m.style.fontWeight,
-      fontStyle: m.style.fontStyle,
-      background: m.style.highlight
-        ? (m.style.highlightColor ?? "rgba(250,204,21,0.18)")
-        : undefined,
-    };
+    return out;
+  };
 
-    out.push(
-      <span key={`m-${m.start}-${m.end}-${i}`} style={style}>
-        {chunk}
-      </span>,
-    );
+  const safeBlocks =
+    blocks
+      ?.map((block) => ({
+        ...block,
+        start: Math.max(0, Math.min(block.start, t.length)),
+        end: Math.max(0, Math.min(block.end, t.length)),
+        contentStart: Math.max(0, Math.min(block.contentStart, t.length)),
+        contentEnd: Math.max(0, Math.min(block.contentEnd, t.length)),
+      }))
+      .filter(
+        (block) =>
+          block.end >= block.start && block.contentEnd >= block.contentStart,
+      ) ?? [];
 
-    pos = m.end;
+  if (!safeBlocks.length) {
+    if (!safeMarks.length) return t;
+    return renderSegment(0, t.length);
   }
 
-  if (pos < t.length) {
-    out.push(
-      <React.Fragment key={`t-${pos}-end`}>{t.slice(pos)}</React.Fragment>,
-    );
-  }
+  const nodes: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+  let listType: "bullet" | "number" | null = null;
 
-  return out;
+  const flushList = () => {
+    if (!listType || !listItems.length) return;
+    const Tag = listType === "bullet" ? "ul" : "ol";
+    nodes.push(
+      <Tag
+        key={`list-${nodes.length}`}
+        style={{ margin: 0, paddingInlineStart: "1.25em" }}
+      >
+        {listItems}
+      </Tag>,
+    );
+    listItems = [];
+    listType = null;
+  };
+
+  safeBlocks.forEach((block, index) => {
+    const content = renderSegment(block.contentStart, block.contentEnd);
+
+    if (block.type === "bullet" || block.type === "number") {
+      if (listType && listType !== block.type) {
+        flushList();
+      }
+      listType = block.type;
+      listItems.push(<li key={`li-${index}`}>{content}</li>);
+      return;
+    }
+
+    flushList();
+    nodes.push(
+      <React.Fragment key={`p-${index}`}>
+        {content}
+        {index < safeBlocks.length - 1 ? "\n" : null}
+      </React.Fragment>,
+    );
+  });
+
+  flushList();
+  return nodes;
+}
+
+function renderRichHtml(html?: string) {
+  if (!html?.trim()) return null;
+  return (
+    <div
+      style={{ display: "contents" }}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 function getCropValues(img?: ImageItem) {
@@ -309,6 +404,7 @@ export default function LinkedInTemplate2Renderer({
         ref={activeRichTextEditor.editorRef}
         text={activeRichTextEditor.text}
         marks={activeRichTextEditor.marks}
+        blocks={activeRichTextEditor.blocks}
         multiline={activeRichTextEditor.multiline}
         className={activeRichTextEditor.className}
         style={activeRichTextEditor.style}
@@ -692,7 +788,10 @@ export default function LinkedInTemplate2Renderer({
               style={{ cursor: isEdit ? "pointer" : undefined }}
             >
               {renderActiveRichTextEditor("badge") ??
-                (vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0")}
+                renderRichHtml(data.badgeHtml) ??
+                (vBadge
+                  ? renderMarkedText(vBadge, data.badgeMarks, data.badgeBlocks)
+                  : "\u00A0")}
             </div>
           </div>
 
@@ -738,7 +837,10 @@ export default function LinkedInTemplate2Renderer({
               }}
             >
               {renderActiveRichTextEditor("title") ??
-                (vTitle ? renderMarkedText(vTitle, data.titleMarks) : "\u00A0")}
+                renderRichHtml(data.titleHtml) ??
+                (vTitle
+                  ? renderMarkedText(vTitle, data.titleMarks, data.titleBlocks)
+                  : "\u00A0")}
             </div>
           ) : null}
 
@@ -758,7 +860,12 @@ export default function LinkedInTemplate2Renderer({
               }}
             >
               {renderActiveRichTextEditor("company") ??
-                renderMarkedText(vCompany, data.companyMarks)}
+                renderRichHtml(data.companyHtml) ??
+                renderMarkedText(
+                  vCompany,
+                  data.companyMarks,
+                  data.companyBlocks,
+                )}
             </div>
           ) : null}
 
@@ -844,7 +951,8 @@ export default function LinkedInTemplate2Renderer({
               }}
             >
               {renderActiveRichTextEditor("body") ??
-                renderMarkedText(vBody, data.bodyMarks)}
+                renderRichHtml(data.bodyHtml) ??
+                renderMarkedText(vBody, data.bodyMarks, data.bodyBlocks)}
             </div>
           ) : null}
 

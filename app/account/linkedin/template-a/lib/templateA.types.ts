@@ -1,7 +1,10 @@
 import type { CanvasPreset } from "@/app/lib/renderUtils";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
 import type { CSSProperties } from "react";
-import type { LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type {
+  LexicalInlineEditorHandle,
+  RichTextBlock,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 export type SessionUser = {
   name: string;
@@ -106,10 +109,18 @@ export type PdfPayload = {
   headline?: string;
   subline?: string;
   bodyText?: string;
+  bodyHtml?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
   titleMarks?: TextMark[];
+  titleHtml?: string;
+  titleBlocks?: RichTextBlock[];
   badgeMarks?: TextMark[];
+  badgeHtml?: string;
+  badgeBlocks?: RichTextBlock[];
   companyMarks?: TextMark[];
+  companyHtml?: string;
+  companyBlocks?: RichTextBlock[];
   captionMarks?: TextMark[];
   titleStyle?: BoxTextStyle;
   bodyStyle?: BoxTextStyle;
@@ -189,11 +200,17 @@ export type ActiveRichTextEditor = {
   editorRef: React.Ref<LexicalInlineEditorHandle>;
   text: string;
   marks: TextMark[];
+  blocks: RichTextBlock[];
   multiline: boolean;
   className: string;
   style: CSSProperties;
   onAlignChange: (align: "left" | "center" | "right") => void;
-  onChange: (payload: { text: string; marks: TextMark[] }) => void;
+  onChange: (payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: RichTextBlock[];
+    html: string;
+  }) => void;
   onBlur: (e: React.FocusEvent<HTMLElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
   onKeyUp: () => void;

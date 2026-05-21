@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { resolveFrameSlots } from "@/app/lib/imageLayouts";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import type { FieldErrors, ImageItem, ImagePayloadItem, MediaBox, PdfPayload, SessionUser, TextMark, BoxTextStyle } from "../lib/templateA.types";
 import { DEFAULT_FRAME_PRESET_ID, fileToBase64 } from "../lib/templateA.utils";
 
@@ -19,14 +20,22 @@ type UseTemplateAExportParams = {
   mediaBox: MediaBox;
   images: ImageItem[];
   badgeText: string;
+  badgeHtml: string;
   badgeMarks: TextMark[];
+  badgeBlocks: RichTextBlock[];
   badgeStyle: BoxTextStyle;
   title: string;
+  titleHtml: string;
   titleMarks: TextMark[];
+  titleBlocks: RichTextBlock[];
   company: string;
+  companyHtml: string;
   companyMarks: TextMark[];
+  companyBlocks: RichTextBlock[];
   body: string;
+  bodyHtml: string;
   bodyMarks: TextMark[];
+  bodyBlocks: RichTextBlock[];
   captionMarks: TextMark[];
   link: string[];
   normalizedLink?: string;
@@ -57,14 +66,22 @@ export default function useTemplateAExport({
   mediaBox,
   images,
   badgeText,
+  badgeHtml,
   badgeMarks,
+  badgeBlocks,
   badgeStyle,
   title,
+  titleHtml,
   titleMarks,
+  titleBlocks,
   company,
+  companyHtml,
   companyMarks,
+  companyBlocks,
   body,
+  bodyHtml,
   bodyMarks,
+  bodyBlocks,
   captionMarks,
   link,
   normalizedLink,
@@ -131,13 +148,21 @@ export default function useTemplateAExport({
         badgeText: payload.badgeText?.trim()
           ? payload.badgeText.trim()
           : undefined,
+        badgeHtml: payload.badgeHtml ?? "",
         badgeMarks: payload.badgeMarks ?? [],
+        badgeBlocks: payload.badgeBlocks ?? [],
         linkTitle: payload.linkTitle ?? "",
+        titleHtml: payload.titleHtml ?? "",
         titleMarks: payload.titleMarks ?? [],
+        titleBlocks: payload.titleBlocks ?? [],
         company: payload.company ?? "",
+        companyHtml: payload.companyHtml ?? "",
         companyMarks: payload.companyMarks ?? [],
+        companyBlocks: payload.companyBlocks ?? [],
         bodyText: payload.bodyText ?? "",
+        bodyHtml: payload.bodyHtml ?? "",
         bodyMarks: payload.bodyMarks ?? [],
+        bodyBlocks: payload.bodyBlocks ?? [],
         linkUrl: raw.trim() ? raw : undefined,
         headline: payload.headline?.trim()
           ? payload.headline.trim()
@@ -166,13 +191,21 @@ export default function useTemplateAExport({
       frameSlots: frameSlotsState,
       mediaBox,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+      badgeHtml,
       badgeMarks,
+      badgeBlocks,
       linkTitle: title || "",
+      titleHtml,
       titleMarks,
+      titleBlocks,
       company: company || "",
+      companyHtml,
       companyMarks,
+      companyBlocks,
       bodyText: body || "",
+      bodyHtml,
       bodyMarks,
+      bodyBlocks,
       linkUrl: normalizedLink,
       headline: headline?.trim() ? headline.trim() : undefined,
       subline: subline?.trim() ? subline.trim() : undefined,
@@ -199,13 +232,21 @@ export default function useTemplateAExport({
     frameSlotsState,
     mediaBox,
     badgeText,
+    badgeHtml,
     badgeMarks,
+    badgeBlocks,
     title,
+    titleHtml,
     titleMarks,
+    titleBlocks,
     company,
+    companyHtml,
     companyMarks,
+    companyBlocks,
     body,
+    bodyHtml,
     bodyMarks,
+    bodyBlocks,
     normalizedLink,
     headline,
     subline,
@@ -280,14 +321,22 @@ export default function useTemplateAExport({
         mediaBox,
         images: imagePayload,
         badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+        badgeHtml,
         badgeMarks,
+        badgeBlocks,
         badgeStyle,
         linkTitle: title?.trim() ? title.trim() : "",
+        titleHtml,
         titleMarks,
+        titleBlocks,
         company: company?.trim() ? company.trim() : "",
+        companyHtml,
         companyMarks,
+        companyBlocks,
         bodyText: body ?? "",
+        bodyHtml,
         bodyMarks,
+        bodyBlocks,
         captionMarks,
         titleStyle,
         bodyStyle: bodyBoxStyle,
@@ -366,16 +415,24 @@ export default function useTemplateAExport({
           name: sessionName,
           role: sessionRole,
           linkTitle: title,
+          titleHtml,
           titleMarks,
+          titleBlocks,
           bodyText: body,
+          bodyHtml,
           bodyMarks,
+          bodyBlocks,
           headline,
           subline,
           badgeText,
+          badgeHtml,
           badgeMarks,
+          badgeBlocks,
           badgeStyle,
           company,
+          companyHtml,
           companyMarks,
+          companyBlocks,
           link: link.length ? link.join("\n") : "",
           mediaBox,
           images: imagePayload,

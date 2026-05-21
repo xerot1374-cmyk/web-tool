@@ -107,12 +107,28 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setCaption,
     titleMarks,
     setTitleMarks,
+    titleHtml,
+    setTitleHtml,
+    titleBlocks,
+    setTitleBlocks,
     badgeMarks,
     setBadgeMarks,
+    badgeHtml,
+    setBadgeHtml,
+    badgeBlocks,
+    setBadgeBlocks,
     companyMarks,
     setCompanyMarks,
+    companyHtml,
+    setCompanyHtml,
+    companyBlocks,
+    setCompanyBlocks,
     bodyMarks,
     setBodyMarks,
+    bodyHtml,
+    setBodyHtml,
+    bodyBlocks,
+    setBodyBlocks,
     captionMarks,
     setCaptionMarks,
     link,
@@ -145,6 +161,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     normalizedLink,
     getRichEditText,
     getRichEditMarks,
+    getRichEditBlocks,
     handleAddLink,
     copyCaption: copyCaptionText,
   } = useTemplateATextState();
@@ -239,14 +256,22 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     mediaBox,
     images,
     badgeText,
+    badgeHtml,
     badgeMarks,
+    badgeBlocks,
     badgeStyle,
     title,
+    titleHtml,
     titleMarks,
+    titleBlocks,
     company,
+    companyHtml,
     companyMarks,
+    companyBlocks,
     body,
+    bodyHtml,
     bodyMarks,
+    bodyBlocks,
     captionMarks,
     link,
     normalizedLink,
@@ -428,7 +453,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         const next = { start: text.length, end: text.length };
         richEditSelectionRef.current[field] = next;
         const editor = getRichEditEditor(field);
-        editor?.syncContent(text, getRichEditMarks(field));
+        editor?.syncContent(text, getRichEditMarks(field), getRichEditBlocks(field));
         editor?.focus();
         const root = getRichEditRoot(field);
         restoreContentEditableSelection(root, next);
@@ -543,6 +568,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       syncRichEditOverlayDom(
         "body",
         nextMarks,
+        getRichEditBlocks("body"),
         { start: lineStart, end: lineStart },
         next,
       );
@@ -564,6 +590,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     syncRichEditOverlayDom(
       "body",
       nextMarks,
+      getRichEditBlocks("body"),
       { start: nextCaret, end: nextCaret },
       next,
     );
@@ -637,10 +664,18 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setBadgeText,
     setTitle,
     setBodyRaw: _setBody,
+    setBadgeHtml,
     setBadgeMarks,
+    setBadgeBlocks,
+    setTitleHtml,
     setTitleMarks,
+    setTitleBlocks,
+    setBodyHtml,
     setBodyMarks,
+    setBodyBlocks,
+    setCompanyHtml,
     setCompanyMarks,
+    setCompanyBlocks,
     setCaptionMarks,
     setLink,
     setCompany,
@@ -662,12 +697,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   function handleRichEditableInput(
     field: RichEditField,
-    payload: { text: string; marks: TextMark[] },
+    payload: {
+      text: string;
+      marks: TextMark[];
+      blocks: ActiveRichTextEditor["blocks"];
+      html: string;
+    },
   ) {
     const currentText = getRichEditText(field);
     const { marks: currentMarks, setMarks } = getActiveMarksState(field);
+    const { blocks: currentBlocks, setBlocks } = getActiveBlocksState(field);
+    const { html: currentHtml, setHtml } = getActiveHtmlState(field);
     const nextMarksSerialized = JSON.stringify(payload.marks);
     const currentMarksSerialized = JSON.stringify(currentMarks);
+    const nextBlocksSerialized = JSON.stringify(payload.blocks);
+    const currentBlocksSerialized = JSON.stringify(currentBlocks);
 
     if (payload.text !== currentText) {
       setFieldTextRaw(field, payload.text);
@@ -675,6 +719,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
     if (nextMarksSerialized !== currentMarksSerialized) {
       setMarks(payload.marks);
+    }
+
+    if (nextBlocksSerialized !== currentBlocksSerialized) {
+      setBlocks(payload.blocks);
+    }
+
+    if (payload.html !== currentHtml) {
+      setHtml(payload.html);
     }
 
     const root = getRichEditRoot(field);
@@ -693,12 +745,13 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   function syncRichEditOverlayDom(
     field: RichEditField,
     marks: TextMark[],
+    blocks: ActiveRichTextEditor["blocks"],
     range: { start: number; end: number },
     textOverride?: string,
   ) {
     const text = textOverride ?? getRichEditText(field);
     const editor = getRichEditEditor(field);
-    editor?.syncContent(text, marks, range);
+    editor?.syncContent(text, marks, blocks, range);
     richEditSelectionRef.current[field] = range;
     const root = getRichEditRoot(field);
     editor?.focus();
@@ -825,6 +878,34 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
+  function getActiveBlocksState(field: RichEditField) {
+    switch (field) {
+      case "badge":
+        return { blocks: badgeBlocks, setBlocks: setBadgeBlocks };
+      case "title":
+        return { blocks: titleBlocks, setBlocks: setTitleBlocks };
+      case "company":
+        return { blocks: companyBlocks, setBlocks: setCompanyBlocks };
+      case "body":
+      default:
+        return { blocks: bodyBlocks, setBlocks: setBodyBlocks };
+    }
+  }
+
+  function getActiveHtmlState(field: RichEditField) {
+    switch (field) {
+      case "badge":
+        return { html: badgeHtml, setHtml: setBadgeHtml };
+      case "title":
+        return { html: titleHtml, setHtml: setTitleHtml };
+      case "company":
+        return { html: companyHtml, setHtml: setCompanyHtml };
+      case "body":
+      default:
+        return { html: bodyHtml, setHtml: setBodyHtml };
+    }
+  }
+
   function setFieldTextAlign(
     field: RichEditField,
     textAlign: BoxTextStyle["textAlign"],
@@ -945,6 +1026,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 : bodyEditRef,
         text: getRichEditText(editField),
         marks: getRichEditMarks(editField),
+        blocks: getRichEditBlocks(editField),
         multiline: editField !== "badge",
         className: "template-inline-editor",
         style: {
@@ -966,7 +1048,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         } satisfies CSSProperties,
         onAlignChange: (align: "left" | "center" | "right") =>
           setFieldTextAlign(editField, align),
-        onChange: (payload: { text: string; marks: TextMark[] }) =>
+        onChange: (payload) =>
           handleRichEditableInput(editField, payload),
         onBlur: onEditBlur,
         onKeyDown: onEditKeyDown,
