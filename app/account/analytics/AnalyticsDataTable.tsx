@@ -5,12 +5,14 @@ import {
 } from "./analyticsUtils";
 
 type AnalyticsDataTableProps = {
+  emptyMessage: string;
   rows: PublicDataRow[];
   rowCountLabel: string;
   surfaceLabel: string;
 };
 
 export default function AnalyticsDataTable({
+  emptyMessage,
   rows,
   rowCountLabel,
   surfaceLabel,
@@ -41,11 +43,9 @@ export default function AnalyticsDataTable({
             </div>
           ))}
           {!rows.length ? (
-            <div className="portal-list-card">
-              <div className="portal-list-title">No rows in this section</div>
-              <p className="portal-insight-text">
-                Import rows with a matching platform and content type.
-              </p>
+            <div className="portal-list-card analytics-empty-state">
+              <div className="portal-list-title">Section is ready</div>
+              <p className="portal-insight-text">{emptyMessage}</p>
             </div>
           ) : null}
         </div>
@@ -83,7 +83,7 @@ export default function AnalyticsDataTable({
               {!rows.length ? (
                 <tr>
                   <td colSpan={publicDataColumns.length}>
-                    No normalized rows match this tab yet.
+                    {emptyMessage}
                   </td>
                 </tr>
               ) : null}

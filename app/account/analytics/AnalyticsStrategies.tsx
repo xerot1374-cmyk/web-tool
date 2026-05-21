@@ -1,11 +1,9 @@
-import {
-  EngagementClass,
-  StrategyInsights,
-  toText,
-} from "./analyticsUtils";
+import { EngagementClass, StrategyInsights, toText } from "./analyticsUtils";
 
 type AnalyticsStrategiesProps = {
+  emptyMessage: string;
   insights: StrategyInsights;
+  timeFilterLabel: string;
 };
 
 const classLabels: EngagementClass[] = ["Low", "Medium", "High"];
@@ -15,8 +13,20 @@ function getRelationshipValue(value: number | null) {
 }
 
 export default function AnalyticsStrategies({
+  emptyMessage,
   insights,
+  timeFilterLabel,
 }: AnalyticsStrategiesProps) {
+  if (!insights.totalPosts) {
+    return (
+      <section className="portal-panel analytics-empty-panel">
+        <p className="portal-eyebrow">Data Science Strategies</p>
+        <h2 className="portal-section-title">Strategy view is ready</h2>
+        <p className="portal-insight-text">{emptyMessage}</p>
+      </section>
+    );
+  }
+
   return (
     <div className="analytics-panel-stack">
       <section className="portal-panel">
@@ -29,8 +39,14 @@ export default function AnalyticsStrategies({
         </div>
 
         <div className="analytics-strategy-grid">
-          <article className="portal-insight-card analytics-strategy-card">
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--descriptive">
             <div className="analytics-card-title">1. Descriptive Analytics</div>
+            <p className="portal-insight-text">
+              Checks totals and the strongest visible post patterns.
+            </p>
+            <p className="analytics-strategy-fields">
+              Fields: score, subject, hashtags, post time
+            </p>
             <div className="analytics-kpi-grid">
               <div>
                 <span>Total posts</span>
@@ -49,12 +65,19 @@ export default function AnalyticsStrategies({
                 Best posting time: {insights.bestPostingTime?.[0] || "No time yet"}
               </li>
             </ul>
+            <p className="analytics-future-note">
+              Future post meaning: start from the post, topic, hashtag, and time
+              that already worked best.
+            </p>
           </article>
 
-          <article className="portal-insight-card analytics-strategy-card">
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--feature">
             <div className="analytics-card-title">2. Feature Engineering</div>
             <p className="portal-insight-text">
-              Each normalized row receives model-ready derived fields.
+              Turns normal post fields into simple features we can compare.
+            </p>
+            <p className="analytics-strategy-fields">
+              Fields: date, time, text, hashtags, links, image URL
             </p>
             <div className="portal-list-items">
               {[
@@ -72,26 +95,38 @@ export default function AnalyticsStrategies({
                 </span>
               ))}
             </div>
+            <p className="analytics-future-note">
+              Future post meaning: these simple clues help compare posts fairly.
+            </p>
           </article>
 
-          <article className="portal-insight-card analytics-strategy-card">
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--scoring">
             <div className="analytics-card-title">3. Engagement Scoring</div>
             <div className="analytics-formula">
               ranking_score_public = reactions + comments * 2 + reposts * 3
             </div>
             <p className="portal-insight-text">
-              Scoring stays on visible public engagement until company analytics
-              export metrics are available.
+              Gives visible reactions, comments, and reposts one clear score.
+            </p>
+            <p className="analytics-strategy-fields">
+              Fields: visible reactions, comments, reposts
+            </p>
+            <p className="analytics-future-note">
+              Future post meaning: higher scores highlight ideas worth testing
+              again.
             </p>
           </article>
 
-          <article className="portal-insight-card analytics-strategy-card">
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--relationship">
             <div className="analytics-card-title">
               4. Correlation / Relationship Analysis
             </div>
             <p className="portal-insight-text">
-              Numeric Pearson correlations show direction and strength for the
-              active rows. Small samples are exploratory.
+              Checks whether timing, hashtags, text length, or links move with
+              score. Small samples are only directional.
+            </p>
+            <p className="analytics-strategy-fields">
+              Fields: hour, hashtag count, text length, link count, score
             </p>
             <div className="analytics-relationship-grid">
               {insights.relationships.map((relationship) => (
@@ -102,13 +137,20 @@ export default function AnalyticsStrategies({
                 </div>
               ))}
             </div>
+            <p className="analytics-future-note">
+              Future post meaning: treat these signals as hints about timing,
+              hashtags, links, and text length.
+            </p>
           </article>
 
-          <article className="portal-insight-card analytics-strategy-card">
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--classification">
             <div className="analytics-card-title">5. Classification Strategy</div>
             <p className="portal-insight-text">
-              This resembles a logistic classification setup without adding a
-              heavy ML model yet.
+              Sorts posts into simple performance groups before any heavier
+              model is added.
+            </p>
+            <p className="analytics-strategy-fields">
+              Fields: score plus derived post features
             </p>
             <div className="analytics-classifier-layout">
               <div>
@@ -119,8 +161,12 @@ export default function AnalyticsStrategies({
                 </p>
               </div>
               <div>
-                <span className="analytics-source-label">Target variable</span>
-                <p className="portal-insight-text">engagement_class</p>
+                <span className="analytics-source-label">
+                  Performance group label
+                </span>
+                <p className="portal-insight-text">
+                  engagement_class: Low, Medium, or High
+                </p>
               </div>
             </div>
             <div className="analytics-class-distribution">
@@ -131,10 +177,57 @@ export default function AnalyticsStrategies({
                 </div>
               ))}
             </div>
+            <p className="analytics-future-note">
+              Future post meaning: aim to move more posts into the High group.
+            </p>
           </article>
 
-          <article className="portal-insight-card analytics-strategy-card">
-            <div className="analytics-card-title">6. Social Media Strategy Rules</div>
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--monthly">
+            <div className="analytics-card-title">6. Monthly Trend Analysis</div>
+            <p className="portal-insight-text">
+              Checks posts, score, reactions, comments, and reposts month by
+              month.
+            </p>
+            <ul className="analytics-detail-list">
+              <li>Fields: post_date and visible engagement fields</li>
+              <li>Best month: {insights.bestMonth?.monthLabel || "No month yet"}</li>
+              <li>
+                Weakest month: {insights.weakestMonth?.monthLabel || "No month yet"}
+              </li>
+            </ul>
+            <p className="analytics-future-note">
+              Future post meaning: compare stronger months before planning the
+              next calendar block.
+            </p>
+          </article>
+
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--time">
+            <div className="analytics-card-title">7. Time Filter Analysis</div>
+            <p className="portal-insight-text">
+              Limits every result to the selected period before comparing posts.
+            </p>
+            <ul className="analytics-detail-list">
+              <li>Current period: {timeFilterLabel}</li>
+              <li>Fields: post_date</li>
+              <li>Rows in result: {insights.totalPosts}</li>
+            </ul>
+            <p className="analytics-future-note">
+              Future post meaning: compare the period that matters for your next
+              campaign or report.
+            </p>
+          </article>
+
+          <article className="portal-insight-card analytics-strategy-card analytics-strategy-card--recommendation">
+            <div className="analytics-card-title">
+              8. Rule-based Future Recommendation
+            </div>
+            <p className="portal-insight-text">
+              Combines the strongest time, topic, hashtag, type, and visual
+              signals.
+            </p>
+            <p className="analytics-strategy-fields">
+              Fields: all active strategy outputs
+            </p>
             <ul className="analytics-detail-list">
               <li>Best time window: {insights.ruleInsights.bestTimeWindow}</li>
               <li>Best subject type: {insights.ruleInsights.bestSubjectType}</li>
@@ -142,6 +235,10 @@ export default function AnalyticsStrategies({
               <li>Best post type: {insights.ruleInsights.bestPostType}</li>
               <li>Best visual style: {insights.ruleInsights.bestVisualStyle}</li>
             </ul>
+            <p className="analytics-future-note">
+              Future post meaning: use the strongest rule set as a practical
+              next-post checklist.
+            </p>
           </article>
         </div>
       </section>

@@ -12,8 +12,8 @@
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@ffprobe-installer/ffprobe": "^2.1.2",
-    "@lexical/plain-text": "^0.44.0",
     "@lexical/list": "^0.44.0",
+    "@lexical/plain-text": "^0.44.0",
     "@lexical/react": "^0.44.0",
     "@lexical/rich-text": "^0.44.0",
     "@lexical/selection": "^0.44.0",
@@ -26,6 +26,7 @@
     "html2canvas": "^1.4.1",
     "lexical": "^0.44.0",
     "next": "^16.2.6",
+    "openai": "^6.38.0",
     "pg": "^8.20.0",
     "prisma": "^7.7.0",
     "puppeteer": "^24.33.0",

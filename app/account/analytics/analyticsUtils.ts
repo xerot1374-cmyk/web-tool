@@ -54,6 +54,16 @@ export type Relationship = {
   note: string;
 };
 
+export type MonthlyTrend = {
+  monthKey: string;
+  monthLabel: string;
+  posts: number;
+  averageScore: number;
+  reactions: number;
+  comments: number;
+  reposts: number;
+};
+
 export type StrategyInsights = {
   rows: PublicDataRow[];
   features: DerivedFeature[];
@@ -65,6 +75,9 @@ export type StrategyInsights = {
   bestPostingTime?: [string, number];
   classDistribution: Record<EngagementClass, number>;
   relationships: Relationship[];
+  monthlyTrend: MonthlyTrend[];
+  bestMonth?: MonthlyTrend;
+  weakestMonth?: MonthlyTrend;
   contentMix: [string, number][];
   ruleInsights: {
     bestTimeWindow: string;
@@ -75,6 +88,11 @@ export type StrategyInsights = {
   };
   recommendation: string;
 };
+
+export const emptySectionMessage =
+  "No data available yet. Upload CSV/Excel data or use sample data.";
+export const emptyTimePeriodMessage =
+  "No data available for this time period.";
 
 export const publicDataColumns = [
   "post_id",
@@ -177,6 +195,26 @@ export const mockPublicDataRows: PublicDataRow[] = [
     ranking_score_public: 331,
   },
   {
+    post_id: "li-2431",
+    post_url: "linkedin.com/company/protos-3d/posts/li-2431",
+    platform: "linkedin",
+    content_type: "linkedin_post",
+    post_date: "2026-05-19",
+    post_time: "10:35",
+    posted_by: "Protos 3D",
+    post_text: "Tolerance tip: where a small material choice prevents rework.",
+    subject: "Production readiness",
+    badge_text: "Engineering tip",
+    hashtags: "#Manufacturing #Engineering",
+    links: "protos3d.example/tolerance-guide",
+    post_image_url: "cdn.example/tolerance-tip.jpg",
+    post_type: "Image post",
+    visible_reactions: 156,
+    visible_comments: 18,
+    visible_reposts: 7,
+    ranking_score_public: 213,
+  },
+  {
     post_id: "ig-8112",
     post_url: "instagram.com/p/ig-8112",
     platform: "instagram",
@@ -197,6 +235,46 @@ export const mockPublicDataRows: PublicDataRow[] = [
     ranking_score_public: 172,
   },
   {
+    post_id: "ig-8125",
+    post_url: "instagram.com/p/ig-8125",
+    platform: "instagram",
+    content_type: "instagram_feed",
+    post_date: "2026-05-13",
+    post_time: "16:20",
+    posted_by: "@protos3d",
+    post_text: "Three surface finishes, one part, and the tradeoffs in a carousel.",
+    subject: "Surface finishes",
+    badge_text: "Compare",
+    hashtags: "#3DPrinting #DesignProcess",
+    links: "profile link",
+    post_image_url: "cdn.example/finish-carousel-02.jpg",
+    post_type: "Feed carousel",
+    visible_reactions: 148,
+    visible_comments: 11,
+    visible_reposts: 5,
+    ranking_score_public: 185,
+  },
+  {
+    post_id: "ig-8134",
+    post_url: "instagram.com/p/ig-8134",
+    platform: "instagram",
+    content_type: "instagram_feed",
+    post_date: "2026-05-17",
+    post_time: "11:10",
+    posted_by: "@protos3d",
+    post_text: "Short reel showing the prototype from print bed to desk review.",
+    subject: "Workflow reveal",
+    badge_text: "Process",
+    hashtags: "#Prototype #ProductDesign",
+    links: "",
+    post_image_url: "cdn.example/workflow-reel-cover.jpg",
+    post_type: "Feed reel",
+    visible_reactions: 202,
+    visible_comments: 19,
+    visible_reposts: 8,
+    ranking_score_public: 264,
+  },
+  {
     post_id: "igs-183",
     post_url: "instagram.com/stories/protos3d/igs-183",
     platform: "instagram",
@@ -215,6 +293,46 @@ export const mockPublicDataRows: PublicDataRow[] = [
     visible_comments: 3,
     visible_reposts: 1,
     ranking_score_public: 77,
+  },
+  {
+    post_id: "igs-191",
+    post_url: "instagram.com/stories/protos3d/igs-191",
+    platform: "instagram",
+    content_type: "instagram_story",
+    post_date: "2026-05-15",
+    post_time: "19:05",
+    posted_by: "@protos3d",
+    post_text: "Question sticker asking which finish should ship next.",
+    subject: "Audience poll",
+    badge_text: "Vote",
+    hashtags: "#ProductDesign",
+    links: "profile link",
+    post_image_url: "cdn.example/story-poll-finish.jpg",
+    post_type: "Story poll",
+    visible_reactions: 94,
+    visible_comments: 9,
+    visible_reposts: 2,
+    ranking_score_public: 118,
+  },
+  {
+    post_id: "igs-204",
+    post_url: "instagram.com/stories/protos3d/igs-204",
+    platform: "instagram",
+    content_type: "instagram_story",
+    post_date: "2026-05-20",
+    post_time: "08:45",
+    posted_by: "@protos3d",
+    post_text: "Morning story with a close-up of a support removal step.",
+    subject: "Shop floor step",
+    badge_text: "Behind the build",
+    hashtags: "#ShopFloor #Prototype",
+    links: "",
+    post_image_url: "cdn.example/story-support-removal.jpg",
+    post_type: "Story image",
+    visible_reactions: 71,
+    visible_comments: 4,
+    visible_reposts: 1,
+    ranking_score_public: 82,
   },
 ];
 
@@ -269,9 +387,9 @@ function normalizePlatform(value: string, fallbackSource: string): AnalyticsPlat
 function normalizeContentType(
   value: string,
   platform: AnalyticsPlatform,
-  postType: string,
+  fallbackSource: string,
 ): AnalyticsContentType {
-  const source = `${value} ${postType}`.toLocaleLowerCase();
+  const source = `${value} ${fallbackSource}`.toLocaleLowerCase();
 
   if (platform === "linkedin") {
     return "linkedin_post";
@@ -307,7 +425,11 @@ function normalizeUploadedRow(uploadedRow: UploadedRow): PublicDataRow {
     post_id: toText(getColumnValue("post_id")),
     post_url: postUrl,
     platform,
-    content_type: normalizeContentType(contentTypeValue, platform, postType),
+    content_type: normalizeContentType(
+      contentTypeValue,
+      platform,
+      `${postType} ${postUrl}`,
+    ),
     post_date: toText(getColumnValue("post_date")),
     post_time: toText(getColumnValue("post_time")),
     posted_by: toText(getColumnValue("posted_by")),
@@ -488,6 +610,67 @@ function getContentMix(rows: PublicDataRow[]) {
   return [...counts.entries()].sort((first, second) => second[1] - first[1]);
 }
 
+function getMonthKey(dateValue: string) {
+  const date = new Date(dateValue);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthlyTrend(rows: PublicDataRow[]) {
+  const months = new Map<
+    string,
+    {
+      posts: number;
+      scoreTotal: number;
+      reactions: number;
+      comments: number;
+      reposts: number;
+    }
+  >();
+
+  rows.forEach((row) => {
+    const monthKey = getMonthKey(row.post_date);
+
+    if (!monthKey) {
+      return;
+    }
+
+    const month = months.get(monthKey) ?? {
+      posts: 0,
+      scoreTotal: 0,
+      reactions: 0,
+      comments: 0,
+      reposts: 0,
+    };
+    months.set(monthKey, {
+      posts: month.posts + 1,
+      scoreTotal: month.scoreTotal + row.ranking_score_public,
+      reactions: month.reactions + row.visible_reactions,
+      comments: month.comments + row.visible_comments,
+      reposts: month.reposts + row.visible_reposts,
+    });
+  });
+
+  return [...months.entries()]
+    .sort(([first], [second]) => first.localeCompare(second))
+    .map(([monthKey, month]) => ({
+      monthKey,
+      monthLabel: new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        year: "numeric",
+      }).format(new Date(`${monthKey}-01T12:00:00`)),
+      posts: month.posts,
+      averageScore: Math.round(month.scoreTotal / month.posts),
+      reactions: month.reactions,
+      comments: month.comments,
+      reposts: month.reposts,
+    }));
+}
+
 export function getStrategyInsights(rows: PublicDataRow[]): StrategyInsights {
   const features = createDerivedFeatures(rows);
   const topPost = [...rows].sort(
@@ -520,6 +703,10 @@ export function getStrategyInsights(rows: PublicDataRow[]): StrategyInsights {
   const recommendationSubject = bestSubject?.[0] || "the strongest subject";
   const recommendationHashtag = bestHashtag?.[0] || "focused hashtags";
   const recommendationTime = getTimeWindow(bestHourFeature?.hour ?? null);
+  const monthlyTrend = getMonthlyTrend(rows);
+  const rankedMonths = [...monthlyTrend].sort(
+    (first, second) => second.averageScore - first.averageScore,
+  );
 
   return {
     rows,
@@ -578,6 +765,9 @@ export function getStrategyInsights(rows: PublicDataRow[]): StrategyInsights {
         note: "Compares link count with the public score.",
       },
     ],
+    monthlyTrend,
+    bestMonth: rankedMonths[0],
+    weakestMonth: rankedMonths.at(-1),
     contentMix: getContentMix(rows),
     ruleInsights: {
       bestTimeWindow: recommendationTime,

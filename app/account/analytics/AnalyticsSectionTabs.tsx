@@ -1,4 +1,4 @@
-export type AnalyticsSection = "data" | "strategies" | "visual";
+export type AnalyticsSection = "data" | "strategies" | "visual" | "assistant";
 
 type AnalyticsSectionTabsProps = {
   activeSection: AnalyticsSection;
@@ -8,7 +8,8 @@ type AnalyticsSectionTabsProps = {
 const sections: { key: AnalyticsSection; label: string }[] = [
   { key: "data", label: "Uploaded Data / All Activities" },
   { key: "strategies", label: "Data Science Strategies" },
-  { key: "visual", label: "Visual Result + AI Assistant" },
+  { key: "visual", label: "Visual Result" },
+  { key: "assistant", label: "AI Assistant" },
 ];
 
 export default function AnalyticsSectionTabs({

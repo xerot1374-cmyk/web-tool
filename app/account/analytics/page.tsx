@@ -8,8 +8,11 @@ import AnalyticsPlatformTabs from "./AnalyticsPlatformTabs";
 import AnalyticsSectionTabs, { AnalyticsSection } from "./AnalyticsSectionTabs";
 import AnalyticsStrategies from "./AnalyticsStrategies";
 import AnalyticsVisualResult from "./AnalyticsVisualResult";
+import AnalyticsAssistant from "./AnalyticsAssistant";
 import {
   AnalyticsContentType,
+  emptySectionMessage,
+  emptyTimePeriodMessage,
   getStrategyInsights,
   mockPublicDataRows,
   parseUploadedFile,
@@ -17,17 +20,87 @@ import {
 } from "./analyticsUtils";
 
 type InstagramSurface = "feed" | "story";
+type TimeFilterMode = "all" | "last3" | "year" | "month" | "since";
 
-const activityGroups = [
-  {
-    title: "LinkedIn",
-    items: ["Posts"],
-  },
-  {
-    title: "Instagram",
-    items: ["Feed", "Story"],
-  },
-];
+function getRowDate(row: PublicDataRow) {
+  const date = new Date(row.post_date);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getYearOptions(rows: PublicDataRow[]) {
+  return [...new Set(
+    rows.flatMap((row) => {
+      const date = getRowDate(row);
+      return date ? [date.getFullYear()] : [];
+    }),
+  )].sort((first, second) => second - first);
+}
+
+function getFilteredRows(
+  rows: PublicDataRow[],
+  mode: TimeFilterMode,
+  selectedYear: string,
+  selectedMonth: string,
+  sinceDate: string,
+) {
+  if (mode === "all") {
+    return rows;
+  }
+
+  const now = new Date();
+  const threeYearsAgo = new Date(now);
+  threeYearsAgo.setFullYear(now.getFullYear() - 3);
+  const since = sinceDate ? new Date(`${sinceDate}T00:00:00`) : null;
+
+  return rows.filter((row) => {
+    const date = getRowDate(row);
+
+    if (!date) {
+      return false;
+    }
+
+    if (mode === "last3") {
+      return date >= threeYearsAgo && date <= now;
+    }
+
+    if (mode === "year") {
+      return selectedYear ? date.getFullYear() === Number(selectedYear) : true;
+    }
+
+    if (mode === "month") {
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      return selectedMonth ? monthKey === selectedMonth : true;
+    }
+
+    return since ? date >= since : true;
+  });
+}
+
+function getTimeFilterLabel(
+  mode: TimeFilterMode,
+  selectedYear: string,
+  selectedMonth: string,
+  sinceDate: string,
+) {
+  if (mode === "last3") {
+    return "Last 3 years";
+  }
+
+  if (mode === "year") {
+    return selectedYear ? `Year ${selectedYear}` : "Selected year";
+  }
+
+  if (mode === "month") {
+    return selectedMonth || "Selected month";
+  }
+
+  if (mode === "since") {
+    return sinceDate ? `Since ${sinceDate}` : "Since selected date";
+  }
+
+  return "All time";
+}
 
 function getActiveContentType(
   platform: "linkedin" | "instagram",
@@ -59,12 +132,16 @@ export default function AnalyticsPage() {
     useState<InstagramSurface>("feed");
   const [activeSection, setActiveSection] =
     useState<AnalyticsSection>("data");
+  const [timeFilter, setTimeFilter] = useState<TimeFilterMode>("all");
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [sinceDate, setSinceDate] = useState("");
   const allRows = uploadedRows ?? mockPublicDataRows;
   const activeContentType = getActiveContentType(
     activePlatform,
     instagramSurface,
   );
-  const sectionRows = useMemo(
+  const surfaceRows = useMemo(
     () =>
       allRows.filter(
         (row) =>
@@ -73,10 +150,32 @@ export default function AnalyticsPage() {
       ),
     [activeContentType, activePlatform, allRows],
   );
+  const yearOptions = useMemo(() => getYearOptions(surfaceRows), [surfaceRows]);
+  const sectionRows = useMemo(
+    () =>
+      getFilteredRows(
+        surfaceRows,
+        timeFilter,
+        selectedYear,
+        selectedMonth,
+        sinceDate,
+      ),
+    [selectedMonth, selectedYear, sinceDate, surfaceRows, timeFilter],
+  );
   const insights = useMemo(() => getStrategyInsights(sectionRows), [sectionRows]);
   const surfaceLabel = getSurfaceLabel(activeContentType);
+  const timeFilterLabel = getTimeFilterLabel(
+    timeFilter,
+    selectedYear,
+    selectedMonth,
+    sinceDate,
+  );
+  const emptyMessage =
+    surfaceRows.length && !sectionRows.length
+      ? emptyTimePeriodMessage
+      : emptySectionMessage;
   const rowCountLabel = uploadedRows
-    ? `${sectionRows.length} of ${uploadedRows.length} imported rows`
+    ? `${sectionRows.length} of ${surfaceRows.length} ${surfaceLabel} rows`
     : `${sectionRows.length} mock rows`;
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -121,27 +220,16 @@ export default function AnalyticsPage() {
           </Link>
         </div>
 
-        <section className="portal-two-col">
-          <div className="portal-panel">
-            <h2 className="portal-section-title">All Activities</h2>
-            <div className="portal-list">
-              {activityGroups.map((group) => (
-                <div key={group.title} className="portal-list-card">
-                  <div className="portal-list-title">{group.title}</div>
-                  <div className="portal-list-items">
-                    {group.items.map((item) => (
-                      <span key={item} className="portal-chip">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+        <section className="portal-panel analytics-source-panel">
+          <div className="analytics-section-heading">
+            <div>
+              <p className="portal-eyebrow">Data sources</p>
+              <h2 className="portal-section-title">Bring data into the dashboard</h2>
             </div>
+            <span className="portal-chip">
+              {uploadedRows ? "Uploaded data active" : "Sample data active"}
+            </span>
           </div>
-
-          <div className="portal-panel analytics-source-panel">
-            <h2 className="portal-section-title">Data sources</h2>
             <div className="analytics-source-grid">
               <label className="analytics-source-field">
                 <span className="analytics-source-label">
@@ -194,7 +282,6 @@ export default function AnalyticsPage() {
                 <span className="portal-chip">No API connected</span>
               </div>
             </div>
-          </div>
         </section>
 
         <section className="portal-panel analytics-public-note">
@@ -245,6 +332,77 @@ export default function AnalyticsPage() {
             </div>
           ) : null}
 
+          <div className="analytics-time-filter">
+            <div>
+              <p className="analytics-source-label">Time filter</p>
+              <p className="portal-insight-text">
+                Filter the active platform before the table, strategies,
+                diagrams, and assistant update.
+              </p>
+            </div>
+            <div className="analytics-time-filter__controls">
+              <label className="analytics-source-field">
+                <span className="analytics-source-label">Period</span>
+                <select
+                  className="portal-form__input analytics-filter-select"
+                  onChange={(event) =>
+                    setTimeFilter(event.target.value as TimeFilterMode)
+                  }
+                  value={timeFilter}
+                >
+                  <option value="all">All time</option>
+                  <option value="last3">Last 3 years</option>
+                  <option value="year">Selected year</option>
+                  <option value="month">Selected month</option>
+                  <option value="since">Since date</option>
+                </select>
+              </label>
+
+              {timeFilter === "year" ? (
+                <label className="analytics-source-field">
+                  <span className="analytics-source-label">Year</span>
+                  <select
+                    className="portal-form__input analytics-filter-select"
+                    onChange={(event) => setSelectedYear(event.target.value)}
+                    value={selectedYear}
+                  >
+                    <option value="">All available years</option>
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+
+              {timeFilter === "month" ? (
+                <label className="analytics-source-field">
+                  <span className="analytics-source-label">Month</span>
+                  <input
+                    className="portal-form__input"
+                    onChange={(event) => setSelectedMonth(event.target.value)}
+                    type="month"
+                    value={selectedMonth}
+                  />
+                </label>
+              ) : null}
+
+              {timeFilter === "since" ? (
+                <label className="analytics-source-field">
+                  <span className="analytics-source-label">Since</span>
+                  <input
+                    className="portal-form__input"
+                    onChange={(event) => setSinceDate(event.target.value)}
+                    type="date"
+                    value={sinceDate}
+                  />
+                </label>
+              ) : null}
+            </div>
+            <span className="portal-chip">{timeFilterLabel}</span>
+          </div>
+
           <AnalyticsSectionTabs
             activeSection={activeSection}
             onChange={setActiveSection}
@@ -256,15 +414,42 @@ export default function AnalyticsPage() {
             rowCountLabel={rowCountLabel}
             rows={sectionRows}
             surfaceLabel={surfaceLabel}
+            emptyMessage={emptyMessage}
           />
         ) : null}
 
         {activeSection === "strategies" ? (
-          <AnalyticsStrategies insights={insights} />
+          <AnalyticsStrategies
+            emptyMessage={emptyMessage}
+            insights={insights}
+            timeFilterLabel={timeFilterLabel}
+          />
         ) : null}
 
         {activeSection === "visual" ? (
-          <AnalyticsVisualResult insights={insights} surfaceLabel={surfaceLabel} />
+          <AnalyticsVisualResult
+            emptyMessage={emptyMessage}
+            insights={insights}
+            surfaceLabel={surfaceLabel}
+          />
+        ) : null}
+
+        {activeSection === "assistant" ? (
+          <AnalyticsAssistant
+            activeContentType={activeContentType}
+            activePlatform={activePlatform}
+            activeTimeFilter={{
+              mode: timeFilter,
+              label: timeFilterLabel,
+              selectedYear,
+              selectedMonth,
+              sinceDate,
+            }}
+            emptyMessage={emptyMessage}
+            insights={insights}
+            surfaceLabel={surfaceLabel}
+            timeFilterLabel={timeFilterLabel}
+          />
         ) : null}
       </div>
     </main>
