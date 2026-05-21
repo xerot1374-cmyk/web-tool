@@ -5,19 +5,6 @@ import { FRAME_PRESETS, type FrameSlot } from "@/app/lib/imageLayouts";
 import ToolboxSection from "./ToolboxSection";
 import ToolboxTextField from "./ToolboxTextField";
 
-type TextMark = {
-  start: number;
-  end: number;
-  style: {
-    fontFamily?: string;
-    fontSize?: number;
-    color?: string;
-    highlight?: boolean;
-    fontWeight?: number | string;
-    fontStyle?: "normal" | "italic";
-  };
-};
-
 type EditorTextField = "badge" | "title" | "company" | "caption" | "body";
 type ImageLayoutMode = "manual" | "collage" | "frame";
 type ProductImageItem = {
@@ -112,17 +99,7 @@ type Props = {
   setBody: (v: string) => void;
   bodyRef: React.RefObject<HTMLTextAreaElement | null>;
 
-  caption: string;
-  setCaption: (v: string) => void;
-  captionRef: React.RefObject<HTMLTextAreaElement | null>;
-  captionMarks?: TextMark[];
-
-  activeField: EditorTextField;
   setActiveField: React.Dispatch<React.SetStateAction<EditorTextField>>;
-
-  copied: boolean;
-
-  copyCaption: () => void;
 
   link: string[];
   setLink: React.Dispatch<React.SetStateAction<string[]>>;
@@ -137,7 +114,7 @@ type Props = {
     selectionStart: number | null,
   ) => void;
   onTextKeyDown?: (
-    field: "body" | "caption",
+    field: "body",
     e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => void;
 
@@ -165,60 +142,6 @@ type Props = {
   clearVideo: (videoId: string) => void;
 };
 
-function renderMarkedText(text: string, marks: TextMark[] = []) {
-  if (!marks.length) return text;
-
-  const safeMarks = marks
-    .map((mark) => ({
-      start: Math.max(0, Math.min(mark.start, text.length)),
-      end: Math.max(0, Math.min(mark.end, text.length)),
-      style: mark.style ?? {},
-    }))
-    .filter((mark) => mark.end > mark.start)
-    .sort((a, b) => a.start - b.start);
-
-  const out: React.ReactNode[] = [];
-  let pos = 0;
-
-  safeMarks.forEach((mark, index) => {
-    if (mark.start > pos) {
-      out.push(
-        <React.Fragment key={`t-${pos}`}>
-          {text.slice(pos, mark.start)}
-        </React.Fragment>,
-      );
-    }
-
-    out.push(
-      <span
-        key={`m-${mark.start}-${mark.end}-${index}`}
-        style={{
-          fontFamily: mark.style.fontFamily,
-          fontSize: mark.style.fontSize,
-          color: mark.style.color,
-          fontWeight: mark.style.fontWeight,
-          fontStyle: mark.style.fontStyle,
-          background: mark.style.highlight
-            ? "rgba(250,204,21,0.28)"
-            : undefined,
-        }}
-      >
-        {text.slice(mark.start, mark.end)}
-      </span>,
-    );
-
-    pos = mark.end;
-  });
-
-  if (pos < text.length) {
-    out.push(
-      <React.Fragment key={`t-${pos}`}>{text.slice(pos)}</React.Fragment>,
-    );
-  }
-
-  return out;
-}
-
 export default function LinkedInToolbox({
   badgeText,
   setBadgeText,
@@ -229,12 +152,6 @@ export default function LinkedInToolbox({
   body,
   setBody,
   bodyRef,
-  caption,
-  setCaption,
-  captionRef,
-  captionMarks = [],
-  copied,
-  activeField,
   setActiveField,
   link,
   setLink,
@@ -263,7 +180,6 @@ export default function LinkedInToolbox({
   onPickVideos,
   videos,
   clearVideo,
-  copyCaption,
 }: Props) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -658,54 +574,6 @@ export default function LinkedInToolbox({
           </div>
         </ToolboxSection>
 
-        <ToolboxSection
-          title="Caption"
-          meta={activeField === "caption" ? "Active" : "Social copy"}
-        >
-          <textarea
-            ref={captionRef}
-            className="editor-textarea"
-            value={caption}
-            onChange={(e) => {
-              if (onTextChange) {
-                onTextChange(
-                  "caption",
-                  e.target.value,
-                  e.target.selectionStart,
-                );
-              } else {
-                setCaption(e.target.value);
-              }
-            }}
-            onFocus={() => setActiveField("caption")}
-            onSelect={() => setActiveField("caption")}
-            onDoubleClick={() => setActiveField("caption")}
-            onKeyDown={(e) => onTextKeyDown?.("caption", e)}
-            placeholder="Draft the supporting post caption"
-            rows={6}
-          />
-
-          <div className="tb__hint">{caption.length} characters</div>
-
-          {caption.trim() ? (
-            <div className="tb__captionPreview">
-              <div className="tb__captionPreviewHeader">
-                <div className="tb__captionPreviewTitle">Preview</div>
-                <button
-                  type="button"
-                  onClick={copyCaption}
-                  className="tb__copyBtn"
-                >
-                  {copied ? "Copied" : "Copy Caption"}
-                </button>
-              </div>
-
-              <div className="tb__captionText">
-                {renderMarkedText(caption, captionMarks)}
-              </div>
-              </div>
-            ) : null}
-        </ToolboxSection>
       </div>
     </aside>
   );

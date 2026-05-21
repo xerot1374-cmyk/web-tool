@@ -30,7 +30,7 @@ export default function useTemplateATextState() {
   const [link, setLink] = useState<string[]>([]);
   const [linkInput, setLinkInput] = useState("");
   const [company, setCompany] = useState("PROTOS-3D Metrology GmbH");
-  const [activeField, setActiveField] = useState<EditorTextField>("caption");
+  const [activeField, setActiveField] = useState<EditorTextField>("body");
   const [copied, setCopied] = useState(false);
 
   const badgeRef = useRef<HTMLInputElement | null>(null);
@@ -47,6 +47,13 @@ export default function useTemplateATextState() {
   });
 
   const [bodyBoxStyle, setBodyBoxStyle] = useState<BoxTextStyle>({
+    fontFamily: "system-ui",
+    fontSize: 16,
+    color: "#111827",
+    textAlign: "left",
+  });
+
+  const [captionStyle, setCaptionStyle] = useState<BoxTextStyle>({
     fontFamily: "system-ui",
     fontSize: 16,
     color: "#111827",
@@ -229,6 +236,8 @@ export default function useTemplateATextState() {
     setTitleStyle,
     bodyBoxStyle,
     setBodyBoxStyle,
+    captionStyle,
+    setCaptionStyle,
     badgeStyle,
     setBadgeStyle,
     companyStyle,

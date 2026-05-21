@@ -16,6 +16,7 @@ import { type LexicalInlineEditorHandle } from "@/app/components/templates/linke
 import { CANVAS_PRESETS, getCanvasFrame } from "@/app/lib/renderUtils";
 import TemplateAExportPanel from "./components/TemplateAExportPanel";
 import TemplateAPreview from "./components/TemplateAPreview";
+import TemplateAStickyToolbar from "./components/TemplateAStickyToolbar";
 import useTemplateAExport from "./hooks/useTemplateAExport";
 import useTemplateAHydration from "./hooks/useTemplateAHydration";
 import useTemplateAMediaEditor from "./hooks/useTemplateAMediaEditor";
@@ -40,27 +41,24 @@ import {
   safePx,
 } from "./lib/templateA.utils";
 import {
+  cleanStyle,
   getContentEditablePlainText,
   getTextChangeRange,
   hasStyle,
   mergeMarks,
+  overlaps,
   readContentEditableSelection,
   remapMarksForLinePrefixChanges,
   restoreContentEditableSelection,
   shiftMarksAfterTextChange,
+  styleForSegment,
 } from "./lib/templateARichText.utils";
 
 export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
-  const [{ isPdf, payload }, setPdfCtx] = useState<{
+  const [{ isPdf, payload }] = useState<{
     isPdf: boolean;
     payload: PdfPayload | null;
-  }>(() => ({ isPdf: false, payload: null }));
-
-  useEffect(() => {
-    // This client-only sync is required to read window PDF payload state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPdfCtx(getPdfModeAndPayload());
-  }, []);
+  }>(() => getPdfModeAndPayload());
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -150,6 +148,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setTitleStyle,
     bodyBoxStyle,
     setBodyBoxStyle,
+    captionStyle,
+    setCaptionStyle,
     badgeStyle,
     setBadgeStyle,
     companyStyle,
@@ -869,6 +869,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     });
   }
 
+  function insertEmojiIntoActiveField(emoji: string) {
+    if (isRichEditField(editField)) {
+      getRichEditEditor(editField)?.insertText(emoji);
+      return;
+    }
+
+    if (activeField !== "caption") return;
+    const node = captionRef.current;
+    const start = node?.selectionStart ?? caption.length;
+    const end = node?.selectionEnd ?? caption.length;
+    const next = `${caption.slice(0, start)}${emoji}${caption.slice(end)}`;
+    handleTextChange("caption", next, start + emoji.length);
+    requestAnimationFrame(() => node?.focus());
+  }
+
   function getActiveMarksState(
     field: EditorTextField = editField ?? activeField,
   ) {
@@ -915,11 +930,194 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
+  function getCaptionSelectionRange() {
+    const node = captionRef.current;
+    const start = node?.selectionStart ?? 0;
+    const end = node?.selectionEnd ?? start;
+    return { node, start: Math.min(start, end), end: Math.max(start, end) };
+  }
+
+  function focusCaptionSelection(start: number, end = start) {
+    requestAnimationFrame(() => {
+      const node = captionRef.current;
+      if (!node) return;
+      node.focus();
+      node.setSelectionRange(start, end);
+    });
+  }
+
+  function updateCaptionMarksInSelection(
+    transformStyle: (style: TextMark["style"]) => TextMark["style"],
+  ) {
+    const { node, start, end } = getCaptionSelectionRange();
+    if (!node || start === end) return;
+
+    setActiveField("caption");
+    setCaptionMarks((prevMarks) => {
+      const outside = prevMarks
+        .flatMap((mark) => {
+          if (!overlaps(mark, { start, end })) return [mark];
+
+          const pieces: TextMark[] = [];
+          if (mark.start < start) {
+            pieces.push({ ...mark, end: start });
+          }
+          if (mark.end > end) {
+            pieces.push({ ...mark, start: end });
+          }
+          return pieces;
+        })
+        .filter((mark) => mark.end > mark.start);
+
+      const boundaries = new Set<number>([start, end]);
+      prevMarks.forEach((mark) => {
+        if (!overlaps(mark, { start, end })) return;
+        boundaries.add(Math.max(start, mark.start));
+        boundaries.add(Math.min(end, mark.end));
+      });
+
+      const segments = Array.from(boundaries).sort((a, b) => a - b);
+      const nextMarks = [...outside];
+      for (let index = 0; index < segments.length - 1; index += 1) {
+        const segmentStart = segments[index];
+        const segmentEnd = segments[index + 1];
+        if (segmentEnd <= segmentStart) continue;
+
+        const nextStyle = cleanStyle(
+          transformStyle(styleForSegment(prevMarks, segmentStart, segmentEnd)),
+        );
+        if (hasStyle(nextStyle)) {
+          nextMarks.push({
+            start: segmentStart,
+            end: segmentEnd,
+            style: nextStyle,
+          });
+        }
+      }
+
+      return mergeMarks(nextMarks);
+    });
+
+    focusCaptionSelection(start, end);
+  }
+
+  function captionSelectionHasStyle(
+    predicate: (style: TextMark["style"]) => boolean,
+  ) {
+    const { start, end } = getCaptionSelectionRange();
+    if (start === end) return false;
+
+    const boundaries = new Set<number>([start, end]);
+    captionMarks.forEach((mark) => {
+      if (!overlaps(mark, { start, end })) return;
+      boundaries.add(Math.max(start, mark.start));
+      boundaries.add(Math.min(end, mark.end));
+    });
+
+    const segments = Array.from(boundaries).sort((a, b) => a - b);
+    for (let index = 0; index < segments.length - 1; index += 1) {
+      const segmentStart = segments[index];
+      const segmentEnd = segments[index + 1];
+      if (segmentEnd <= segmentStart) continue;
+      if (!predicate(styleForSegment(captionMarks, segmentStart, segmentEnd))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  function toggleCaptionInlineStyle(
+    kind: "bold" | "italic",
+    active: boolean,
+  ) {
+    updateCaptionMarksInSelection((style) => {
+      if (kind === "bold") {
+        if (active) {
+          const rest = { ...style };
+          delete rest.fontWeight;
+          return rest;
+        }
+        return { ...style, fontWeight: 700 };
+      }
+
+      if (active) {
+        const rest = { ...style };
+        delete rest.fontStyle;
+        return rest;
+      }
+      return { ...style, fontStyle: "italic" };
+    });
+  }
+
+  function toggleCaptionList(listType: "bullet" | "number") {
+    const { node, start, end } = getCaptionSelectionRange();
+    if (!node) return;
+
+    const lineStart = caption.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+    const lineEndLookup = caption.indexOf("\n", end);
+    const blockEnd = lineEndLookup === -1 ? caption.length : lineEndLookup;
+    const blockText = caption.slice(lineStart, blockEnd);
+    const lines = blockText.split("\n");
+    if (!lines.length) return;
+
+    const prefixMatcher =
+      listType === "bullet"
+        ? /^(\s*)•\s/
+        : /^(\s*)\d+\.\s/;
+    const shouldRemove = lines.every((line) => prefixMatcher.test(line));
+
+    let cursor = lineStart;
+    const changes = lines.map((line, index) => {
+      const match = line.match(prefixMatcher);
+      const oldPrefixLength = match?.[0].length ?? 0;
+      const indent = match?.[1] ?? line.match(/^(\s*)/)?.[1] ?? "";
+      const baseContent = match ? line.slice(match[0].length) : line.slice(indent.length);
+      const nextPrefix = shouldRemove
+        ? indent
+        : `${indent}${listType === "bullet" ? "• " : `${index + 1}. `}`;
+      const nextLine = `${nextPrefix}${baseContent}`;
+      const oldLineStart = cursor;
+      const oldLineEnd = cursor + line.length;
+      cursor += line.length + 1;
+
+      return {
+        line,
+        nextLine,
+        oldLineStart,
+        oldLineEnd,
+        oldPrefixLength,
+        newPrefixLength: nextPrefix.length,
+      };
+    });
+
+    const nextBlockText = changes.map((change) => change.nextLine).join("\n");
+    const nextCaption =
+      caption.slice(0, lineStart) + nextBlockText + caption.slice(blockEnd);
+    _setCaption(nextCaption);
+    setCaptionMarks((prevMarks) =>
+      remapMarksForLinePrefixChanges(
+        prevMarks,
+        changes.map((change) => ({
+          oldLineStart: change.oldLineStart,
+          oldLineEnd: change.oldLineEnd,
+          oldPrefixLength: change.oldPrefixLength,
+          newPrefixLength: change.newPrefixLength,
+        })),
+      ),
+    );
+
+    const nextSelectionEnd = lineStart + nextBlockText.length;
+    focusCaptionSelection(lineStart, nextSelectionEnd);
+  }
+
   function setFieldTextAlign(
-    field: RichEditField,
+    field: EditorTextField,
     textAlign: BoxTextStyle["textAlign"],
   ) {
-    if (field === "title") {
+    if (field === "caption") {
+      setCaptionStyle((prev) => ({ ...prev, textAlign }));
+    } else if (field === "title") {
       setTitleStyle((prev) => ({ ...prev, textAlign }));
     } else if (field === "company") {
       setCompanyStyle((prev) => ({ ...prev, textAlign }));
@@ -1020,6 +1218,15 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
     await copyCaptionText(text, el);
   }
+
+  function getToolbarTextAlign() {
+    if (activeField === "caption") return captionStyle.textAlign;
+    if (editField === "title") return titleStyle.textAlign;
+    if (editField === "company") return companyStyle.textAlign;
+    if (editField === "badge") return badgeStyle.textAlign;
+    return bodyBoxStyle.textAlign;
+  }
+
   const activeRichTextEditor: ActiveRichTextEditor | null = isRichEditField(
     editField,
   )
@@ -1129,6 +1336,134 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       title="LinkedIn - Template A"
     >
       <LinkedInEditorLayout
+        toolbar={
+          <TemplateAStickyToolbar
+            visible={Boolean(editField) || activeField === "caption"}
+            activeField={activeField}
+            editField={isRichEditField(editField) ? editField : null}
+            currentMarks={getActiveMarksState().marks}
+            currentTextAlign={getToolbarTextAlign()}
+            onInsertEmoji={insertEmojiIntoActiveField}
+            onUndo={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.undo();
+                return;
+              }
+              if (activeField === "caption") {
+                captionRef.current?.focus();
+                document.execCommand("undo");
+              }
+            }}
+            onRedo={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.redo();
+                return;
+              }
+              if (activeField === "caption") {
+                captionRef.current?.focus();
+                document.execCommand("redo");
+              }
+            }}
+            onToggleBold={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.toggleBold();
+                return;
+              }
+              if (activeField === "caption") {
+                toggleCaptionInlineStyle(
+                  "bold",
+                  captionSelectionHasStyle(
+                    (style) =>
+                      style.fontWeight === 700 ||
+                      style.fontWeight === "700" ||
+                      style.fontWeight === "bold",
+                  ),
+                );
+              }
+            }}
+            onToggleItalic={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.toggleItalic();
+                return;
+              }
+              if (activeField === "caption") {
+                toggleCaptionInlineStyle(
+                  "italic",
+                  captionSelectionHasStyle(
+                    (style) => style.fontStyle === "italic",
+                  ),
+                );
+              }
+            }}
+            onSetFontFamily={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setFontFamily(value);
+                return;
+              }
+              if (activeField === "caption") {
+                updateCaptionMarksInSelection((style) => ({
+                  ...style,
+                  fontFamily: value,
+                }));
+              }
+            }}
+            onSetFontSize={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setFontSize(value);
+                return;
+              }
+              if (activeField === "caption") {
+                updateCaptionMarksInSelection((style) => ({
+                  ...style,
+                  fontSize: value,
+                }));
+              }
+            }}
+            onSetColor={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setColor(value);
+                return;
+              }
+              if (activeField === "caption") {
+                updateCaptionMarksInSelection((style) => ({
+                  ...style,
+                  color: value,
+                }));
+              }
+            }}
+            onSetHighlightColor={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setHighlightColor(value);
+                return;
+              }
+              if (activeField === "caption") {
+                updateCaptionMarksInSelection((style) => ({
+                  ...style,
+                  highlight: true,
+                  highlightColor: value,
+                }));
+              }
+            }}
+            onToggleList={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.toggleList(value);
+                return;
+              }
+              if (activeField === "caption") {
+                toggleCaptionList(value);
+              }
+            }}
+            onSetTextAlign={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setTextAlign(value);
+                return;
+              }
+              if (activeField === "caption") {
+                setFieldTextAlign("caption", value);
+              }
+            }}
+          />
+        }
         preview={
           <TemplateAPreview
             canvasPreset={canvasPreset}
@@ -1184,14 +1519,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             body={body}
             setBody={setBody}
             bodyRef={bodyRef}
-            caption={caption}
-            setCaption={setCaption}
-            captionRef={captionRef}
-            captionMarks={captionMarks}
-            activeField={activeField}
             setActiveField={setActiveField}
-            copied={copied}
-            copyCaption={copyCaption}
             link={link}
             setLink={setLink}
             linkInput={linkInput}
@@ -1227,8 +1555,19 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             hasVideo={hasVideo}
             finalLoading={finalLoading}
             finalUrl={finalUrl}
+            caption={caption}
+            captionMarks={captionMarks}
+            captionStyle={captionStyle}
+            copied={copied}
             successMsg={successMsg}
             errorMsg={errorMsg}
+            captionRef={captionRef}
+            onCaptionChange={(value, selectionStart) =>
+              handleTextChange("caption", value, selectionStart)
+            }
+            onCaptionFocus={() => setActiveField("caption")}
+            onCaptionKeyDown={(e) => handleNumberedListEnter("caption", e)}
+            onCopyCaption={copyCaption}
             onDownloadPdf={(e) => {
               e.preventDefault();
               void downloadPDF();

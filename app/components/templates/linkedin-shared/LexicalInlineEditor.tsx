@@ -131,6 +131,17 @@ export type LexicalInlineEditorHandle = {
     blocks?: RichTextBlock[],
     selection?: SelectionRange,
   ) => void;
+  undo: () => void;
+  redo: () => void;
+  toggleBold: () => void;
+  toggleItalic: () => void;
+  setFontFamily: (value: string) => void;
+  setFontSize: (value: number) => void;
+  setColor: (value: string) => void;
+  setHighlightColor: (value: string) => void;
+  setTextAlign: (value: "left" | "center" | "right") => void;
+  toggleList: (value: "bullet" | "number") => void;
+  insertText: (value: string) => void;
 };
 
 const FONT_OPTIONS = [
@@ -763,22 +774,6 @@ function NativeToolbarPlugin({
         event.stopPropagation();
       }}
     >
-      <button
-        className="lexical-toolbar__button"
-        type="button"
-        disabled={!toolbar.canUndo}
-        onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-      >
-        Undo
-      </button>
-      <button
-        className="lexical-toolbar__button"
-        type="button"
-        disabled={!toolbar.canRedo}
-        onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-      >
-        Redo
-      </button>
       <select
         className="lexical-toolbar__select lexical-toolbar__select--font"
         value={toolbar.fontFamily}
@@ -960,6 +955,111 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
           if (latestContentRef.current === nextSerialized) return;
           syncEditorContent(editor, nextText, nextMarks, nextBlocks);
           latestContentRef.current = nextSerialized;
+        },
+        undo() {
+          editorRef.current?.dispatchCommand(UNDO_COMMAND, undefined);
+        },
+        redo() {
+          editorRef.current?.dispatchCommand(REDO_COMMAND, undefined);
+        },
+        toggleBold() {
+          editorRef.current?.dispatchCommand(FORMAT_TEXT_COMMAND, "bold");
+        },
+        toggleItalic() {
+          editorRef.current?.dispatchCommand(FORMAT_TEXT_COMMAND, "italic");
+        },
+        setFontFamily(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, { "font-family": value });
+            }
+          });
+        },
+        setFontSize(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, { "font-size": `${value}px` });
+            }
+          });
+        },
+        setColor(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, { color: value });
+            }
+          });
+        },
+        setHighlightColor(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, {
+                "background-color": hexToRgba(value, 0.28),
+              });
+            }
+          });
+        },
+        setTextAlign(value) {
+          editorRef.current?.dispatchCommand(
+            FORMAT_ELEMENT_COMMAND,
+            value as ElementFormatType,
+          );
+        },
+        toggleList(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection)) return;
+
+            const anchorNode = selection.anchor.getNode();
+            let currentNode = anchorNode;
+            let listType: "bullet" | "number" | null = null;
+            while (currentNode) {
+              if ($isListNode(currentNode)) {
+                const type = currentNode.getListType();
+                listType =
+                  type === "bullet"
+                    ? "bullet"
+                    : type === "number"
+                      ? "number"
+                      : null;
+                break;
+              }
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-expect-error
+              currentNode = currentNode.getParent();
+            }
+
+            if (listType === value) {
+              editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+            } else if (value === "bullet") {
+              editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+            } else {
+              editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+            }
+          });
+        },
+        insertText(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              selection.insertText(value);
+            }
+          });
         },
       }),
       [],
