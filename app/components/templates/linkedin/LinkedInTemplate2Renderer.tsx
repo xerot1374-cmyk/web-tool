@@ -1143,6 +1143,26 @@ export default function LinkedInTemplate2Renderer({
             </div>
           ) : null}
 
+          {hashtags.length ? (
+            <div className="li2-linkRow" data-select="hashtags">
+              <div className="li2-linksList">
+                {hashtags.map((hashtag, index) => (
+                  <span
+                    key={`${hashtag}-${index}`}
+                    className="li2-link"
+                    style={{
+                      color: "#64748b",
+                      display: "inline-block",
+                      marginRight: 12,
+                    }}
+                  >
+                    {hashtag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {urls.length ? (
             <div className="li2-linkRow" data-select="links">
               {urls.length === 1 ? (
@@ -1178,22 +1198,6 @@ export default function LinkedInTemplate2Renderer({
                   ))}
                 </div>
               )}
-            </div>
-          ) : null}
-
-          {hashtags.length ? (
-            <div className="li2-linkRow" data-select="hashtags">
-              <div className="li2-linksList">
-                {hashtags.map((hashtag, index) => (
-                  <span
-                    key={`${hashtag}-${index}`}
-                    className="li2-link"
-                    style={{ display: "inline-block", marginRight: 12 }}
-                  >
-                    {hashtag}
-                  </span>
-                ))}
-              </div>
             </div>
           ) : null}
         </div>
