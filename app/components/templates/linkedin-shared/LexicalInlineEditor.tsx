@@ -25,6 +25,8 @@ import { ListPlugin } from "@lexical/react/LexicalListPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import {
+  $createListItemNode,
+  $createListNode,
   $isListNode,
   INSERT_ORDERED_LIST_COMMAND,
   INSERT_UNORDERED_LIST_COMMAND,
@@ -83,6 +85,14 @@ export type TextMark = {
   style: RichStyle;
 };
 
+export type RichTextBlock = {
+  type: "paragraph" | "bullet" | "number";
+  start: number;
+  end: number;
+  contentStart: number;
+  contentEnd: number;
+};
+
 type SelectionRange = {
   start: number;
   end: number;
@@ -91,9 +101,12 @@ type SelectionRange = {
 type Props = {
   text: string;
   marks: TextMark[];
+  blocks?: RichTextBlock[];
   className?: string;
   style?: CSSProperties;
   multiline?: boolean;
+  editable?: boolean;
+  showToolbar?: boolean;
   onAlignChange?: (align: "left" | "center" | "right") => void;
   onBlur: (event: FocusEvent<HTMLElement>) => void;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
@@ -103,7 +116,12 @@ type Props = {
   onMouseDown: (event: MouseEvent<HTMLElement>) => void;
   onClick: (event: MouseEvent<HTMLElement>) => void;
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void;
-  onChange: (payload: { text: string; marks: TextMark[] }) => void;
+  onChange: (payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: RichTextBlock[];
+    html: string;
+  }) => void;
 };
 
 export type LexicalInlineEditorHandle = {
@@ -112,8 +130,20 @@ export type LexicalInlineEditorHandle = {
   syncContent: (
     text: string,
     marks: TextMark[],
+    blocks?: RichTextBlock[],
     selection?: SelectionRange,
   ) => void;
+  undo: () => void;
+  redo: () => void;
+  toggleBold: () => void;
+  toggleItalic: () => void;
+  setFontFamily: (value: string) => void;
+  setFontSize: (value: number) => void;
+  setColor: (value: string) => void;
+  setHighlightColor: (value: string) => void;
+  setTextAlign: (value: "left" | "center" | "right") => void;
+  toggleList: (value: "bullet" | "number") => void;
+  insertText: (value: string) => void;
 };
 
 const FONT_OPTIONS = [
@@ -196,6 +226,8 @@ function buildCssStyle(style: RichStyle) {
   if (style.fontFamily) entries.push(`font-family:${style.fontFamily}`);
   if (style.fontSize) entries.push(`font-size:${style.fontSize}px`);
   if (style.color) entries.push(`color:${style.color}`);
+  if (style.fontWeight) entries.push(`font-weight:${style.fontWeight}`);
+  if (style.fontStyle) entries.push(`font-style:${style.fontStyle}`);
   if (style.highlight) {
     entries.push(
       `background-color:${style.highlightColor ?? "rgba(250,204,21,0.18)"}`,
@@ -205,12 +237,12 @@ function buildCssStyle(style: RichStyle) {
 }
 
 function applyTextWithBreaks(
-  paragraph: ParagraphNode,
+  parent: ParagraphNode | ListItemNode,
   text: string,
   style: RichStyle,
 ) {
   if (text.length === 0) {
-    paragraph.append($createTextNode(""));
+    parent.append($createTextNode(""));
     return;
   }
 
@@ -225,9 +257,9 @@ function applyTextWithBreaks(
     if (style.fontStyle === "italic") {
       node.setFormat("italic");
     }
-    paragraph.append(node);
+    parent.append(node);
     if (index < chunks.length - 1) {
-      paragraph.append($createLineBreakNode());
+      parent.append($createLineBreakNode());
     }
   });
 }
@@ -236,12 +268,11 @@ function syncEditorContent(
   editor: LexicalEditor,
   text: string,
   marks: TextMark[],
+  blocks: RichTextBlock[] = [],
 ) {
   editor.update(() => {
     const root = $getRoot();
     root.clear();
-
-    const paragraph = $createParagraphNode();
     const safeMarks = marks
       .map((mark) => ({
         start: Math.max(0, Math.min(mark.start, text.length)),
@@ -250,26 +281,99 @@ function syncEditorContent(
       }))
       .filter((mark) => mark.end > mark.start)
       .sort((a, b) => a.start - b.start);
-
-    let position = 0;
-    for (const mark of safeMarks) {
-      if (mark.start > position) {
-        applyTextWithBreaks(paragraph, text.slice(position, mark.start), {});
+    const appendMarkedRange = (
+      parent: ParagraphNode | ListItemNode,
+      rangeStart: number,
+      rangeEnd: number,
+    ) => {
+      if (rangeEnd <= rangeStart) {
+        applyTextWithBreaks(parent, "", {});
+        return;
       }
 
-      applyTextWithBreaks(
-        paragraph,
-        text.slice(mark.start, mark.end),
-        mark.style,
-      );
-      position = mark.end;
-    }
+      let position = rangeStart;
+      for (const mark of safeMarks) {
+        if (mark.end <= rangeStart || mark.start >= rangeEnd) continue;
 
-    if (position < text.length || safeMarks.length === 0) {
-      applyTextWithBreaks(paragraph, text.slice(position), {});
-    }
+        const sliceStart = Math.max(mark.start, rangeStart);
+        const sliceEnd = Math.min(mark.end, rangeEnd);
 
-    root.append(paragraph);
+        if (sliceStart > position) {
+          applyTextWithBreaks(parent, text.slice(position, sliceStart), {});
+        }
+
+        applyTextWithBreaks(parent, text.slice(sliceStart, sliceEnd), mark.style);
+        position = sliceEnd;
+      }
+
+      if (position < rangeEnd) {
+        applyTextWithBreaks(parent, text.slice(position, rangeEnd), {});
+      }
+    };
+
+    const normalizedBlocks = blocks
+      .map((block) => ({
+        ...block,
+        start: Math.max(0, Math.min(block.start, text.length)),
+        end: Math.max(0, Math.min(block.end, text.length)),
+        contentStart: Math.max(0, Math.min(block.contentStart, text.length)),
+        contentEnd: Math.max(0, Math.min(block.contentEnd, text.length)),
+      }))
+      .filter((block) => block.end >= block.start && block.contentEnd >= block.contentStart);
+
+    const shouldUseBlocks = normalizedBlocks.length > 0;
+    const blockSource = shouldUseBlocks
+      ? normalizedBlocks
+      : text.split("\n").map((line, index, lines) => {
+          const prefixLength =
+            line.match(/^(\s*•\s?)/)?.[1].length ??
+            line.match(/^(\s*\d+\.\s)/)?.[1].length ??
+            0;
+          const start = lines
+            .slice(0, index)
+            .reduce((sum, part) => sum + part.length + 1, 0);
+          const end = start + line.length;
+
+          return {
+            type: prefixLength
+              ? /^\s*•/.test(line)
+                ? ("bullet" as const)
+                : ("number" as const)
+              : ("paragraph" as const),
+            start,
+            end,
+            contentStart: start + prefixLength,
+            contentEnd: end,
+          };
+        });
+
+    let activeList: ListNode | null = null;
+    let activeListType: "bullet" | "number" | null = null;
+
+    const closeActiveList = () => {
+      activeList = null;
+      activeListType = null;
+    };
+
+    blockSource.forEach((block) => {
+      if (block.type === "bullet" || block.type === "number") {
+        const nextListType = block.type;
+        if (!activeList || activeListType !== nextListType) {
+          activeList = $createListNode(nextListType);
+          activeListType = nextListType;
+          root.append(activeList);
+        }
+
+        const item = $createListItemNode();
+        appendMarkedRange(item, block.contentStart, block.contentEnd);
+        activeList.append(item);
+      } else {
+        closeActiveList();
+        const paragraph = $createParagraphNode();
+        appendMarkedRange(paragraph, block.contentStart, block.contentEnd);
+        root.append(paragraph);
+      }
+    });
   });
 }
 
@@ -277,6 +381,7 @@ function serializeEditorState(editorState: EditorState) {
   return editorState.read(() => {
     let text = "";
     const marks: TextMark[] = [];
+    const blocks: RichTextBlock[] = [];
 
     const visit = (node: LexicalNode) => {
       if ($isTextNode(node)) {
@@ -317,11 +422,57 @@ function serializeEditorState(editorState: EditorState) {
         return;
       }
 
+      if ($isListNode(node)) {
+        const listType = node.getListType();
+        const items = node.getChildren();
+        items.forEach((child, index) => {
+          if (!(child instanceof ListItemNode)) return;
+          const prefix = listType === "number" ? `${index + 1}. ` : "• ";
+          const start = text.length;
+          text += prefix;
+          const contentStart = text.length;
+          child.getChildren().forEach((grandChild) => visit(grandChild));
+          blocks.push({
+            type: listType === "number" ? "number" : "bullet",
+            start,
+            end: text.length,
+            contentStart,
+            contentEnd: text.length,
+          });
+          if (index < items.length - 1) {
+            text += "\n";
+          }
+        });
+        return;
+      }
+
       if ($isElementNode(node)) {
+        const blockStart = text.length;
         const children = node.getChildren();
         children.forEach((child) => visit(child));
-        if ($isParagraphNode(node) && node.getNextSibling() != null) {
+        if (
+          $isParagraphNode(node) &&
+          !(node.getParent() instanceof ListItemNode) &&
+          node.getNextSibling() != null
+        ) {
+          blocks.push({
+            type: "paragraph",
+            start: blockStart,
+            end: text.length,
+            contentStart: blockStart,
+            contentEnd: text.length,
+          });
           text += "\n";
+          return;
+        }
+        if ($isParagraphNode(node) && !(node.getParent() instanceof ListItemNode)) {
+          blocks.push({
+            type: "paragraph",
+            start: blockStart,
+            end: text.length,
+            contentStart: blockStart,
+            contentEnd: text.length,
+          });
         }
       }
     };
@@ -333,6 +484,7 @@ function serializeEditorState(editorState: EditorState) {
     return {
       text,
       marks: mergeMarks(marks),
+      blocks,
     };
   });
 }
@@ -373,9 +525,11 @@ function EnterBehaviorPlugin({ multiline }: { multiline: boolean }) {
 
 function NativeToolbarPlugin({
   multiline,
+  enabled,
   onAlignChange,
 }: {
   multiline: boolean;
+  enabled: boolean;
   onAlignChange?: (align: "left" | "center" | "right") => void;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -448,7 +602,11 @@ function NativeToolbarPlugin({
           "rgba(250,204,21,0.28)",
         ) || "rgba(250,204,21,0.28)";
       const anchorNode = selection.anchor.getNode();
-      const topLevel = anchorNode.getTopLevelElementOrThrow();
+      const topLevel = anchorNode.getTopLevelElement();
+      if (!topLevel) {
+        setToolbar((prev) => ({ ...prev, visible: false }));
+        return;
+      }
       const format = $isElementNode(topLevel) ? topLevel.getFormatType() : "";
       const textAlign: "left" | "center" | "right" =
         format === "center" || format === "right" ? format : "left";
@@ -540,11 +698,14 @@ function NativeToolbarPlugin({
 
   useEffect(() => {
     const onViewportChange = () => updateToolbar();
+    const onSelectionChange = () => updateToolbar();
     window.addEventListener("resize", onViewportChange);
     window.addEventListener("scroll", onViewportChange, true);
+    document.addEventListener("selectionchange", onSelectionChange);
     return () => {
       window.removeEventListener("resize", onViewportChange);
       window.removeEventListener("scroll", onViewportChange, true);
+      document.removeEventListener("selectionchange", onSelectionChange);
     };
   }, [updateToolbar]);
 
@@ -587,7 +748,7 @@ function NativeToolbarPlugin({
     [editor, toolbar.listType, updateToolbar],
   );
 
-  if (!toolbar.visible || typeof document === "undefined") {
+  if (!enabled || !toolbar.visible || typeof document === "undefined") {
     return null;
   }
 
@@ -626,22 +787,6 @@ function NativeToolbarPlugin({
         event.stopPropagation();
       }}
     >
-      <button
-        className="lexical-toolbar__button"
-        type="button"
-        disabled={!toolbar.canUndo}
-        onClick={() => editor.dispatchCommand(UNDO_COMMAND, undefined)}
-      >
-        Undo
-      </button>
-      <button
-        className="lexical-toolbar__button"
-        type="button"
-        disabled={!toolbar.canRedo}
-        onClick={() => editor.dispatchCommand(REDO_COMMAND, undefined)}
-      >
-        Redo
-      </button>
       <select
         className="lexical-toolbar__select lexical-toolbar__select--font"
         value={toolbar.fontFamily}
@@ -772,9 +917,12 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
     {
       text,
       marks,
+      blocks = [],
       className,
       style,
       multiline = true,
+      editable = true,
+      showToolbar = true,
       onAlignChange,
       onBlur,
       onKeyDown,
@@ -794,12 +942,12 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
     const setEditor = useCallback(
       (editor: LexicalEditor) => {
         editorRef.current = editor;
-        const initialSerialized = JSON.stringify({ text, marks });
+        const initialSerialized = JSON.stringify({ text, marks, blocks });
         if (latestContentRef.current === initialSerialized) return;
-        syncEditorContent(editor, text, marks);
+        syncEditorContent(editor, text, marks, blocks);
         latestContentRef.current = initialSerialized;
       },
-      [text, marks],
+      [text, marks, blocks],
     );
 
     useImperativeHandle(
@@ -811,16 +959,122 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         getRootElement() {
           return editorRef.current?.getRootElement() ?? null;
         },
-        syncContent(nextText, nextMarks) {
+        syncContent(nextText, nextMarks, nextBlocks = []) {
           const editor = editorRef.current;
           if (!editor) return;
           const nextSerialized = JSON.stringify({
             text: nextText,
             marks: nextMarks,
+            blocks: nextBlocks,
           });
           if (latestContentRef.current === nextSerialized) return;
-          syncEditorContent(editor, nextText, nextMarks);
+          syncEditorContent(editor, nextText, nextMarks, nextBlocks);
           latestContentRef.current = nextSerialized;
+        },
+        undo() {
+          editorRef.current?.dispatchCommand(UNDO_COMMAND, undefined);
+        },
+        redo() {
+          editorRef.current?.dispatchCommand(REDO_COMMAND, undefined);
+        },
+        toggleBold() {
+          editorRef.current?.dispatchCommand(FORMAT_TEXT_COMMAND, "bold");
+        },
+        toggleItalic() {
+          editorRef.current?.dispatchCommand(FORMAT_TEXT_COMMAND, "italic");
+        },
+        setFontFamily(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, { "font-family": value });
+            }
+          });
+        },
+        setFontSize(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, { "font-size": `${value}px` });
+            }
+          });
+        },
+        setColor(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, { color: value });
+            }
+          });
+        },
+        setHighlightColor(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              $patchStyleText(selection, {
+                "background-color": hexToRgba(value, 0.28),
+              });
+            }
+          });
+        },
+        setTextAlign(value) {
+          editorRef.current?.dispatchCommand(
+            FORMAT_ELEMENT_COMMAND,
+            value as ElementFormatType,
+          );
+        },
+        toggleList(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if (!$isRangeSelection(selection)) return;
+
+            const anchorNode = selection.anchor.getNode();
+            let currentNode = anchorNode;
+            let listType: "bullet" | "number" | null = null;
+            while (currentNode) {
+              if ($isListNode(currentNode)) {
+                const type = currentNode.getListType();
+                listType =
+                  type === "bullet"
+                    ? "bullet"
+                    : type === "number"
+                      ? "number"
+                      : null;
+                break;
+              }
+              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+              // @ts-expect-error
+              currentNode = currentNode.getParent();
+            }
+
+            if (listType === value) {
+              editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+            } else if (value === "bullet") {
+              editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+            } else {
+              editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+            }
+          });
+        },
+        insertText(value) {
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.update(() => {
+            const selection = $getSelection();
+            if ($isRangeSelection(selection)) {
+              selection.insertText(value);
+            }
+          });
         },
       }),
       [],
@@ -829,23 +1083,23 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
     useEffect(() => {
       const editor = editorRef.current;
       if (!editor) return;
-      const nextSerialized = JSON.stringify({ text, marks });
+      const nextSerialized = JSON.stringify({ text, marks, blocks });
       if (latestContentRef.current === nextSerialized) return;
-      syncEditorContent(editor, text, marks);
+      syncEditorContent(editor, text, marks, blocks);
       latestContentRef.current = nextSerialized;
-    }, [marks, text]);
+    }, [blocks, marks, text]);
 
     const initialConfig = useMemo(
       () => ({
         namespace: "template-inline-editor",
-        editable: true,
+        editable,
         theme: {},
         nodes: [ParagraphNode, TextNode, LineBreakNode, ListNode, ListItemNode],
         onError(error: Error) {
           throw error;
         },
       }),
-      [],
+      [editable],
     );
 
     return (
@@ -854,6 +1108,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         <EnterBehaviorPlugin multiline={multiline} />
         <NativeToolbarPlugin
           multiline={multiline}
+          enabled={editable && showToolbar}
           onAlignChange={onAlignChange}
         />
         <ListPlugin />
@@ -878,10 +1133,13 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         />
         <HistoryPlugin />
         <OnChangePlugin
-          onChange={(editorState) => {
+          onChange={(editorState, editor) => {
             const next = serializeEditorState(editorState);
             latestContentRef.current = JSON.stringify(next);
-            onChange(next);
+            onChange({
+              ...next,
+              html: editor.getRootElement()?.innerHTML ?? "",
+            });
           }}
           ignoreHistoryMergeTagChange={true}
           ignoreSelectionChange={true}

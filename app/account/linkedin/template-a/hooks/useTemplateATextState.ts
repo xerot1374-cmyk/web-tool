@@ -1,15 +1,18 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import type { BoxTextStyle, EditorTextField, RichEditField, TextMark } from "../lib/templateA.types";
 import { copyTextToClipboard, normalizeUrl } from "../lib/templateA.utils";
 
 export default function useTemplateATextState() {
   const [headline, setHeadline] = useState("");
   const [subline, setSubline] = useState("");
-  const [badgeText, setBadgeText] = useState("");
-  const [title, setTitle] = useState("");
-  const [body, _setBody] = useState("");
+  const [badgeText, setBadgeText] = useState("Your Eye Catching Text");
+  const [title, setTitle] = useState("Your Tile Goes Here");
+  const [body, _setBody] = useState(
+    "The main content. You can edit using the rich text editor.",
+  );
   const [caption, _setCaption] = useState("");
 
   const [titleMarks, setTitleMarks] = useState<TextMark[]>([]);
@@ -17,11 +20,21 @@ export default function useTemplateATextState() {
   const [companyMarks, setCompanyMarks] = useState<TextMark[]>([]);
   const [bodyMarks, setBodyMarks] = useState<TextMark[]>([]);
   const [captionMarks, setCaptionMarks] = useState<TextMark[]>([]);
+  const [titleHtml, setTitleHtml] = useState("");
+  const [badgeHtml, setBadgeHtml] = useState("");
+  const [companyHtml, setCompanyHtml] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
+  const [captionHtml, setCaptionHtml] = useState("");
+  const [titleBlocks, setTitleBlocks] = useState<RichTextBlock[]>([]);
+  const [badgeBlocks, setBadgeBlocks] = useState<RichTextBlock[]>([]);
+  const [companyBlocks, setCompanyBlocks] = useState<RichTextBlock[]>([]);
+  const [bodyBlocks, setBodyBlocks] = useState<RichTextBlock[]>([]);
+  const [captionBlocks, setCaptionBlocks] = useState<RichTextBlock[]>([]);
 
   const [link, setLink] = useState<string[]>([]);
   const [linkInput, setLinkInput] = useState("");
   const [company, setCompany] = useState("PROTOS-3D Metrology GmbH");
-  const [activeField, setActiveField] = useState<EditorTextField>("caption");
+  const [activeField, setActiveField] = useState<EditorTextField>("body");
   const [copied, setCopied] = useState(false);
 
   const badgeRef = useRef<HTMLInputElement | null>(null);
@@ -38,6 +51,13 @@ export default function useTemplateATextState() {
   });
 
   const [bodyBoxStyle, setBodyBoxStyle] = useState<BoxTextStyle>({
+    fontFamily: "system-ui",
+    fontSize: 16,
+    color: "#111827",
+    textAlign: "left",
+  });
+
+  const [captionStyle, setCaptionStyle] = useState<BoxTextStyle>({
     fontFamily: "system-ui",
     fontSize: 16,
     color: "#111827",
@@ -75,26 +95,36 @@ export default function useTemplateATextState() {
   function setBadgeTextValue(v: string) {
     setBadgeText(v);
     setBadgeMarks([]);
+    setBadgeBlocks([]);
+    setBadgeHtml("");
   }
 
   function setTitleValue(v: string) {
     setTitle(v);
     setTitleMarks([]);
+    setTitleBlocks([]);
+    setTitleHtml("");
   }
 
   function setCompanyValue(v: string) {
     setCompany(v);
     setCompanyMarks([]);
+    setCompanyBlocks([]);
+    setCompanyHtml("");
   }
 
   function setBody(v: string) {
     _setBody(v);
     setBodyMarks([]);
+    setBodyBlocks([]);
+    setBodyHtml("");
   }
 
   function setCaption(v: string) {
     _setCaption(v);
     setCaptionMarks([]);
+    setCaptionBlocks([]);
+    setCaptionHtml("");
   }
 
   const normalizedLink: string | undefined = useMemo(() => {
@@ -119,6 +149,20 @@ export default function useTemplateATextState() {
     if (field === "company") return companyMarks;
     if (field === "badge") return badgeMarks;
     return bodyMarks;
+  }
+
+  function getRichEditBlocks(field: RichEditField) {
+    if (field === "title") return titleBlocks;
+    if (field === "company") return companyBlocks;
+    if (field === "badge") return badgeBlocks;
+    return bodyBlocks;
+  }
+
+  function getRichEditHtml(field: RichEditField) {
+    if (field === "title") return titleHtml;
+    if (field === "company") return companyHtml;
+    if (field === "badge") return badgeHtml;
+    return bodyHtml;
   }
 
   function handleAddLink(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -155,12 +199,32 @@ export default function useTemplateATextState() {
     setCaption,
     titleMarks,
     setTitleMarks,
+    titleHtml,
+    setTitleHtml,
+    titleBlocks,
+    setTitleBlocks,
     badgeMarks,
     setBadgeMarks,
+    badgeHtml,
+    setBadgeHtml,
+    badgeBlocks,
+    setBadgeBlocks,
     companyMarks,
     setCompanyMarks,
+    companyHtml,
+    setCompanyHtml,
+    companyBlocks,
+    setCompanyBlocks,
     bodyMarks,
     setBodyMarks,
+    bodyHtml,
+    setBodyHtml,
+    bodyBlocks,
+    setBodyBlocks,
+    captionHtml,
+    setCaptionHtml,
+    captionBlocks,
+    setCaptionBlocks,
     captionMarks,
     setCaptionMarks,
     link,
@@ -182,6 +246,8 @@ export default function useTemplateATextState() {
     setTitleStyle,
     bodyBoxStyle,
     setBodyBoxStyle,
+    captionStyle,
+    setCaptionStyle,
     badgeStyle,
     setBadgeStyle,
     companyStyle,
@@ -193,6 +259,8 @@ export default function useTemplateATextState() {
     normalizedLink,
     getRichEditText,
     getRichEditMarks,
+    getRichEditBlocks,
+    getRichEditHtml,
     handleAddLink,
     copyCaption,
   };

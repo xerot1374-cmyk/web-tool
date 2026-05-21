@@ -45,8 +45,20 @@ type Payload = {
     w: number;
     h: number;
   };
+  videoRadius?: number;
+  videos?: Array<{
+    id: string;
+    fileKey: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    radius: number;
+    zIndex?: number;
+  }>;
 
   images?: unknown[];
+  productAlign?: "left" | "center" | "right";
   imageLayout?: "manual" | "collage" | "frame";
   framePresetId?: string;
   frameSlots?: Array<{
@@ -69,6 +81,24 @@ type Payload = {
   canvasPreset?: CanvasPreset;
 };
 
+type PayloadImage = {
+  id: string;
+  src?: string;
+  base64?: string;
+  orientation: "landscape" | "portrait";
+  frameSlotId?: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  rotation: number;
+  radius?: number;
+  cropX?: number;
+  cropY?: number;
+  cropScale?: number;
+};
+
+type PayloadFrameSlot = NonNullable<Payload["frameSlots"]>[number];
 type TextMark = {
   start: number;
   end: number;
@@ -185,6 +215,10 @@ function renderMarkedHtml(text: string, marks?: TextMark[]) {
   return out;
 }
 
+function getCropValue(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 function styleToInline(style?: BoxTextStyle) {
   if (!style) return "";
   return [
@@ -206,6 +240,38 @@ function normalizePayload(data: Payload): Payload {
     ...data,
     linkTitle: data.linkTitle ?? data.title,
     bodyText: data.bodyText ?? data.body,
+    videoRadius:
+      typeof data.videoRadius === "number" && Number.isFinite(data.videoRadius)
+        ? Math.max(0, Math.round(data.videoRadius))
+        : 20,
+    videos:
+      data.videos?.flatMap((video) => {
+        if (
+          !video ||
+          typeof video.id !== "string" ||
+          typeof video.fileKey !== "string" ||
+          typeof video.x !== "number" ||
+          typeof video.y !== "number" ||
+          typeof video.w !== "number" ||
+          typeof video.h !== "number"
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            ...video,
+            radius:
+              typeof video.radius === "number" && Number.isFinite(video.radius)
+                ? Math.max(0, Math.round(video.radius))
+                : 20,
+            zIndex:
+              typeof video.zIndex === "number" && Number.isFinite(video.zIndex)
+                ? video.zIndex
+                : undefined,
+          },
+        ];
+      }) ?? [],
   };
 }
 
@@ -252,6 +318,190 @@ function getFinalVideoBox(
   };
 }
 
+function getRoundedVideoAlphaExpression(
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const rounded = Math.max(
+    0,
+    Math.min(Math.round(radius), Math.floor(width / 2), Math.floor(height / 2)),
+  );
+
+  if (rounded === 0) return null;
+
+  const right = width - rounded - 1;
+  const bottom = height - rounded - 1;
+  const radiusSq = rounded * rounded;
+
+  return [
+    `if(lt(X,${rounded})*lt(Y,${rounded})*gt((X-${rounded})*(X-${rounded})+(Y-${rounded})*(Y-${rounded}),${radiusSq}),0,`,
+    `if(gt(X,${right})*lt(Y,${rounded})*gt((X-${right})*(X-${right})+(Y-${rounded})*(Y-${rounded}),${radiusSq}),0,`,
+    `if(lt(X,${rounded})*gt(Y,${bottom})*gt((X-${rounded})*(X-${rounded})+(Y-${bottom})*(Y-${bottom}),${radiusSq}),0,`,
+    `if(gt(X,${right})*gt(Y,${bottom})*gt((X-${right})*(X-${right})+(Y-${bottom})*(Y-${bottom}),${radiusSq}),0,255))))`,
+  ].join("");
+}
+
+function normalizePayloadImages(data: Payload, req: Request): PayloadImage[] {
+  if (!Array.isArray(data.images)) return [];
+
+  return data.images.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const image = item as Partial<PayloadImage>;
+    if (
+      typeof image.id !== "string" ||
+      typeof image.orientation !== "string" ||
+      typeof image.x !== "number" ||
+      typeof image.y !== "number" ||
+      typeof image.w !== "number" ||
+      typeof image.h !== "number"
+    ) {
+      return [];
+    }
+
+    const resolvedSrc = image.base64?.trim()
+      ? image.base64
+      : resolveSrc(req, image.src);
+    if (!resolvedSrc) return [];
+
+    return [
+      {
+        id: image.id,
+        src: resolvedSrc,
+        base64: image.base64,
+        orientation:
+          image.orientation === "portrait" ? "portrait" : "landscape",
+        frameSlotId: image.frameSlotId,
+        x: image.x,
+        y: image.y,
+        w: image.w,
+        h: image.h,
+        rotation:
+          typeof image.rotation === "number" && Number.isFinite(image.rotation)
+            ? image.rotation
+            : 0,
+        radius:
+          typeof image.radius === "number" && Number.isFinite(image.radius)
+            ? Math.max(0, Math.round(image.radius))
+            : 20,
+        cropX: getCropValue(image.cropX, 50),
+        cropY: getCropValue(image.cropY, 50),
+        cropScale: getCropValue(image.cropScale, 1),
+      },
+    ];
+  });
+}
+
+function renderProductImagesHtml(
+  data: Payload,
+  req: Request,
+  fallbackBox: { x: number; y: number; w: number; h: number },
+) {
+  const images = normalizePayloadImages(data, req);
+
+  if (!images.length) {
+    return `
+      <div
+        class="li2-productSlot"
+        style="position:absolute;left:${fallbackBox.x}px;top:${fallbackBox.y}px;width:${fallbackBox.w}px;height:${fallbackBox.h}px;z-index:2;pointer-events:none;transform:none;right:auto;bottom:auto;margin:0;"
+      >
+        <div
+          class="li2-productFrame li2-productFrame--landscape"
+          style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(0deg);transform-origin:center center;border-radius:${data.videoRadius ?? 20}px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
+        >
+          <img
+            class="li2-productImg li2-productImg--cropped"
+            src="${TRANSPARENT_PIXEL}"
+            alt="video-slot"
+            style="position:absolute;left:50%;top:50%;width:100%;height:100%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;opacity:0;"
+          />
+        </div>
+      </div>
+    `;
+  }
+
+  const frameSlotsById = new Map<string, PayloadFrameSlot>(
+    (data.frameSlots ?? []).map((slot) => [slot.id, slot]),
+  );
+
+  if (data.imageLayout === "frame") {
+    return (data.frameSlots ?? [])
+      .map((slot, index) => {
+        const img = images.find((item) => item.frameSlotId === slot.id);
+        const imageOrientationClass =
+          img?.orientation === "portrait"
+            ? "li2-productFrame--portrait"
+            : "li2-productFrame--landscape";
+
+        return `
+          <div
+            class="li2-productSlot li2-productSlot--frame"
+            style="position:absolute;left:${slot.x}px;top:${slot.y}px;width:${slot.w}px;height:${slot.h}px;z-index:${12 + index};pointer-events:none;right:auto;bottom:auto;margin:0;transform:rotate(${slot.rotation ?? 0}deg);"
+          >
+            <div
+              class="li2-productFrame li2-productFrame--frame ${imageOrientationClass}"
+              style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;border-radius:${slot.radius}px;background:#ffffff;border:1px solid rgba(255,255,255,0.96);${slot.clipPath ? `clip-path:${slot.clipPath};` : ""}"
+            >
+              ${
+                img
+                  ? `
+                <div class="li2-productFrameInner--frame">
+                  <img
+                    class="li2-productImg li2-productImg--cropped"
+                    src="${escapeHtml(img.src ?? "")}"
+                    alt="product"
+                    style="position:absolute;left:${img.cropX}% ;top:${img.cropY}% ;width:${img.cropScale! * 100}% ;height:${img.cropScale! * 100}% ;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
+                  />
+                </div>
+              `
+                  : `<div class="li2-framePlaceholder">Add image</div>`
+              }
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  }
+
+  return images
+    .map((img, index) => {
+      const slot = img.frameSlotId ? frameSlotsById.get(img.frameSlotId) : null;
+      const isCollage = data.imageLayout === "collage";
+      const imageOrientationClass =
+        img.orientation === "portrait"
+          ? "li2-productFrame--portrait"
+          : "li2-productFrame--landscape";
+      const alignClass =
+        data.productAlign === "left"
+          ? "li2-productSlot--left"
+          : data.productAlign === "right"
+            ? "li2-productSlot--right"
+            : "li2-productSlot--center";
+
+      return `
+        <div
+          class="li2-productSlot ${alignClass}${isCollage ? " li2-productSlot--collage" : ""}"
+          style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:${isCollage ? 10 + index : 2};pointer-events:none;transform:none;right:auto;bottom:auto;margin:0;"
+        >
+          <div
+            class="li2-productFrame ${imageOrientationClass}${isCollage ? " li2-productFrame--collage" : ""}"
+            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:${img.radius ?? 20}px;background:${isCollage ? "#ffffff" : "transparent"};border:${isCollage ? "1px solid rgba(255,255,255,0.92)" : "1px solid rgba(15,23,42,0.10)"};${slot?.clipPath ? `clip-path:${slot.clipPath};` : ""}"
+          >
+            <div class="${isCollage ? "li2-productFrameInner--collage" : ""}">
+              <img
+                class="li2-productImg li2-productImg--cropped"
+                src="${escapeHtml(img.src ?? "")}"
+                alt="product"
+                style="position:absolute;left:${img.cropX}% ;top:${img.cropY}% ;width:${img.cropScale! * 100}% ;height:${img.cropScale! * 100}% ;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
+              />
+            </div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function renderVideoTemplateHtml(
   req: Request,
   data: Payload,
@@ -264,50 +514,12 @@ function renderVideoTemplateHtml(
   const profileImage = resolveSrc(req, data.profileImage);
   const companyLogo = resolveSrc(req, "/logo.png");
   const foregroundOnly = mode === "foreground";
-
-  const images = [
-    {
-      id: "video-slot",
-      src: TRANSPARENT_PIXEL,
-      orientation: "landscape" as const,
-      x: box.x,
-      y: box.y,
-      w: box.w,
-      h: box.h,
-      rotation: 0,
-      cropX: 50,
-      cropY: 50,
-      cropScale: 1,
-    },
-  ];
+  const imagesHtml = renderProductImagesHtml(data, req, box);
 
   const links = (data.link ?? "")
     .split("\n")
     .map((item) => normalizeHttpUrl(item))
     .filter((item): item is string => Boolean(item));
-
-  const imagesHtml = images
-    .map(
-      (img) => `
-        <div
-          class="li2-productSlot"
-          style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:2;pointer-events:none;transform:none;right:auto;bottom:auto;margin:0;"
-        >
-          <div
-            class="li2-productFrame li2-productFrame--landscape"
-            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(0deg);transform-origin:center center;border-radius:20px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
-          >
-            <img
-              class="li2-productImg li2-productImg--cropped"
-              src="${escapeHtml(img.src)}"
-              alt="video-slot"
-              style="position:absolute;left:50%;top:50%;width:100%;height:100%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;opacity:0;"
-            />
-          </div>
-        </div>
-      `,
-    )
-    .join("");
 
   return `<!doctype html>
 <html lang="en">
@@ -604,24 +816,61 @@ async function screenshotCoverPng(
 
 async function buildVideoInsideTemplateWithAudio(
   coverPngPath: string,
-  userMp4Path: string,
+  videos: Array<{
+    path: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    radius: number;
+    zIndex?: number;
+  }>,
   foregroundPngPath: string,
   outputMp4Path: string,
-  box: { x: number; y: number; w: number; h: number },
 ) {
   let ffErr = "";
+  const sortedVideos = [...videos].sort(
+    (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0),
+  );
+  const complexFilters: string[] = [];
+  let lastLabel = "[0:v]";
+
+  sortedVideos.forEach((video, index) => {
+    const inputIndex = index + 1;
+    const alphaExpr = getRoundedVideoAlphaExpression(
+      video.w,
+      video.h,
+      video.radius,
+    );
+    const streamLabel = `[vid${index}]`;
+    complexFilters.push(
+      alphaExpr
+        ? `[${inputIndex}:v]scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alphaExpr}'${streamLabel}`
+        : `[${inputIndex}:v]scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h}${streamLabel}`,
+    );
+    const nextLabel =
+      index === sortedVideos.length - 1 ? "[with_video]" : `[stage${index}]`;
+    complexFilters.push(
+      `${lastLabel}${streamLabel}overlay=${video.x}:${video.y}:shortest=1${nextLabel}`,
+    );
+    lastLabel = nextLabel;
+  });
+
+  const foregroundInputIndex = sortedVideos.length + 1;
+  complexFilters.push(
+    `${lastLabel}[${foregroundInputIndex}:v]overlay=0:0:format=auto[v]`,
+  );
 
   await new Promise<void>((resolve, reject) => {
-    ffmpeg()
-      .input(coverPngPath)
-      .inputOptions(["-loop 1"])
-      .input(userMp4Path)
+    const command = ffmpeg().input(coverPngPath).inputOptions(["-loop 1"]);
+
+    sortedVideos.forEach((video) => {
+      command.input(video.path);
+    });
+
+    command
       .input(foregroundPngPath)
-      .complexFilter([
-        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=decrease[vid]`,
-        `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[with_video]`,
-        `[with_video][2:v]overlay=0:0:format=auto[v]`,
-      ])
+      .complexFilter(complexFilters)
       .outputOptions([
         "-map [v]",
         "-map 1:a?",
@@ -646,7 +895,6 @@ export async function POST(req: Request) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "final-"));
   const coverPng = path.join(tmpDir, "cover.png");
   const foregroundPng = path.join(tmpDir, "foreground.png");
-  const uploadedVideoPath = path.join(tmpDir, "upload.mp4");
   const finalMp4 = path.join(tmpDir, "final.mp4");
 
   try {
@@ -666,25 +914,82 @@ export async function POST(req: Request) {
       ...normalizePayload(JSON.parse(rawData) as Payload),
       videoBox: parseVideoBox(formData.get("videoBox")),
     };
-    const videoField = formData.get("video");
 
-    if (!(videoField instanceof File) || videoField.size === 0) {
+    const videoEntries =
+      data.videos?.flatMap((video) => {
+        const fileField = formData.get(video.fileKey);
+        if (!(fileField instanceof File) || fileField.size === 0) return [];
+        return [
+          {
+            meta: video,
+            file: fileField,
+          },
+        ];
+      }) ?? [];
+
+    if (!videoEntries.length) {
+      const videoField = formData.get("video");
+      if (!(videoField instanceof File) || videoField.size === 0) {
+        return NextResponse.json(
+          { error: "No video uploaded" },
+          { status: 400 },
+        );
+      }
+      const legacyBox = data.videoBox
+        ? {
+            x: Math.round(data.videoBox.x),
+            y: Math.round(data.videoBox.y),
+            w: Math.round(data.videoBox.w),
+            h: Math.round(data.videoBox.h),
+            radius: data.videoRadius ?? 20,
+            zIndex: 1,
+            fileKey: "video",
+            id: "legacy-video",
+          }
+        : {
+            ...getFinalVideoBox(data.canvasPreset, data.mediaBox),
+            radius: data.videoRadius ?? 20,
+            zIndex: 1,
+            fileKey: "video",
+            id: "legacy-video",
+          };
+
+      videoEntries.push({
+        meta: legacyBox,
+        file: videoField,
+      });
+    }
+
+    if (!videoEntries.length) {
       return NextResponse.json(
-        { error: "No video uploaded (field name must be 'video')" },
+        { error: "No video uploaded" },
         { status: 400 },
       );
     }
 
-    await persistUploadedFile(videoField, uploadedVideoPath);
+    const persistedVideos = await Promise.all(
+      videoEntries.map(async ({ meta, file }, index) => {
+        const videoPath = path.join(tmpDir, `upload-${index}.mp4`);
+        await persistUploadedFile(file, videoPath);
+        return {
+          path: videoPath,
+          x: Math.round(meta.x),
+          y: Math.round(meta.y),
+          w: Math.round(meta.w),
+          h: Math.round(meta.h),
+          radius: meta.radius,
+          zIndex: meta.zIndex,
+        };
+      }),
+    );
 
-    const box = await screenshotCoverPng(req, data, coverPng, "base");
+    await screenshotCoverPng(req, data, coverPng, "base");
     await screenshotCoverPng(req, data, foregroundPng, "foreground");
     await buildVideoInsideTemplateWithAudio(
       coverPng,
-      uploadedVideoPath,
+      persistedVideos,
       foregroundPng,
       finalMp4,
-      box,
     );
 
     const out = await fs.readFile(finalMp4);

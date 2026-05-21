@@ -4,6 +4,7 @@ import React, { useMemo, useRef, useCallback } from "react";
 import { resolveFrameSlots, type FrameSlot } from "@/app/lib/imageLayouts";
 import LexicalInlineEditor, {
   type LexicalInlineEditorHandle,
+  type RichTextBlock,
 } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 export type MediaBox = {
@@ -24,6 +25,7 @@ export type ImageItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -41,18 +43,26 @@ export type LinkedInTemplate2Data = {
   editorReserveProductMediaSlot?: boolean;
 
   badgeText?: string;
+  badgeHtml?: string;
   badgeMarks?: TextMark[];
+  badgeBlocks?: RichTextBlock[];
 
   linkTitle?: string;
+  titleHtml?: string;
   titleMarks?: TextMark[];
+  titleBlocks?: RichTextBlock[];
   company?: string;
+  companyHtml?: string;
   companyMarks?: TextMark[];
+  companyBlocks?: RichTextBlock[];
   companyLogo?: string;
 
   headline?: string;
   subline?: string;
   bodyText?: string;
+  bodyHtml?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
   captionMarks?: TextMark[];
 
   titleStyle?: {
@@ -106,6 +116,7 @@ export type LinkedInTemplate2Data = {
   framePresetId?: string;
   frameSlots?: FrameSlot[];
   mediaBox?: MediaBox;
+  videoRadius?: number;
 
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
 };
@@ -130,9 +141,11 @@ export type LinkedInTemplate2RendererProps = {
   scale?: number;
   activeRichTextEditor?: {
     field: "badge" | "title" | "body" | "company";
+    sessionKey: number;
     editorRef: React.Ref<LexicalInlineEditorHandle>;
     text: string;
     marks: TextMark[];
+    blocks: RichTextBlock[];
     multiline: boolean;
     className?: string;
     style?: React.CSSProperties;
@@ -144,7 +157,12 @@ export type LinkedInTemplate2RendererProps = {
     onMouseDown: (event: React.MouseEvent<HTMLElement>) => void;
     onClick: (event: React.MouseEvent<HTMLElement>) => void;
     onDoubleClick: (event: React.MouseEvent<HTMLElement>) => void;
-    onChange: (payload: { text: string; marks: TextMark[] }) => void;
+    onChange: (payload: {
+      text: string;
+      marks: TextMark[];
+      blocks: RichTextBlock[];
+      html: string;
+    }) => void;
   } | null;
 
   onFieldChange?: (key: keyof LinkedInTemplate2Data, value: string) => void;
@@ -218,61 +236,191 @@ function EditableInput({
   );
 }
 
-function renderMarkedText(text: string, marks?: TextMark[]) {
+function renderMarkedText(
+  text: string,
+  marks?: TextMark[],
+  blocks?: RichTextBlock[],
+  baseStyle?: React.CSSProperties,
+) {
   const t = String(text ?? "");
-  if (!marks || marks.length === 0) return t;
+  const safeMarks =
+    marks
+      ?.map((m) => ({
+        start: Math.max(0, Math.min(m.start, t.length)),
+        end: Math.max(0, Math.min(m.end, t.length)),
+        style: m.style ?? {},
+      }))
+      .filter((m) => m.end > m.start)
+      .sort((a, b) => a.start - b.start) ?? [];
 
-  const safeMarks = marks
-    .map((m) => ({
-      start: Math.max(0, Math.min(m.start, t.length)),
-      end: Math.max(0, Math.min(m.end, t.length)),
-      style: m.style ?? {},
-    }))
-    .filter((m) => m.end > m.start)
-    .sort((a, b) => a.start - b.start);
+  const renderSegment = (rangeStart: number, rangeEnd: number) => {
+    if (rangeEnd <= rangeStart) return null;
+    if (!safeMarks.length) return t.slice(rangeStart, rangeEnd);
 
-  const out: React.ReactNode[] = [];
-  let pos = 0;
+    const out: React.ReactNode[] = [];
+    let pos = rangeStart;
 
-  for (let i = 0; i < safeMarks.length; i++) {
-    const m = safeMarks[i];
+    for (let i = 0; i < safeMarks.length; i++) {
+      const m = safeMarks[i];
+      if (m.end <= rangeStart || m.start >= rangeEnd) continue;
 
-    if (m.start > pos) {
+      const start = Math.max(m.start, rangeStart);
+      const end = Math.min(m.end, rangeEnd);
+
+      if (start > pos) {
+        out.push(
+          <React.Fragment key={`t-${pos}`}>{t.slice(pos, start)}</React.Fragment>,
+        );
+      }
+
+      const style: React.CSSProperties = {
+        fontFamily: m.style.fontFamily,
+        fontSize: m.style.fontSize,
+        color: m.style.color,
+        fontWeight: m.style.fontWeight,
+        fontStyle: m.style.fontStyle,
+        background: m.style.highlight
+          ? (m.style.highlightColor ?? "rgba(250,204,21,0.18)")
+          : undefined,
+      };
+
       out.push(
-        <React.Fragment key={`t-${pos}`}>
-          {t.slice(pos, m.start)}
-        </React.Fragment>,
+        <span key={`m-${start}-${end}-${i}`} style={style}>
+          {t.slice(start, end)}
+        </span>,
+      );
+      pos = end;
+    }
+
+    if (pos < rangeEnd) {
+      out.push(
+        <React.Fragment key={`t-${pos}-end`}>{t.slice(pos, rangeEnd)}</React.Fragment>,
       );
     }
 
-    const chunk = t.slice(m.start, m.end);
-    const style: React.CSSProperties = {
-      fontFamily: m.style.fontFamily,
-      fontSize: m.style.fontSize,
-      color: m.style.color,
-      fontWeight: m.style.fontWeight,
-      fontStyle: m.style.fontStyle,
-      background: m.style.highlight
-        ? (m.style.highlightColor ?? "rgba(250,204,21,0.18)")
-        : undefined,
+    return out;
+  };
+
+  const getLeadingListItemStyle = (
+    rangeStart: number,
+    rangeEnd: number,
+  ): React.CSSProperties | undefined => {
+    const leadingMark = safeMarks.find(
+      (mark) => mark.end > rangeStart && mark.start < rangeEnd,
+    );
+    if (!leadingMark) return undefined;
+
+    return {
+      fontFamily: leadingMark.style.fontFamily ?? baseStyle?.fontFamily,
+      fontSize: leadingMark.style.fontSize ?? baseStyle?.fontSize,
+      color: leadingMark.style.color ?? baseStyle?.color,
+      fontWeight: leadingMark.style.fontWeight ?? baseStyle?.fontWeight,
+      fontStyle: leadingMark.style.fontStyle ?? baseStyle?.fontStyle,
     };
+  };
 
-    out.push(
-      <span key={`m-${m.start}-${m.end}-${i}`} style={style}>
-        {chunk}
-      </span>,
-    );
+  const safeBlocks =
+    blocks
+      ?.map((block) => ({
+        ...block,
+        start: Math.max(0, Math.min(block.start, t.length)),
+        end: Math.max(0, Math.min(block.end, t.length)),
+        contentStart: Math.max(0, Math.min(block.contentStart, t.length)),
+        contentEnd: Math.max(0, Math.min(block.contentEnd, t.length)),
+      }))
+      .filter(
+        (block) =>
+          block.end >= block.start && block.contentEnd >= block.contentStart,
+      ) ?? [];
 
-    pos = m.end;
+  if (!safeBlocks.length) {
+    if (!safeMarks.length) return t;
+    return renderSegment(0, t.length);
   }
 
-  if (pos < t.length) {
-    out.push(
-      <React.Fragment key={`t-${pos}-end`}>{t.slice(pos)}</React.Fragment>,
-    );
-  }
+  const nodes: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+  let listType: "bullet" | "number" | null = null;
 
-  return out;
+  const flushList = () => {
+    if (!listType || !listItems.length) return;
+    nodes.push(
+      <div
+        key={`list-${nodes.length}`}
+        style={{ display: "grid", gap: "0.2em", margin: 0 }}
+      >
+        {listItems}
+      </div>,
+    );
+    listItems = [];
+    listType = null;
+  };
+
+  safeBlocks.forEach((block, index) => {
+    const content = renderSegment(block.contentStart, block.contentEnd);
+
+    if (block.type === "bullet" || block.type === "number") {
+      if (listType && listType !== block.type) {
+        flushList();
+      }
+      listType = block.type;
+      const itemStyle = getLeadingListItemStyle(
+        block.contentStart,
+        block.contentEnd,
+      );
+      listItems.push(
+        <div
+          key={`li-${index}`}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "max-content minmax(0, 1fr)",
+            columnGap: "0.65em",
+            alignItems: "start",
+            overflow: "visible",
+            ...baseStyle,
+            ...itemStyle,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              minWidth: listType === "number" ? "1.8em" : "1.1em",
+              font: "inherit",
+              lineHeight: "inherit",
+              display: "inline-block",
+              textAlign: "right",
+              flexShrink: 0,
+            }}
+          >
+            {block.type === "number" ? `${listItems.length + 1}.` : "•"}
+          </span>
+          <div style={{ minWidth: 0, overflow: "visible" }}>{content}</div>
+        </div>,
+      );
+      return;
+    }
+
+    flushList();
+    nodes.push(
+      <React.Fragment key={`p-${index}`}>
+        {content}
+        {index < safeBlocks.length - 1 ? "\n" : null}
+      </React.Fragment>,
+    );
+  });
+
+  flushList();
+  return nodes;
+}
+
+function renderRichHtml(html?: string) {
+  if (!html?.trim()) return null;
+  return (
+    <div
+      className="li2-richTextHtml"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 }
 
 function getCropValues(img?: ImageItem) {
@@ -281,6 +429,35 @@ function getCropValues(img?: ImageItem) {
     cropY: Number.isFinite(img?.cropY) ? Number(img?.cropY) : 50,
     cropScale: Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1,
   };
+}
+
+function renderRichTextContent(params: {
+  active: React.ReactNode | null;
+  readOnly?: React.ReactNode | null;
+  html?: string;
+  text: string;
+  marks?: TextMark[];
+  blocks?: RichTextBlock[];
+  baseStyle?: React.CSSProperties;
+  emptyFallback?: React.ReactNode;
+}) {
+  const {
+    active,
+    readOnly,
+    html,
+    text,
+    marks,
+    blocks,
+    baseStyle,
+    emptyFallback = "\u00A0",
+  } = params;
+
+  return (
+    active ??
+    readOnly ??
+    (renderRichHtml(html) ??
+      (text ? renderMarkedText(text, marks, blocks, baseStyle) : emptyFallback))
+  );
 }
 
 export default function LinkedInTemplate2Renderer({
@@ -306,9 +483,11 @@ export default function LinkedInTemplate2Renderer({
 
     return (
       <LexicalInlineEditor
+        key={`${field}-${activeRichTextEditor.sessionKey}`}
         ref={activeRichTextEditor.editorRef}
         text={activeRichTextEditor.text}
         marks={activeRichTextEditor.marks}
+        blocks={activeRichTextEditor.blocks}
         multiline={activeRichTextEditor.multiline}
         className={activeRichTextEditor.className}
         style={activeRichTextEditor.style}
@@ -321,6 +500,51 @@ export default function LinkedInTemplate2Renderer({
         onClick={activeRichTextEditor.onClick}
         onDoubleClick={activeRichTextEditor.onDoubleClick}
         onChange={activeRichTextEditor.onChange}
+      />
+    );
+  };
+
+  const renderReadOnlyRichText = (
+    field: "badge" | "title" | "body" | "company",
+    text: string,
+    marks: TextMark[] | undefined,
+    blocks: RichTextBlock[] | undefined,
+    multiline: boolean,
+  ) => {
+    if (activeRichTextEditor?.field === field) return null;
+    if (mode === "export") return null;
+
+    return (
+      <LexicalInlineEditor
+        key={`readonly-${field}-${text}-${JSON.stringify(marks ?? [])}-${JSON.stringify(blocks ?? [])}`}
+        text={text}
+        marks={marks ?? []}
+        blocks={blocks ?? []}
+        multiline={multiline}
+        editable={false}
+        showToolbar={false}
+        className="template-inline-editor"
+        style={{
+          display: "block",
+          width: "100%",
+          padding: 0,
+          margin: 0,
+          border: "none",
+          background: "transparent",
+          boxShadow: "none",
+          outline: "none",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+        onBlur={() => {}}
+        onKeyDown={() => {}}
+        onKeyUp={() => {}}
+        onMouseUp={() => {}}
+        onPointerDown={() => {}}
+        onMouseDown={() => {}}
+        onClick={() => {}}
+        onDoubleClick={() => {}}
+        onChange={() => {}}
       />
     );
   };
@@ -616,7 +840,7 @@ export default function LinkedInTemplate2Renderer({
                         top: "auto",
                         transform: `rotate(${img.rotation ?? 0}deg)`,
                         transformOrigin: "center center",
-                        borderRadius: 20,
+                        borderRadius: img.radius ?? 20,
                         background: isCollage ? "#ffffff" : "transparent",
                         border: isCollage
                           ? "1px solid rgba(255,255,255,0.92)"
@@ -691,8 +915,21 @@ export default function LinkedInTemplate2Renderer({
               }
               style={{ cursor: isEdit ? "pointer" : undefined }}
             >
-              {renderActiveRichTextEditor("badge") ??
-                (vBadge ? renderMarkedText(vBadge, data.badgeMarks) : "\u00A0")}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("badge"),
+                readOnly: renderReadOnlyRichText(
+                  "badge",
+                  vBadge,
+                  data.badgeMarks,
+                  data.badgeBlocks,
+                  false,
+                ),
+                html: data.badgeHtml,
+                text: vBadge,
+                marks: data.badgeMarks,
+                blocks: data.badgeBlocks,
+                baseStyle: data.badgeStyle,
+              })}
             </div>
           </div>
 
@@ -737,8 +974,21 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.titleStyle?.textAlign,
               }}
             >
-              {renderActiveRichTextEditor("title") ??
-                (vTitle ? renderMarkedText(vTitle, data.titleMarks) : "\u00A0")}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("title"),
+                readOnly: renderReadOnlyRichText(
+                  "title",
+                  vTitle,
+                  data.titleMarks,
+                  data.titleBlocks,
+                  true,
+                ),
+                html: data.titleHtml,
+                text: vTitle,
+                marks: data.titleMarks,
+                blocks: data.titleBlocks,
+                baseStyle: data.titleStyle,
+              })}
             </div>
           ) : null}
 
@@ -757,8 +1007,21 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.companyStyle?.textAlign,
               }}
             >
-              {renderActiveRichTextEditor("company") ??
-                renderMarkedText(vCompany, data.companyMarks)}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("company"),
+                readOnly: renderReadOnlyRichText(
+                  "company",
+                  vCompany,
+                  data.companyMarks,
+                  data.companyBlocks,
+                  true,
+                ),
+                html: data.companyHtml,
+                text: vCompany,
+                marks: data.companyMarks,
+                blocks: data.companyBlocks,
+                baseStyle: data.companyStyle,
+              })}
             </div>
           ) : null}
 
@@ -843,8 +1106,22 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.bodyStyle?.textAlign,
               }}
             >
-              {renderActiveRichTextEditor("body") ??
-                renderMarkedText(vBody, data.bodyMarks)}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("body"),
+                readOnly: renderReadOnlyRichText(
+                  "body",
+                  vBody,
+                  data.bodyMarks,
+                  data.bodyBlocks,
+                  true,
+                ),
+                html: data.bodyHtml,
+                text: vBody,
+                marks: data.bodyMarks,
+                blocks: data.bodyBlocks,
+                baseStyle: data.bodyStyle,
+                emptyFallback: null,
+              })}
             </div>
           ) : null}
 

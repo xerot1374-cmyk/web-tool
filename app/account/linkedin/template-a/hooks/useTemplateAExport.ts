@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { resolveFrameSlots } from "@/app/lib/imageLayouts";
-import type { FieldErrors, ImageItem, ImagePayloadItem, MediaBox, PdfPayload, SessionUser, TextMark, BoxTextStyle } from "../lib/templateA.types";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type { BoxTextStyle, FieldErrors, ImageItem, ImagePayloadItem, MediaBox, PdfPayload, SessionUser, TextMark, VideoItem, VideoPayloadItem } from "../lib/templateA.types";
 import { DEFAULT_FRAME_PRESET_ID, fileToBase64 } from "../lib/templateA.utils";
 
 type UseTemplateAExportParams = {
@@ -19,15 +20,27 @@ type UseTemplateAExportParams = {
   mediaBox: MediaBox;
   images: ImageItem[];
   badgeText: string;
+  badgeHtml: string;
   badgeMarks: TextMark[];
+  badgeBlocks: RichTextBlock[];
   badgeStyle: BoxTextStyle;
   title: string;
+  titleHtml: string;
   titleMarks: TextMark[];
+  titleBlocks: RichTextBlock[];
   company: string;
+  companyHtml: string;
   companyMarks: TextMark[];
+  companyBlocks: RichTextBlock[];
   body: string;
+  bodyHtml: string;
   bodyMarks: TextMark[];
+  bodyBlocks: RichTextBlock[];
+  caption: string;
+  captionHtml: string;
   captionMarks: TextMark[];
+  captionBlocks: RichTextBlock[];
+  captionStyle: BoxTextStyle;
   link: string[];
   normalizedLink?: string;
   headline: string;
@@ -38,8 +51,7 @@ type UseTemplateAExportParams = {
   headlineStyle: BoxTextStyle;
   sublineStyle: BoxTextStyle;
   canvasPreset: "linkedin" | "instagram" | "instagramStory";
-  videoFile: File | null;
-  videoBox: MediaBox;
+  videos: VideoItem[];
   setErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
 };
 
@@ -57,15 +69,27 @@ export default function useTemplateAExport({
   mediaBox,
   images,
   badgeText,
+  badgeHtml,
   badgeMarks,
+  badgeBlocks,
   badgeStyle,
   title,
+  titleHtml,
   titleMarks,
+  titleBlocks,
   company,
+  companyHtml,
   companyMarks,
+  companyBlocks,
   body,
+  bodyHtml,
   bodyMarks,
+  bodyBlocks,
+  caption,
+  captionHtml,
   captionMarks,
+  captionBlocks,
+  captionStyle,
   link,
   normalizedLink,
   headline,
@@ -76,8 +100,7 @@ export default function useTemplateAExport({
   headlineStyle,
   sublineStyle,
   canvasPreset,
-  videoFile,
-  videoBox,
+  videos,
   setErrors,
 }: UseTemplateAExportParams) {
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
@@ -105,6 +128,7 @@ export default function useTemplateAExport({
           w: img.w,
           h: img.h,
           rotation: img.rotation ?? 0,
+          radius: img.radius ?? 20,
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
@@ -131,13 +155,26 @@ export default function useTemplateAExport({
         badgeText: payload.badgeText?.trim()
           ? payload.badgeText.trim()
           : undefined,
+        badgeHtml: payload.badgeHtml ?? "",
         badgeMarks: payload.badgeMarks ?? [],
+        badgeBlocks: payload.badgeBlocks ?? [],
         linkTitle: payload.linkTitle ?? "",
+        titleHtml: payload.titleHtml ?? "",
         titleMarks: payload.titleMarks ?? [],
+        titleBlocks: payload.titleBlocks ?? [],
         company: payload.company ?? "",
+        companyHtml: payload.companyHtml ?? "",
         companyMarks: payload.companyMarks ?? [],
+        companyBlocks: payload.companyBlocks ?? [],
         bodyText: payload.bodyText ?? "",
+        bodyHtml: payload.bodyHtml ?? "",
         bodyMarks: payload.bodyMarks ?? [],
+        bodyBlocks: payload.bodyBlocks ?? [],
+        captionText: payload.captionText ?? "",
+        captionHtml: payload.captionHtml ?? "",
+        captionMarks: payload.captionMarks ?? [],
+        captionBlocks: payload.captionBlocks ?? [],
+        captionStyle: payload.captionStyle ?? captionStyle,
         linkUrl: raw.trim() ? raw : undefined,
         headline: payload.headline?.trim()
           ? payload.headline.trim()
@@ -166,13 +203,26 @@ export default function useTemplateAExport({
       frameSlots: frameSlotsState,
       mediaBox,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+      badgeHtml,
       badgeMarks,
+      badgeBlocks,
       linkTitle: title || "",
+      titleHtml,
       titleMarks,
+      titleBlocks,
       company: company || "",
+      companyHtml,
       companyMarks,
+      companyBlocks,
       bodyText: body || "",
+      bodyHtml,
       bodyMarks,
+      bodyBlocks,
+      captionText: caption || "",
+      captionHtml,
+      captionMarks,
+      captionBlocks,
+      captionStyle,
       linkUrl: normalizedLink,
       headline: headline?.trim() ? headline.trim() : undefined,
       subline: subline?.trim() ? subline.trim() : undefined,
@@ -199,13 +249,26 @@ export default function useTemplateAExport({
     frameSlotsState,
     mediaBox,
     badgeText,
+    badgeHtml,
     badgeMarks,
+    badgeBlocks,
     title,
+    titleHtml,
     titleMarks,
+    titleBlocks,
     company,
+    companyHtml,
     companyMarks,
+    companyBlocks,
     body,
+    bodyHtml,
     bodyMarks,
+    bodyBlocks,
+    caption,
+    captionHtml,
+    captionMarks,
+    captionBlocks,
+    captionStyle,
     normalizedLink,
     headline,
     subline,
@@ -261,6 +324,7 @@ export default function useTemplateAExport({
         w: img.w,
         h: img.h,
         rotation: img.rotation,
+        radius: img.radius ?? 20,
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
@@ -279,16 +343,29 @@ export default function useTemplateAExport({
         productImageBase64: legacyProductImageBase64,
         mediaBox,
         images: imagePayload,
+        videoRadius: videos[0]?.radius ?? 20,
         badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+        badgeHtml,
         badgeMarks,
+        badgeBlocks,
         badgeStyle,
         linkTitle: title?.trim() ? title.trim() : "",
+        titleHtml,
         titleMarks,
+        titleBlocks,
         company: company?.trim() ? company.trim() : "",
+        companyHtml,
         companyMarks,
+        companyBlocks,
         bodyText: body ?? "",
+        bodyHtml,
         bodyMarks,
+        bodyBlocks,
+        captionText: caption ?? "",
+        captionHtml,
         captionMarks,
+        captionBlocks,
+        captionStyle,
         titleStyle,
         bodyStyle: bodyBoxStyle,
         companyStyle,
@@ -335,7 +412,7 @@ export default function useTemplateAExport({
       setErrorMsg("Please fill in the form completely!");
       return;
     }
-    if (!videoFile) {
+    if (!videos.length) {
       setErrorMsg("first choose a Video!");
       return;
     }
@@ -353,12 +430,28 @@ export default function useTemplateAExport({
         w: img.w,
         h: img.h,
         rotation: img.rotation,
+        radius: img.radius ?? 20,
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
       }));
 
       const form = new FormData();
+      const videoPayload: VideoPayloadItem[] = videos.map((video) => {
+        const fileKey = `video:${video.id}`;
+        form.append(fileKey, video.file);
+        return {
+          id: video.id,
+          fileKey,
+          x: video.x,
+          y: video.y,
+          w: video.w,
+          h: video.h,
+          radius: video.radius,
+          zIndex: video.zIndex,
+        };
+      });
+
       form.append(
         "data",
         JSON.stringify({
@@ -366,19 +459,28 @@ export default function useTemplateAExport({
           name: sessionName,
           role: sessionRole,
           linkTitle: title,
+          titleHtml,
           titleMarks,
+          titleBlocks,
           bodyText: body,
+          bodyHtml,
           bodyMarks,
+          bodyBlocks,
           headline,
           subline,
           badgeText,
+          badgeHtml,
           badgeMarks,
+          badgeBlocks,
           badgeStyle,
           company,
+          companyHtml,
           companyMarks,
+          companyBlocks,
           link: link.length ? link.join("\n") : "",
           mediaBox,
           images: imagePayload,
+          videos: videoPayload,
           titleStyle,
           bodyStyle: bodyBoxStyle,
           companyStyle,
@@ -392,8 +494,6 @@ export default function useTemplateAExport({
           frameSlots: frameSlotsState,
         }),
       );
-      form.append("videoBox", JSON.stringify(videoBox));
-      form.append("video", videoFile);
 
       const res = await fetch("/api/video/final", {
         method: "POST",

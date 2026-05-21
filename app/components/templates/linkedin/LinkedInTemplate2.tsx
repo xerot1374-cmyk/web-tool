@@ -3,6 +3,7 @@ import LinkedInTemplate2Renderer, {
   type LinkedInTemplate2Data,
   type MediaBox,
 } from "./LinkedInTemplate2Renderer";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import type { FrameSlot } from "@/app/lib/imageLayouts";
 
 export type TextStyle = {
@@ -43,6 +44,7 @@ export type ImageItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -58,10 +60,18 @@ type Props = LinkedInTemplate2Data & {
   >["activeRichTextEditor"];
 
   bodyStyle?: BoxTextStyle;
+  bodyHtml?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
+  titleHtml?: string;
   titleMarks?: TextMark[];
+  titleBlocks?: RichTextBlock[];
+  badgeHtml?: string;
   badgeMarks?: TextMark[];
+  badgeBlocks?: RichTextBlock[];
+  companyHtml?: string;
   companyMarks?: TextMark[];
+  companyBlocks?: RichTextBlock[];
 
   titleStyle?: BoxTextStyle;
   badgeStyle?: BoxTextStyle;
@@ -70,6 +80,7 @@ type Props = LinkedInTemplate2Data & {
   sublineStyle?: BoxTextStyle;
 
   mediaBox?: MediaBox;
+  videoRadius?: number;
   productImages?: ImageItem[];
   editorHideProductMedia?: boolean;
   editorReserveProductMediaSlot?: boolean;
@@ -97,10 +108,18 @@ export default function LinkedInTemplate2(props: Props) {
     scale,
     mode = "preview",
     bodyStyle,
+    bodyHtml,
     bodyMarks,
+    bodyBlocks,
+    titleHtml,
     titleMarks,
+    titleBlocks,
+    badgeHtml,
     badgeMarks,
+    badgeBlocks,
+    companyHtml,
     companyMarks,
+    companyBlocks,
     titleStyle,
     badgeStyle,
     companyStyle,
@@ -126,10 +145,18 @@ export default function LinkedInTemplate2(props: Props) {
       data={{
         ...rest,
         bodyStyle,
+        bodyHtml,
         bodyMarks,
+        bodyBlocks,
+        titleHtml,
         titleMarks,
+        titleBlocks,
+        badgeHtml,
         badgeMarks,
+        badgeBlocks,
+        companyHtml,
         companyMarks,
+        companyBlocks,
         titleStyle,
         badgeStyle,
         companyStyle,

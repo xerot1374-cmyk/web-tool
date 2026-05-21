@@ -25,6 +25,7 @@ import type {
   MediaBox,
   SelectableId,
   VideoClipboardPayload,
+  VideoItem,
   VideoSnapshot,
 } from "../lib/templateA.types";
 import {
@@ -60,13 +61,12 @@ export default function useTemplateAMediaEditor({
   const imageClipboardRef = useRef<ImageClipboardPayload | null>(null);
   const videoClipboardRef = useRef<VideoClipboardPayload>(null);
   const videoUndoStackRef = useRef<VideoSnapshot[]>([]);
-  const pendingVideoBoxRef = useRef<MediaBox | null>(null);
   const dragStateRef = useRef<{
     mode: DragMode | null;
     startClientX: number;
     startClientY: number;
     startImage: ImageItem | null;
-    startVideoBox?: MediaBox | null;
+    startVideo?: VideoItem | null;
     mediaKind?: "image" | "video";
     startFrameSlot?: FrameSlot | null;
     startAngle: number;
@@ -84,8 +84,8 @@ export default function useTemplateAMediaEditor({
   const [, setHoverFrameSlotId] = useState<string | null>(null);
   const [objectLayers, setObjectLayers] = useState({
     images: {} as Record<string, number>,
-    video: 1,
-    next: 2,
+    videos: {} as Record<string, number>,
+    next: 1,
   });
 
   const [mediaBox, setMediaBox] = useState<MediaBox>({
@@ -110,16 +110,8 @@ export default function useTemplateAMediaEditor({
     resolveFrameSlots(DEFAULT_FRAME_PRESET_ID, "linkedin"),
   );
   const [images, setImages] = useState<ImageItem[]>([]);
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
-  const [videoBox, setVideoBox] = useState<MediaBox>({
-    x: 420,
-    y: 240,
-    w: 240,
-    h: 240,
-  });
-
-  const videoPreviewZIndex = objectLayers.video;
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
   const editorMediaImages: EditorMediaImage[] = useMemo(
     () =>
@@ -131,7 +123,7 @@ export default function useTemplateAMediaEditor({
 
         return {
           ...img,
-          radius: slot?.radius ?? 20,
+          radius: slot?.radius ?? img.radius ?? 20,
           clipPath: slot?.clipPath,
           rotation: slot?.rotation ?? img.rotation ?? 0,
           zIndex: objectLayers.images[img.id] ?? 2 + index,
@@ -149,6 +141,15 @@ export default function useTemplateAMediaEditor({
     [framePresetId, canvasPreset, images],
   );
 
+  const editorVideos = useMemo(
+    () =>
+      videos.map((video, index) => ({
+        ...video,
+        zIndex: objectLayers.videos[video.id] ?? 2 + index,
+      })),
+    [objectLayers.videos, videos],
+  );
+
   function bringImageObjectToFront(imageId: string) {
     setObjectLayers((prev) => ({
       ...prev,
@@ -157,17 +158,17 @@ export default function useTemplateAMediaEditor({
     }));
   }
 
-  function bringVideoObjectToFront() {
+  function bringVideoObjectToFront(videoId: string) {
     setObjectLayers((prev) => ({
       ...prev,
-      video: prev.next,
+      videos: { ...prev.videos, [videoId]: prev.next },
       next: prev.next + 1,
     }));
   }
 
-  function getInitialVideoBox(): MediaBox {
+  function getInitialVideoBox(offsetSeed = videos.length): MediaBox {
     const source = images[0] ?? null;
-    const offset = 40;
+    const offset = 40 + offsetSeed * 24;
 
     if (imageLayout === "frame") {
       const slot =
@@ -262,6 +263,15 @@ export default function useTemplateAMediaEditor({
     return images.find((img) => img.id === selectedImageId) ?? null;
   }
 
+  function getSelectedVideo() {
+    if (!selectedVideoId) return null;
+    return videos.find((video) => video.id === selectedVideoId) ?? null;
+  }
+
+  function getVideoById(videoId: string) {
+    return videos.find((video) => video.id === videoId) ?? null;
+  }
+
   function getImageById(imageId: string) {
     return images.find((img) => img.id === imageId) ?? null;
   }
@@ -270,6 +280,15 @@ export default function useTemplateAMediaEditor({
     if (!selectedImageId) return;
     setImages((prev) =>
       prev.map((img) => (img.id === selectedImageId ? updater(img) : img)),
+    );
+  }
+
+  function updateSelectedVideo(updater: (prev: VideoItem) => VideoItem) {
+    if (!selectedVideoId) return;
+    setVideos((prev) =>
+      prev.map((video) =>
+        video.id === selectedVideoId ? updater(video) : video,
+      ),
     );
   }
 
@@ -345,6 +364,7 @@ export default function useTemplateAMediaEditor({
     const nextImage: ImageItem = {
       id: uid(),
       src: URL.createObjectURL(resized),
+      fileName: file.name,
       base64,
       orientation,
       frameSlotId: undefined,
@@ -353,6 +373,7 @@ export default function useTemplateAMediaEditor({
       w: fit.w,
       h: fit.h,
       rotation: 0,
+      radius: 20,
       cropX: 50,
       cropY: 50,
       cropScale: 1,
@@ -403,7 +424,11 @@ export default function useTemplateAMediaEditor({
 
   function removeSelectedImage() {
     if (!selectedImageId) return;
-    const imageId = selectedImageId;
+    removeImageById(selectedImageId);
+  }
+
+  function removeImageById(imageId: string) {
+    const removedImage = images.find((img) => img.id === imageId) ?? null;
     setImages((prev) => {
       const next = applyImageLayout(
         imageLayout,
@@ -417,9 +442,14 @@ export default function useTemplateAMediaEditor({
       delete imagesById[imageId];
       return { ...prev, images: imagesById };
     });
-    setSelectedImageId(null);
-    setSelectedId(null);
-    setSelectedRect(null);
+    if (selectedImageId === imageId) {
+      setSelectedImageId(null);
+      setSelectedId(null);
+      setSelectedRect(null);
+    }
+    if (removedImage?.frameSlotId && selectedFrameSlotId === removedImage.frameSlotId) {
+      setSelectedFrameSlotId(null);
+    }
   }
 
   function copySelectedImageToClipboard() {
@@ -556,11 +586,40 @@ export default function useTemplateAMediaEditor({
     setSelectedRect(rect);
   }
 
+  function setSelectedImageRadius(nextRadius: number) {
+    const radius = clamp(Math.round(nextRadius), 0, 999);
+
+    if (imageLayout === "frame" && selectedFrameSlotId) {
+      updateSelectedFrameSlot((prev) => ({ ...prev, radius }));
+      return;
+    }
+
+    updateSelectedImage((prev) => ({ ...prev, radius }));
+  }
+
+  function getSelectedImageRadius() {
+    if (imageLayout === "frame") {
+      return getSelectedFrameSlot()?.radius ?? null;
+    }
+
+    return getSelectedImage()?.radius ?? null;
+  }
+
+  function setSelectedVideoRadius(nextRadius: number) {
+    const radius = clamp(Math.round(nextRadius), 0, 999);
+    updateSelectedVideo((prev) => ({ ...prev, radius }));
+  }
+
+  function getSelectedVideoRadius() {
+    return getSelectedVideo()?.radius ?? null;
+  }
+
   function clearSelection() {
     setSelectedId(null);
     setSelectedRect(null);
     setEditField(null);
     setSelectedImageId(null);
+    setSelectedVideoId(null);
     setSelectedFrameSlotId(null);
   }
 
@@ -635,26 +694,27 @@ export default function useTemplateAMediaEditor({
     bringImageObjectToFront(image.id);
     setSelectedId("productImage");
     setSelectedImageId(image.id);
+    setSelectedVideoId(null);
     setSelectedFrameSlotId(image.frameSlotId ?? null);
     setSelectedRect(new DOMRect(image.x, image.y, image.w, image.h));
     if (editField) setEditField(null);
   }
 
-  function selectVideoObject() {
-    bringVideoObjectToFront();
+  function selectVideoObject(videoOverride?: VideoItem | null) {
+    const current = videoOverride ?? getSelectedVideo();
+    if (!current) return;
+    bringVideoObjectToFront(current.id);
     setSelectedId("video");
     setSelectedImageId(null);
     setSelectedFrameSlotId(null);
-    setSelectedRect(new DOMRect(videoBox.x, videoBox.y, videoBox.w, videoBox.h));
+    setSelectedVideoId(current.id);
+    setSelectedRect(new DOMRect(current.x, current.y, current.w, current.h));
     if (editField) setEditField(null);
   }
 
   function createVideoSnapshot(): VideoSnapshot {
     return {
-      videoFile,
-      videoPreviewUrl,
-      videoBox: { ...videoBox },
-      videoZIndex: objectLayers.video,
+      video: getSelectedVideo() ? { ...getSelectedVideo()! } : null,
     };
   }
 
@@ -664,53 +724,108 @@ export default function useTemplateAMediaEditor({
   }
 
   function restoreVideoSnapshot(snapshot: VideoSnapshot) {
-    setVideoBox({ ...snapshot.videoBox });
-    setObjectLayers((prev) => ({
-      ...prev,
-      video: snapshot.videoZIndex,
-      next: Math.max(prev.next, snapshot.videoZIndex + 1),
-    }));
-    setVideoFile(snapshot.videoFile);
-    if (snapshot.videoFile) {
-      pendingVideoBoxRef.current = { ...snapshot.videoBox };
+    if (snapshot.video) {
+      const video = snapshot.video;
+      setVideos((prev) => {
+        const existingIndex = prev.findIndex((item) => item.id === video.id);
+        if (existingIndex >= 0) {
+          return prev.map((item) => (item.id === video.id ? video : item));
+        }
+        return [...prev, video];
+      });
+      setObjectLayers((prev) => ({
+        ...prev,
+        videos: {
+          ...prev.videos,
+          [video.id]: video.zIndex ?? prev.next,
+        },
+        next: Math.max(prev.next, (video.zIndex ?? prev.next) + 1),
+      }));
       setSelectedId("video");
       setSelectedImageId(null);
       setSelectedFrameSlotId(null);
-      setSelectedRect(
-        new DOMRect(
-          snapshot.videoBox.x,
-          snapshot.videoBox.y,
-          snapshot.videoBox.w,
-          snapshot.videoBox.h,
-        ),
-      );
+      setSelectedVideoId(video.id);
+      setSelectedRect(new DOMRect(video.x, video.y, video.w, video.h));
       return;
     }
-    pendingVideoBoxRef.current = null;
-    setVideoPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
     if (selectedId === "video") {
       setSelectedId(null);
       setSelectedRect(null);
+      setSelectedVideoId(null);
+    }
+  }
+
+  function addVideoFiles(fileList: FileList | File[] | null) {
+    const files = fileList ? Array.from(fileList) : [];
+    if (!files.length) return;
+
+    const nextVideos: VideoItem[] = files.map((file, index) => {
+      const box = getInitialVideoBox(videos.length + index);
+      return {
+        id: uid(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        x: box.x,
+        y: box.y,
+        w: box.w,
+        h: box.h,
+        radius: 20,
+      };
+    });
+
+    setVideos((prev) => [...prev, ...nextVideos]);
+    setObjectLayers((prev) => {
+      const nextVideoLayers = { ...prev.videos };
+      let nextOrder = prev.next;
+      for (const video of nextVideos) {
+        nextVideoLayers[video.id] = nextOrder;
+        video.zIndex = nextOrder;
+        nextOrder += 1;
+      }
+      return {
+        ...prev,
+        videos: nextVideoLayers,
+        next: nextOrder,
+      };
+    });
+
+    const lastVideo = nextVideos.at(-1) ?? null;
+    if (lastVideo) {
+      setSelectedId("video");
+      setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
+      setSelectedVideoId(lastVideo.id);
+      setSelectedRect(new DOMRect(lastVideo.x, lastVideo.y, lastVideo.w, lastVideo.h));
+    }
+  }
+
+  function removeVideoById(videoId: string) {
+    const current = getVideoById(videoId);
+    if (!current) return;
+    URL.revokeObjectURL(current.previewUrl);
+    setVideos((prev) => prev.filter((video) => video.id !== videoId));
+    setObjectLayers((prev) => {
+      const nextVideos = { ...prev.videos };
+      delete nextVideos[videoId];
+      return { ...prev, videos: nextVideos };
+    });
+    if (selectedVideoId === videoId) {
+      setSelectedId(null);
+      setSelectedRect(null);
+      setSelectedVideoId(null);
+      setSelectedImageId(null);
+      setSelectedFrameSlotId(null);
     }
   }
 
   function removeVideoObject() {
-    setVideoFile(null);
-    setVideoPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
-    setSelectedId(null);
-    setSelectedRect(null);
-    setSelectedImageId(null);
-    setSelectedFrameSlotId(null);
+    if (!selectedVideoId) return;
+    removeVideoById(selectedVideoId);
   }
 
   function copySelectedVideo() {
-    if (selectedId !== "video" || !videoFile) return;
+    const current = getSelectedVideo();
+    if (selectedId !== "video" || !current) return;
     imageClipboardRef.current = null;
     videoClipboardRef.current = {
       type: "video",
@@ -719,39 +834,51 @@ export default function useTemplateAMediaEditor({
   }
 
   function cutSelectedVideo() {
-    if (selectedId !== "video" || !videoFile) return;
+    if (selectedId !== "video" || !selectedVideoId) return;
     pushVideoUndoSnapshot();
     copySelectedVideo();
     removeVideoObject();
   }
 
   function deleteSelectedVideo() {
-    if (selectedId !== "video" || !videoFile) return;
+    if (selectedId !== "video" || !selectedVideoId) return;
     pushVideoUndoSnapshot();
     removeVideoObject();
   }
 
+  function clearVideo(videoId: string) {
+    removeVideoById(videoId);
+  }
+
   function pasteVideoFromClipboard() {
     const item = videoClipboardRef.current;
-    if (!item || item.type !== "video" || !item.snapshot.videoFile) return;
+    if (!item || item.type !== "video" || !item.snapshot.video) return;
     pushVideoUndoSnapshot();
-    const snapshot = item.snapshot;
+    const snapshot = item.snapshot.video;
     const nextBox = clampImageBox(
       {
-        ...snapshot.videoBox,
-        x: snapshot.videoBox.x + 24,
-        y: snapshot.videoBox.y + 24,
+        ...snapshot,
+        x: snapshot.x + 24,
+        y: snapshot.y + 24,
       },
       currentCanvas.w,
       currentCanvas.h,
     );
-    pendingVideoBoxRef.current = nextBox;
-    setVideoBox(nextBox);
-    setVideoFile(snapshot.videoFile);
-    bringVideoObjectToFront();
+    const nextVideo: VideoItem = {
+      ...snapshot,
+      id: uid(),
+      previewUrl: URL.createObjectURL(snapshot.file),
+      x: nextBox.x,
+      y: nextBox.y,
+      w: nextBox.w,
+      h: nextBox.h,
+    };
+    setVideos((prev) => [...prev, nextVideo]);
+    bringVideoObjectToFront(nextVideo.id);
     setSelectedId("video");
     setSelectedImageId(null);
     setSelectedFrameSlotId(null);
+    setSelectedVideoId(nextVideo.id);
     setSelectedRect(new DOMRect(nextBox.x, nextBox.y, nextBox.w, nextBox.h));
   }
 
@@ -825,10 +952,13 @@ export default function useTemplateAMediaEditor({
   function startVideoInteraction(
     e: React.MouseEvent<HTMLDivElement>,
     mode: DragMode,
+    videoOverride?: VideoItem | null,
   ) {
+    const current = videoOverride ?? getSelectedVideo();
+    if (!current) return;
     e.preventDefault();
     e.stopPropagation();
-    selectVideoObject();
+    selectVideoObject(current);
     pushVideoUndoSnapshot();
     dragStateRef.current = {
       mode,
@@ -836,7 +966,7 @@ export default function useTemplateAMediaEditor({
       startClientX: e.clientX,
       startClientY: e.clientY,
       startImage: null,
-      startVideoBox: videoBox,
+      startVideo: current,
       startAngle: 0,
       centerX: 0,
       centerY: 0,
@@ -879,12 +1009,12 @@ export default function useTemplateAMediaEditor({
 
   const handleWindowMove = useEffectEvent((e: MouseEvent) => {
       const drag = dragStateRef.current;
-      if (!drag || !drag.mode || (!drag.startImage && !drag.startVideoBox)) return;
+      if (!drag || !drag.mode || (!drag.startImage && !drag.startVideo)) return;
       const dx = (e.clientX - drag.startClientX) / previewScale;
       const dy = (e.clientY - drag.startClientY) / previewScale;
 
-      if (drag.mediaKind === "video" && drag.startVideoBox) {
-        const start = drag.startVideoBox;
+      if (drag.mediaKind === "video" && drag.startVideo) {
+        const start = drag.startVideo;
         let { x, y, w, h } = start;
         if (drag.mode === "move") {
           const fixed = clampImageBox(
@@ -892,7 +1022,7 @@ export default function useTemplateAMediaEditor({
             currentCanvas.w,
             currentCanvas.h,
           );
-          setVideoBox(fixed);
+          updateSelectedVideo((prev) => ({ ...prev, ...fixed }));
           setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
           return;
         }
@@ -911,7 +1041,7 @@ export default function useTemplateAMediaEditor({
           currentCanvas.w,
           currentCanvas.h,
         );
-        setVideoBox(fixed);
+        updateSelectedVideo((prev) => ({ ...prev, ...fixed }));
         setSelectedRect(new DOMRect(fixed.x, fixed.y, fixed.w, fixed.h));
         return;
       }
@@ -1049,16 +1179,15 @@ export default function useTemplateAMediaEditor({
   }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
 
   const syncSelectedVideoRect = useEffectEvent(() => {
-    if (selectedId !== "video") return;
-    const videoEl = stageRef.current?.querySelector('[data-select="video"]') as HTMLElement | null;
-    if (!videoEl) return;
-    const rect = computeRectRelativeToStage(videoEl);
-    if (rect) setSelectedRect(rect);
+    if (selectedId !== "video" || !selectedVideoId) return;
+    const current = getSelectedVideo();
+    if (!current) return;
+    setSelectedRect(new DOMRect(current.x, current.y, current.w, current.h));
   });
 
   useEffect(() => {
     syncSelectedVideoRect();
-  }, [selectedId, videoPreviewUrl, videoBox, previewScale, stageRef]);
+  }, [selectedId, selectedVideoId, videos, previewScale, stageRef]);
 
   const syncAutoImageLayout = useEffectEvent(() => {
     if (imageLayout === "manual") return;
@@ -1144,32 +1273,6 @@ export default function useTemplateAMediaEditor({
     return () => window.removeEventListener("keydown", handleWindowKeyDown);
   }, []);
 
-  const syncVideoPreviewState = useEffectEvent(() => {
-    if (!videoFile) {
-      setVideoPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      return;
-    }
-    const url = URL.createObjectURL(videoFile);
-    const pendingBox = pendingVideoBoxRef.current;
-    pendingVideoBoxRef.current = null;
-    setVideoBox(pendingBox ?? getInitialVideoBox());
-    if (!pendingBox) bringVideoObjectToFront();
-    setVideoPreviewUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return url;
-    });
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  });
-
-  useEffect(() => {
-    return syncVideoPreviewState();
-  }, [videoFile]);
-
   return {
     currentCanvas,
     productImage,
@@ -1194,12 +1297,10 @@ export default function useTemplateAMediaEditor({
     setImages,
     editorMediaImages,
     frameSlots,
-    videoFile,
-    setVideoFile,
-    videoPreviewUrl,
-    videoBox,
-    setVideoBox,
-    videoPreviewZIndex,
+    videos,
+    editorVideos,
+    selectedVideoId,
+    addVideoFiles,
     selectedId,
     setSelectedId,
     selectedRect,
@@ -1208,9 +1309,15 @@ export default function useTemplateAMediaEditor({
     setSelectedFrameSlotId,
     selectedImageId,
     setSelectedImageId,
+    setSelectedVideoId,
     suppressNextCanvasClickRef,
     onPickProductImage,
     removeSelectedImage,
+    removeImageById,
+    setSelectedImageRadius,
+    getSelectedImageRadius,
+    setSelectedVideoRadius,
+    getSelectedVideoRadius,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,
@@ -1228,6 +1335,7 @@ export default function useTemplateAMediaEditor({
     copySelectedVideo,
     cutSelectedVideo,
     deleteSelectedVideo,
+    clearVideo,
     pasteVideoFromClipboard,
     undoVideoAction,
     getSelectedFrameSlot,

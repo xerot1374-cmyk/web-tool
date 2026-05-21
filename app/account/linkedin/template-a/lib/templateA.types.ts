@@ -1,7 +1,10 @@
 import type { CanvasPreset } from "@/app/lib/renderUtils";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
 import type { CSSProperties } from "react";
-import type { LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type {
+  LexicalInlineEditorHandle,
+  RichTextBlock,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 export type SessionUser = {
   name: string;
@@ -44,6 +47,7 @@ export type MediaBox = {
 export type ImageItem = {
   id: string;
   src: string;
+  fileName?: string;
   base64?: string;
   orientation: "landscape" | "portrait";
   frameSlotId?: string;
@@ -52,6 +56,7 @@ export type ImageItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -74,9 +79,33 @@ export type ImagePayloadItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
+};
+
+export type VideoItem = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  zIndex?: number;
+};
+
+export type VideoPayloadItem = {
+  id: string;
+  fileKey: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  zIndex?: number;
 };
 
 export type BoxTextStyle = {
@@ -99,6 +128,8 @@ export type PdfPayload = {
   productImageBase64?: string;
   mediaBox?: MediaBox;
   images?: ImagePayloadItem[];
+  videos?: VideoPayloadItem[];
+  videoRadius?: number;
   badgeText?: string;
   badgeStyle?: BoxTextStyle;
   linkTitle?: string;
@@ -106,11 +137,23 @@ export type PdfPayload = {
   headline?: string;
   subline?: string;
   bodyText?: string;
+  bodyHtml?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
   titleMarks?: TextMark[];
+  titleHtml?: string;
+  titleBlocks?: RichTextBlock[];
   badgeMarks?: TextMark[];
+  badgeHtml?: string;
+  badgeBlocks?: RichTextBlock[];
   companyMarks?: TextMark[];
+  companyHtml?: string;
+  companyBlocks?: RichTextBlock[];
+  captionText?: string;
   captionMarks?: TextMark[];
+  captionHtml?: string;
+  captionBlocks?: RichTextBlock[];
+  captionStyle?: BoxTextStyle;
   titleStyle?: BoxTextStyle;
   bodyStyle?: BoxTextStyle;
   companyStyle?: BoxTextStyle;
@@ -173,10 +216,7 @@ export type ImageClipboardPayload = {
 };
 
 export type VideoSnapshot = {
-  videoFile: File | null;
-  videoPreviewUrl: string | null;
-  videoBox: MediaBox;
-  videoZIndex: number;
+  video: VideoItem | null;
 };
 
 export type VideoClipboardPayload = {
@@ -186,14 +226,21 @@ export type VideoClipboardPayload = {
 
 export type ActiveRichTextEditor = {
   field: RichEditField;
+  sessionKey: number;
   editorRef: React.Ref<LexicalInlineEditorHandle>;
   text: string;
   marks: TextMark[];
+  blocks: RichTextBlock[];
   multiline: boolean;
   className: string;
   style: CSSProperties;
   onAlignChange: (align: "left" | "center" | "right") => void;
-  onChange: (payload: { text: string; marks: TextMark[] }) => void;
+  onChange: (payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: RichTextBlock[];
+    html: string;
+  }) => void;
   onBlur: (e: React.FocusEvent<HTMLElement>) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => void;
   onKeyUp: () => void;

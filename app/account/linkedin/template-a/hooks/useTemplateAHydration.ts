@@ -2,6 +2,7 @@
 
 import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { resolveFrameSlots } from "@/app/lib/imageLayouts";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { DEFAULT_FRAME_PRESET_ID } from "../lib/templateA.utils";
 import type {
   BoxTextStyle,
@@ -24,10 +25,21 @@ type UseTemplateAHydrationParams = {
   setBadgeText: Setter<string>;
   setTitle: Setter<string>;
   setBodyRaw: Setter<string>;
+  setCaptionRaw: Setter<string>;
+  setBadgeHtml: Setter<string>;
   setBadgeMarks: Setter<TextMark[]>;
+  setBadgeBlocks: Setter<RichTextBlock[]>;
+  setTitleHtml: Setter<string>;
   setTitleMarks: Setter<TextMark[]>;
+  setTitleBlocks: Setter<RichTextBlock[]>;
+  setBodyHtml: Setter<string>;
   setBodyMarks: Setter<TextMark[]>;
+  setBodyBlocks: Setter<RichTextBlock[]>;
+  setCaptionHtml: Setter<string>;
+  setCaptionBlocks: Setter<RichTextBlock[]>;
+  setCompanyHtml: Setter<string>;
   setCompanyMarks: Setter<TextMark[]>;
+  setCompanyBlocks: Setter<RichTextBlock[]>;
   setCaptionMarks: Setter<TextMark[]>;
   setLink: Setter<string[]>;
   setCompany: Setter<string>;
@@ -39,8 +51,10 @@ type UseTemplateAHydrationParams = {
   setFrameSlotsState: Setter<FrameSlot[]>;
   setMediaBox: Setter<MediaBox>;
   setImages: Setter<ImageItem[]>;
+  setVideoRadius?: Setter<number>;
   setTitleStyle: Setter<BoxTextStyle>;
   setBodyBoxStyle: Setter<BoxTextStyle>;
+  setCaptionStyle: Setter<BoxTextStyle>;
   setBadgeStyle: Setter<BoxTextStyle>;
   setCompanyStyle: Setter<BoxTextStyle>;
   setHeadlineStyle: Setter<BoxTextStyle>;
@@ -56,10 +70,21 @@ export default function useTemplateAHydration({
   setBadgeText,
   setTitle,
   setBodyRaw,
+  setCaptionRaw,
+  setBadgeHtml,
   setBadgeMarks,
+  setBadgeBlocks,
+  setTitleHtml,
   setTitleMarks,
+  setTitleBlocks,
+  setBodyHtml,
   setBodyMarks,
+  setBodyBlocks,
+  setCaptionHtml,
+  setCaptionBlocks,
+  setCompanyHtml,
   setCompanyMarks,
+  setCompanyBlocks,
   setCaptionMarks,
   setLink,
   setCompany,
@@ -71,8 +96,10 @@ export default function useTemplateAHydration({
   setFrameSlotsState,
   setMediaBox,
   setImages,
+  setVideoRadius,
   setTitleStyle,
   setBodyBoxStyle,
+  setCaptionStyle,
   setBadgeStyle,
   setCompanyStyle,
   setHeadlineStyle,
@@ -87,10 +114,21 @@ export default function useTemplateAHydration({
     setBadgeText(payload.badgeText ?? "");
     setTitle(payload.linkTitle ?? "");
     setBodyRaw(payload.bodyText ?? "");
+    setCaptionRaw(payload.captionText ?? "");
+    setBadgeHtml(payload.badgeHtml ?? "");
     setBadgeMarks(payload.badgeMarks ?? []);
+    setBadgeBlocks(payload.badgeBlocks ?? []);
+    setTitleHtml(payload.titleHtml ?? "");
     setTitleMarks(payload.titleMarks ?? []);
+    setTitleBlocks(payload.titleBlocks ?? []);
+    setBodyHtml(payload.bodyHtml ?? "");
     setBodyMarks(payload.bodyMarks ?? []);
+    setBodyBlocks(payload.bodyBlocks ?? []);
+    setCaptionHtml(payload.captionHtml ?? "");
+    setCaptionBlocks(payload.captionBlocks ?? []);
+    setCompanyHtml(payload.companyHtml ?? "");
     setCompanyMarks(payload.companyMarks ?? []);
+    setCompanyBlocks(payload.companyBlocks ?? []);
     setCaptionMarks(payload.captionMarks ?? []);
     setLink(
       payload.link
@@ -130,6 +168,7 @@ export default function useTemplateAHydration({
           w: img.w,
           h: img.h,
           rotation: img.rotation ?? 0,
+          radius: img.radius ?? 20,
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
@@ -137,11 +176,57 @@ export default function useTemplateAHydration({
       );
     }
 
+    setVideoRadius?.(payload.videoRadius ?? 20);
+
     if (payload.titleStyle) setTitleStyle(payload.titleStyle);
     if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
+    if (payload.captionStyle) setCaptionStyle(payload.captionStyle);
     if (payload.badgeStyle) setBadgeStyle(payload.badgeStyle);
     if (payload.companyStyle) setCompanyStyle(payload.companyStyle);
     if (payload.headlineStyle) setHeadlineStyle(payload.headlineStyle);
     if (payload.sublineStyle) setSublineStyle(payload.sublineStyle);
-  }, [isPdf, payload]);
+  }, [
+    isPdf,
+    payload,
+    setCanvasPreset,
+    setHeadline,
+    setSubline,
+    setBadgeText,
+    setTitle,
+    setBodyRaw,
+    setCaptionRaw,
+    setBadgeHtml,
+    setBadgeMarks,
+    setBadgeBlocks,
+    setTitleHtml,
+    setTitleMarks,
+    setTitleBlocks,
+    setBodyHtml,
+    setBodyMarks,
+    setBodyBlocks,
+    setCaptionHtml,
+    setCaptionBlocks,
+    setCompanyHtml,
+    setCompanyMarks,
+    setCompanyBlocks,
+    setCaptionMarks,
+    setLink,
+    setCompany,
+    setProductImage,
+    setProductOrientation,
+    setProductAlign,
+    setImageLayout,
+    setFramePresetId,
+    setFrameSlotsState,
+    setMediaBox,
+    setImages,
+    setVideoRadius,
+    setTitleStyle,
+    setBodyBoxStyle,
+    setCaptionStyle,
+    setBadgeStyle,
+    setCompanyStyle,
+    setHeadlineStyle,
+    setSublineStyle,
+  ]);
 }

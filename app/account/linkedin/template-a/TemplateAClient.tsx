@@ -16,6 +16,7 @@ import { type LexicalInlineEditorHandle } from "@/app/components/templates/linke
 import { CANVAS_PRESETS, getCanvasFrame } from "@/app/lib/renderUtils";
 import TemplateAExportPanel from "./components/TemplateAExportPanel";
 import TemplateAPreview from "./components/TemplateAPreview";
+import TemplateAStickyToolbar from "./components/TemplateAStickyToolbar";
 import useTemplateAExport from "./hooks/useTemplateAExport";
 import useTemplateAHydration from "./hooks/useTemplateAHydration";
 import useTemplateAMediaEditor from "./hooks/useTemplateAMediaEditor";
@@ -50,17 +51,18 @@ import {
   shiftMarksAfterTextChange,
 } from "./lib/templateARichText.utils";
 
+const INITIAL_RICH_EDIT_SESSION_KEYS = {
+  badge: 0,
+  title: 0,
+  company: 0,
+  body: 0,
+} as const;
+
 export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
-  const [{ isPdf, payload }, setPdfCtx] = useState<{
+  const [{ isPdf, payload }] = useState<{
     isPdf: boolean;
     payload: PdfPayload | null;
-  }>(() => ({ isPdf: false, payload: null }));
-
-  useEffect(() => {
-    // This client-only sync is required to read window PDF payload state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPdfCtx(getPdfModeAndPayload());
-  }, []);
+  }>(() => getPdfModeAndPayload());
 
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
@@ -68,11 +70,17 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const [canvasPreset, setCanvasPreset] = useState<CanvasPresetKey>("linkedin");
 
   const [editField, setEditField] = useState<EditField>(null);
+  const [richEditSessionKeys, setRichEditSessionKeys] = useState(
+    INITIAL_RICH_EDIT_SESSION_KEYS,
+  );
   const editRef = useRef<HTMLTextAreaElement | null>(null);
   const titleEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const bodyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const companyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const badgeEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const captionEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const captionSectionRef = useRef<HTMLDivElement | null>(null);
+  const richEditSessionRef = useRef(INITIAL_RICH_EDIT_SESSION_KEYS);
   const richEditSelectionRef = useRef<
     Record<RichEditField, { start: number; end: number }>
   >({
@@ -107,12 +115,32 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setCaption,
     titleMarks,
     setTitleMarks,
+    titleHtml,
+    setTitleHtml,
+    titleBlocks,
+    setTitleBlocks,
     badgeMarks,
     setBadgeMarks,
+    badgeHtml,
+    setBadgeHtml,
+    badgeBlocks,
+    setBadgeBlocks,
     companyMarks,
     setCompanyMarks,
+    companyHtml,
+    setCompanyHtml,
+    companyBlocks,
+    setCompanyBlocks,
     bodyMarks,
     setBodyMarks,
+    bodyHtml,
+    setBodyHtml,
+    bodyBlocks,
+    setBodyBlocks,
+    captionHtml,
+    setCaptionHtml,
+    captionBlocks,
+    setCaptionBlocks,
     captionMarks,
     setCaptionMarks,
     link,
@@ -128,12 +156,13 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     badgeRef,
     titleRef,
     companyRef,
-    captionRef,
     bodyRef,
     titleStyle,
     setTitleStyle,
     bodyBoxStyle,
     setBodyBoxStyle,
+    captionStyle,
+    setCaptionStyle,
     badgeStyle,
     setBadgeStyle,
     companyStyle,
@@ -145,6 +174,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     normalizedLink,
     getRichEditText,
     getRichEditMarks,
+    getRichEditBlocks,
     handleAddLink,
     copyCaption: copyCaptionText,
   } = useTemplateATextState();
@@ -175,11 +205,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setImages,
     editorMediaImages,
     frameSlots,
-    videoFile,
-    setVideoFile,
-    videoPreviewUrl,
-    videoBox,
-    videoPreviewZIndex,
+    videos,
+    editorVideos,
+    selectedVideoId,
+    addVideoFiles,
     selectedId,
     setSelectedId,
     selectedRect,
@@ -191,6 +220,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     suppressNextCanvasClickRef,
     onPickProductImage,
     removeSelectedImage,
+    removeImageById,
+    setSelectedImageRadius,
+    getSelectedImageRadius,
+    setSelectedVideoRadius,
+    getSelectedVideoRadius,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,
@@ -203,6 +237,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     selectVideoObject,
     startMediaInteraction,
     startVideoInteraction,
+    deleteSelectedVideo,
+    clearVideo,
     startFrameImageDrag,
     startSelectedFrameSlotResize,
   } = useTemplateAMediaEditor({
@@ -214,7 +250,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     badgeText,
   });
 
-  const hasVideo = !!videoFile;
+  const hasVideo = videos.length > 0;
 
   const {
     effective,
@@ -239,15 +275,27 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     mediaBox,
     images,
     badgeText,
+    badgeHtml,
     badgeMarks,
+    badgeBlocks,
     badgeStyle,
     title,
+    titleHtml,
     titleMarks,
+    titleBlocks,
     company,
+    companyHtml,
     companyMarks,
+    companyBlocks,
     body,
+    bodyHtml,
     bodyMarks,
+    bodyBlocks,
+    caption,
+    captionHtml,
     captionMarks,
+    captionBlocks,
+    captionStyle,
     link,
     normalizedLink,
     headline,
@@ -258,8 +306,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     headlineStyle,
     sublineStyle,
     canvasPreset,
-    videoFile,
-    videoBox,
+    videos,
     setErrors,
   });
 
@@ -305,7 +352,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         setSelectedRect(getFrameSlotRect(frameSlotId));
       }
     } else if (id === "video") {
-      selectVideoObject();
+      const videoId = t.getAttribute("data-video-id");
+      if (videoId) {
+        const video = videos.find((item) => item.id === videoId);
+        if (video) selectVideoObject(video);
+      }
       const rect = computeRectRelativeToStage(t);
       if (rect) setSelectedRect(rect);
     } else {
@@ -330,6 +381,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   function startRichTextEdit(field: RichEditField, targetEl: HTMLElement) {
+    setRichEditSessionKeys((prev) => ({
+      ...prev,
+      [field]: richEditSessionRef.current[field] + 1,
+    }));
+    richEditSessionRef.current = {
+      ...richEditSessionRef.current,
+      [field]: richEditSessionRef.current[field] + 1,
+    };
     setEditField(field);
     setActiveField(field);
     setSelectedId(field);
@@ -352,15 +411,19 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       cs.lineHeight === "normal"
         ? Math.round(fontSize * 1.35)
         : safePx(cs.lineHeight, Math.round(fontSize * 1.35));
+    const lineHeightRatio = Math.max(
+      1,
+      Number((lineHeight / Math.max(fontSize, 1)).toFixed(3)),
+    );
 
     setEditStyle({
       fontFamily: cs.fontFamily || "system-ui",
       fontSize,
       fontWeight: cs.fontWeight,
       letterSpacing: cs.letterSpacing,
-      lineHeight: `${lineHeight}px`,
+      lineHeight: String(lineHeightRatio),
       textAlign: (cs.textAlign as CSSProperties["textAlign"]) || "left",
-      padding: "0",
+      padding: cs.padding,
       margin: 0,
       color: cs.color || "#111827",
       background: "transparent",
@@ -428,7 +491,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         const next = { start: text.length, end: text.length };
         richEditSelectionRef.current[field] = next;
         const editor = getRichEditEditor(field);
-        editor?.syncContent(text, getRichEditMarks(field));
+        editor?.syncContent(text, getRichEditMarks(field), getRichEditBlocks(field));
         editor?.focus();
         const root = getRichEditRoot(field);
         restoreContentEditableSelection(root, next);
@@ -446,11 +509,38 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     syncFocusedEditor(editField);
   }, [editField]);
 
+  const blurCaptionOnOutsidePointer = useEffectEvent((event: PointerEvent) => {
+    if (activeField !== "caption") return;
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (captionSectionRef.current?.contains(target)) return;
+    if (target.closest(".editor-bottomToolbarWrap")) return;
+    if (target.closest(".tt--floating")) return;
+
+    captionEditRef.current?.getRootElement()?.blur();
+    if (!editField) {
+      setActiveField("body");
+    }
+  });
+
+  useEffect(() => {
+    document.addEventListener("pointerdown", blurCaptionOnOutsidePointer);
+    return () => {
+      document.removeEventListener("pointerdown", blurCaptionOnOutsidePointer);
+    };
+  }, []);
+
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
     const currentField = editField;
+    const currentSession =
+      currentField && isRichEditField(currentField)
+        ? richEditSessionRef.current[currentField]
+        : null;
     const currentTarget = e.currentTarget;
     const nextTarget = e.relatedTarget;
     const toolbar = document.querySelector('[data-lexical-toolbar="true"]');
+    const stickyToolbar = document.querySelector(".editor-bottomToolbarWrap");
 
     if (nextTarget instanceof Node) {
       if (currentTarget.contains(nextTarget)) {
@@ -460,10 +550,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       if (toolbar?.contains(nextTarget)) {
         return;
       }
+
+      if (stickyToolbar?.contains(nextTarget)) {
+        return;
+      }
     }
 
     requestAnimationFrame(() => {
       if (!currentField) return;
+      if (
+        isRichEditField(currentField) &&
+        currentSession != null &&
+        richEditSessionRef.current[currentField] !== currentSession
+      ) {
+        return;
+      }
 
       const activeElement = document.activeElement;
       const root = isRichEditField(currentField)
@@ -478,13 +579,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         if (toolbar?.contains(activeElement)) {
           return;
         }
-      }
 
-      const selection = window.getSelection();
-      const anchorNode = selection?.anchorNode ?? null;
-      if (anchorNode && root?.contains(anchorNode)) {
-        return;
+        if (stickyToolbar?.contains(activeElement)) {
+          return;
+        }
       }
+      window.getSelection()?.removeAllRanges();
 
       setEditField((prev) => (prev === currentField ? null : prev));
     });
@@ -543,6 +643,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       syncRichEditOverlayDom(
         "body",
         nextMarks,
+        getRichEditBlocks("body"),
         { start: lineStart, end: lineStart },
         next,
       );
@@ -564,6 +665,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     syncRichEditOverlayDom(
       "body",
       nextMarks,
+      getRichEditBlocks("body"),
       { start: nextCaret, end: nextCaret },
       next,
     );
@@ -637,10 +739,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setBadgeText,
     setTitle,
     setBodyRaw: _setBody,
+    setCaptionRaw: _setCaption,
+    setBadgeHtml,
     setBadgeMarks,
+    setBadgeBlocks,
+    setTitleHtml,
     setTitleMarks,
+    setTitleBlocks,
+    setBodyHtml,
     setBodyMarks,
+    setBodyBlocks,
+    setCaptionHtml,
+    setCaptionBlocks,
+    setCompanyHtml,
     setCompanyMarks,
+    setCompanyBlocks,
     setCaptionMarks,
     setLink,
     setCompany,
@@ -654,6 +767,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setImages,
     setTitleStyle,
     setBodyBoxStyle,
+    setCaptionStyle,
     setBadgeStyle,
     setCompanyStyle,
     setHeadlineStyle,
@@ -662,12 +776,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   function handleRichEditableInput(
     field: RichEditField,
-    payload: { text: string; marks: TextMark[] },
+    payload: {
+      text: string;
+      marks: TextMark[];
+      blocks: ActiveRichTextEditor["blocks"];
+      html: string;
+    },
   ) {
     const currentText = getRichEditText(field);
     const { marks: currentMarks, setMarks } = getActiveMarksState(field);
+    const { blocks: currentBlocks, setBlocks } = getActiveBlocksState(field);
+    const { html: currentHtml, setHtml } = getActiveHtmlState(field);
     const nextMarksSerialized = JSON.stringify(payload.marks);
     const currentMarksSerialized = JSON.stringify(currentMarks);
+    const nextBlocksSerialized = JSON.stringify(payload.blocks);
+    const currentBlocksSerialized = JSON.stringify(currentBlocks);
 
     if (payload.text !== currentText) {
       setFieldTextRaw(field, payload.text);
@@ -675,6 +798,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
     if (nextMarksSerialized !== currentMarksSerialized) {
       setMarks(payload.marks);
+    }
+
+    if (nextBlocksSerialized !== currentBlocksSerialized) {
+      setBlocks(payload.blocks);
+    }
+
+    if (payload.html !== currentHtml) {
+      setHtml(payload.html);
     }
 
     const root = getRichEditRoot(field);
@@ -690,15 +821,39 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
+  function handleCaptionEditableInput(payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: ActiveRichTextEditor["blocks"];
+    html: string;
+  }) {
+    if (payload.text !== caption) {
+      _setCaption(payload.text);
+    }
+
+    if (JSON.stringify(payload.marks) !== JSON.stringify(captionMarks)) {
+      setCaptionMarks(payload.marks);
+    }
+
+    if (JSON.stringify(payload.blocks) !== JSON.stringify(captionBlocks)) {
+      setCaptionBlocks(payload.blocks);
+    }
+
+    if (payload.html !== captionHtml) {
+      setCaptionHtml(payload.html);
+    }
+  }
+
   function syncRichEditOverlayDom(
     field: RichEditField,
     marks: TextMark[],
+    blocks: ActiveRichTextEditor["blocks"],
     range: { start: number; end: number },
     textOverride?: string,
   ) {
     const text = textOverride ?? getRichEditText(field);
     const editor = getRichEditEditor(field);
-    editor?.syncContent(text, marks, range);
+    editor?.syncContent(text, marks, blocks, range);
     richEditSelectionRef.current[field] = range;
     const root = getRichEditRoot(field);
     editor?.focus();
@@ -741,7 +896,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         return { text: body, setText: setBody, ref: refForField(bodyRef) };
       case "caption":
       default:
-        return { text: caption, setText: setCaption, ref: captionRef };
+        return { text: caption, setText: setCaption, ref: refForField(bodyRef) };
     }
   }
 
@@ -807,6 +962,17 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     });
   }
 
+  function insertEmojiIntoActiveField(emoji: string) {
+    if (isRichEditField(editField)) {
+      getRichEditEditor(editField)?.insertText(emoji);
+      return;
+    }
+
+    if (activeField === "caption") {
+      captionEditRef.current?.insertText(emoji);
+    }
+  }
+
   function getActiveMarksState(
     field: EditorTextField = editField ?? activeField,
   ) {
@@ -825,11 +991,41 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
+  function getActiveBlocksState(field: RichEditField) {
+    switch (field) {
+      case "badge":
+        return { blocks: badgeBlocks, setBlocks: setBadgeBlocks };
+      case "title":
+        return { blocks: titleBlocks, setBlocks: setTitleBlocks };
+      case "company":
+        return { blocks: companyBlocks, setBlocks: setCompanyBlocks };
+      case "body":
+      default:
+        return { blocks: bodyBlocks, setBlocks: setBodyBlocks };
+    }
+  }
+
+  function getActiveHtmlState(field: RichEditField) {
+    switch (field) {
+      case "badge":
+        return { html: badgeHtml, setHtml: setBadgeHtml };
+      case "title":
+        return { html: titleHtml, setHtml: setTitleHtml };
+      case "company":
+        return { html: companyHtml, setHtml: setCompanyHtml };
+      case "body":
+      default:
+        return { html: bodyHtml, setHtml: setBodyHtml };
+    }
+  }
+
   function setFieldTextAlign(
-    field: RichEditField,
+    field: EditorTextField,
     textAlign: BoxTextStyle["textAlign"],
   ) {
-    if (field === "title") {
+    if (field === "caption") {
+      setCaptionStyle((prev) => ({ ...prev, textAlign }));
+    } else if (field === "title") {
       setTitleStyle((prev) => ({ ...prev, textAlign }));
     } else if (field === "company") {
       setCompanyStyle((prev) => ({ ...prev, textAlign }));
@@ -846,7 +1042,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   function handleNumberedListEnter(
-    field: "body" | "caption",
+    field: "body",
     e: React.KeyboardEvent<HTMLElement>,
   ) {
     if (e.key !== "Enter" || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) {
@@ -926,15 +1122,49 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   async function copyCaption() {
-    const { text, ref } = getEditorFieldControl();
-    const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
-    await copyCaptionText(text, el);
+    await copyCaptionText(caption);
   }
+
+  function handleCaptionBlur() {
+    requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof Node) {
+        if (captionSectionRef.current?.contains(activeElement)) {
+          return;
+        }
+
+        const toolbar = document.querySelector('[data-lexical-toolbar="true"]');
+        if (toolbar?.contains(activeElement)) {
+          return;
+        }
+
+        const stickyToolbar = document.querySelector(".editor-bottomToolbarWrap");
+        if (stickyToolbar?.contains(activeElement)) {
+          return;
+        }
+      }
+
+      window.getSelection()?.removeAllRanges();
+      if (!editField) {
+        setActiveField("body");
+      }
+    });
+  }
+
+  function getToolbarTextAlign() {
+    if (activeField === "caption") return captionStyle.textAlign;
+    if (editField === "title") return titleStyle.textAlign;
+    if (editField === "company") return companyStyle.textAlign;
+    if (editField === "badge") return badgeStyle.textAlign;
+    return bodyBoxStyle.textAlign;
+  }
+
   const activeRichTextEditor: ActiveRichTextEditor | null = isRichEditField(
     editField,
   )
     ? {
         field: editField,
+        sessionKey: richEditSessionKeys[editField],
         editorRef:
           editField === "title"
             ? titleEditRef
@@ -945,11 +1175,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
                 : bodyEditRef,
         text: getRichEditText(editField),
         marks: getRichEditMarks(editField),
+        blocks: getRichEditBlocks(editField),
         multiline: editField !== "badge",
         className: "template-inline-editor",
         style: {
           display: "block",
           width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
           minHeight:
             editField === "body" ? Math.max(selectedRect?.height ?? 0, 140) : undefined,
           padding: 0,
@@ -958,7 +1191,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           background: "transparent",
           boxShadow: "none",
           outline: "none",
-          overflow: editField === "badge" ? "visible" : "hidden",
+          overflow:
+            editField === "badge" ||
+            editField === "body" ||
+            editField === "company"
+              ? "visible"
+              : "hidden",
           whiteSpace: editField === "badge" ? "nowrap" : "pre-wrap",
           wordBreak: editField === "badge" ? "normal" : "break-word",
           caretColor: String(editStyle.color ?? "#111827"),
@@ -966,7 +1204,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         } satisfies CSSProperties,
         onAlignChange: (align: "left" | "center" | "right") =>
           setFieldTextAlign(editField, align),
-        onChange: (payload: { text: string; marks: TextMark[] }) =>
+        onChange: (payload) =>
           handleRichEditableInput(editField, payload),
         onBlur: onEditBlur,
         onKeyDown: onEditKeyDown,
@@ -1003,13 +1241,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           name={effective.name}
           role={effective.role}
           badgeText={effective.badgeText}
+          badgeHtml={effective.badgeHtml}
           badgeMarks={effective.badgeMarks}
+          badgeBlocks={effective.badgeBlocks}
           linkTitle={effective.linkTitle}
+          titleHtml={effective.titleHtml}
           titleMarks={effective.titleMarks}
+          titleBlocks={effective.titleBlocks}
           company={effective.company}
+          companyHtml={effective.companyHtml}
           companyMarks={effective.companyMarks}
+          companyBlocks={effective.companyBlocks}
           bodyText={effective.bodyText}
+          bodyHtml={effective.bodyHtml}
           bodyMarks={effective.bodyMarks}
+          bodyBlocks={effective.bodyBlocks}
           linkUrl={effective.linkUrl}
           headline={effective.headline}
           subline={effective.subline}
@@ -1026,12 +1272,111 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   return (
-    <LinkedInEditorBaseClient
+      <LinkedInEditorBaseClient
       title="LinkedIn - Template A"
-      successMsg={successMsg}
-      errorMsg={errorMsg}
     >
       <LinkedInEditorLayout
+        toolbar={
+          <TemplateAStickyToolbar
+            visible={Boolean(editField) || activeField === "caption"}
+            activeField={activeField}
+            editField={isRichEditField(editField) ? editField : null}
+            currentMarks={getActiveMarksState().marks}
+            currentTextAlign={getToolbarTextAlign()}
+            onInsertEmoji={insertEmojiIntoActiveField}
+            onUndo={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.undo();
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.undo();
+              }
+            }}
+            onRedo={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.redo();
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.redo();
+              }
+            }}
+            onToggleBold={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.toggleBold();
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.toggleBold();
+              }
+            }}
+            onToggleItalic={() => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.toggleItalic();
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.toggleItalic();
+              }
+            }}
+            onSetFontFamily={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setFontFamily(value);
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.setFontFamily(value);
+              }
+            }}
+            onSetFontSize={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setFontSize(value);
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.setFontSize(value);
+              }
+            }}
+            onSetColor={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setColor(value);
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.setColor(value);
+              }
+            }}
+            onSetHighlightColor={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setHighlightColor(value);
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.setHighlightColor(value);
+              }
+            }}
+            onToggleList={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.toggleList(value);
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.toggleList(value);
+              }
+            }}
+            onSetTextAlign={(value) => {
+              if (isRichEditField(editField)) {
+                getRichEditEditor(editField)?.setTextAlign(value);
+                return;
+              }
+              if (activeField === "caption") {
+                captionEditRef.current?.setTextAlign(value);
+                setFieldTextAlign("caption", value);
+              }
+            }}
+          />
+        }
         preview={
           <TemplateAPreview
             canvasPreset={canvasPreset}
@@ -1052,15 +1397,18 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             activeRichTextEditor={activeRichTextEditor}
             effective={effective}
             editorMediaImages={editorMediaImages}
-            videoPreviewUrl={videoPreviewUrl}
-            videoBox={videoBox}
-            videoPreviewZIndex={videoPreviewZIndex}
+            editorVideos={editorVideos}
+            selectedVideoId={selectedVideoId}
             finalUrl={finalUrl}
             suppressNextCanvasClickRef={suppressNextCanvasClickRef}
             onCanvasClick={onCanvasClick}
             onCanvasDoubleClick={onCanvasDoubleClick}
             onSelectableClick={(field, event) => {
               event.stopPropagation();
+              if (event.detail >= 2) {
+                activateCanvasField(field, event.currentTarget);
+                return;
+              }
               selectCanvasField(field, event.currentTarget);
             }}
             onSelectableDoubleClick={(field, event) => {
@@ -1074,6 +1422,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             onVideoInteractionStart={startVideoInteraction}
             onFrameSlotResizeStart={startSelectedFrameSlotResize}
             onRemoveSelectedImage={removeSelectedImage}
+            onRemoveSelectedVideo={deleteSelectedVideo}
           />
         }
         toolbox={
@@ -1087,14 +1436,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             body={body}
             setBody={setBody}
             bodyRef={bodyRef}
-            caption={caption}
-            setCaption={setCaption}
-            captionRef={captionRef}
-            captionMarks={captionMarks}
-            activeField={activeField}
             setActiveField={setActiveField}
-            copied={copied}
-            copyCaption={copyCaption}
             link={link}
             setLink={setLink}
             linkInput={linkInput}
@@ -1106,14 +1448,22 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             setCompany={setCompanyValue}
             companyRef={companyRef}
             onPickProductImage={onPickProductImage}
+            productImages={images}
+            removeImage={removeImageById}
             imageLayout={imageLayout}
             setImageLayout={setImageLayoutMode}
             framePresetId={framePresetId}
             setFramePresetId={setFramePresetValue}
             frameSlots={frameSlots}
             selectedFrameSlotId={selectedFrameSlotId}
+            selectedImageRadius={getSelectedImageRadius()}
+            setSelectedImageRadius={setSelectedImageRadius}
+            selectedVideoRadius={getSelectedVideoRadius()}
+            setSelectedVideoRadius={setSelectedVideoRadius}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
-            setVideoFile={setVideoFile}
+            onPickVideos={addVideoFiles}
+            videos={videos}
+            clearVideo={clearVideo}
           />
         }
         properties={
@@ -1122,6 +1472,19 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             hasVideo={hasVideo}
             finalLoading={finalLoading}
             finalUrl={finalUrl}
+            caption={caption}
+            captionMarks={captionMarks}
+            captionBlocks={captionBlocks}
+            captionStyle={captionStyle}
+            copied={copied}
+            successMsg={successMsg}
+            errorMsg={errorMsg}
+            captionEditorRef={captionEditRef}
+            captionSectionRef={captionSectionRef}
+            onCaptionBlur={handleCaptionBlur}
+            onCaptionChange={handleCaptionEditableInput}
+            onCaptionFocus={() => setActiveField("caption")}
+            onCopyCaption={copyCaption}
             onDownloadPdf={(e) => {
               e.preventDefault();
               void downloadPDF();

@@ -1,6 +1,7 @@
 "use client";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { type CanvasPreset } from "@/app/lib/renderUtils";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
 import { CANVAS_LABELS, getCropScale, getCropX, getCropY, isPreviewTextSelectableId } from "../lib/templateA.utils";
@@ -12,6 +13,7 @@ import type {
   ImageItem,
   SelectableId,
   TextMark,
+  VideoItem,
 } from "../lib/templateA.types";
 import { useMemo, type MouseEvent, type MutableRefObject, type RefObject } from "react";
 
@@ -29,13 +31,21 @@ type EffectivePreviewData = {
   name: string;
   role: string;
   badgeText?: string;
+  badgeHtml: string;
   badgeMarks: TextMark[];
+  badgeBlocks: RichTextBlock[];
   linkTitle: string;
+  titleHtml: string;
   titleMarks: TextMark[];
+  titleBlocks: RichTextBlock[];
   company: string;
+  companyHtml: string;
   companyMarks: TextMark[];
+  companyBlocks: RichTextBlock[];
   bodyText: string;
+  bodyHtml: string;
   bodyMarks: TextMark[];
+  bodyBlocks: RichTextBlock[];
   linkUrl?: string;
   headline?: string;
   subline?: string;
@@ -66,9 +76,8 @@ type TemplateAPreviewProps = {
   activeRichTextEditor: ActiveRichTextEditor | null;
   effective: EffectivePreviewData;
   editorMediaImages: EditorMediaImage[];
-  videoPreviewUrl: string | null;
-  videoBox: { x: number; y: number; w: number; h: number };
-  videoPreviewZIndex: number;
+  editorVideos: Array<VideoItem & { zIndex?: number }>;
+  selectedVideoId: string | null;
   finalUrl: string | null;
   suppressNextCanvasClickRef: MutableRefObject<boolean>;
   onCanvasClick: (e: MouseEvent<HTMLDivElement>) => void;
@@ -91,16 +100,18 @@ type TemplateAPreviewProps = {
     mode: DragMode,
     image?: EditorMediaImage | null,
   ) => void;
-  onVideoSelect: () => void;
+  onVideoSelect: (video?: VideoItem | null) => void;
   onVideoInteractionStart: (
     e: MouseEvent<HTMLDivElement>,
     mode: DragMode,
+    video?: VideoItem | null,
   ) => void;
   onFrameSlotResizeStart: (
     e: MouseEvent<HTMLDivElement>,
     mode: DragMode,
   ) => void;
   onRemoveSelectedImage: () => void;
+  onRemoveSelectedVideo: () => void;
 };
 
 const SELECTION_HANDLES = [
@@ -142,9 +153,8 @@ export default function TemplateAPreview({
   activeRichTextEditor,
   effective,
   editorMediaImages,
-  videoPreviewUrl,
-  videoBox,
-  videoPreviewZIndex,
+  editorVideos,
+  selectedVideoId,
   finalUrl,
   suppressNextCanvasClickRef,
   onCanvasClick,
@@ -158,6 +168,7 @@ export default function TemplateAPreview({
   onVideoInteractionStart,
   onFrameSlotResizeStart,
   onRemoveSelectedImage,
+  onRemoveSelectedVideo,
 }: TemplateAPreviewProps) {
   const selectionHandles = useMemo(
     () => (selectedRect ? SELECTION_HANDLES : []),
@@ -238,7 +249,7 @@ export default function TemplateAPreview({
                     productImage={effective.productImage}
                     productImages={effective.productImages}
                     editorHideProductMedia
-                    editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
+                    editorReserveProductMediaSlot={editorVideos.length > 0}
                     productOrientation={effective.productOrientation}
                     productAlign={effective.productAlign}
                     imageLayout={effective.imageLayout}
@@ -249,13 +260,21 @@ export default function TemplateAPreview({
                     name={effective.name}
                     role={effective.role}
                     badgeText={effective.badgeText}
+                    badgeHtml={effective.badgeHtml}
                     badgeMarks={effective.badgeMarks}
+                    badgeBlocks={effective.badgeBlocks}
                     linkTitle={effective.linkTitle}
+                    titleHtml={effective.titleHtml}
                     titleMarks={effective.titleMarks}
+                    titleBlocks={effective.titleBlocks}
                     company={effective.company}
+                    companyHtml={effective.companyHtml}
                     companyMarks={effective.companyMarks}
+                    companyBlocks={effective.companyBlocks}
                     bodyText={effective.bodyText}
+                    bodyHtml={effective.bodyHtml}
                     bodyMarks={effective.bodyMarks}
+                    bodyBlocks={effective.bodyBlocks}
                     companyLogo="/logo.png"
                     linkUrl={effective.linkUrl}
                     headline={effective.headline}
@@ -349,19 +368,21 @@ export default function TemplateAPreview({
                   );
                 })}
 
-                {videoPreviewUrl ? (
+                {editorVideos.map((video) => (
                   <div
+                    key={video.id}
                     data-select="video"
+                    data-video-id={video.id}
                     aria-label="Uploaded video preview"
                     style={{
                       position: "absolute",
-                      left: videoBox.x,
-                      top: videoBox.y,
-                      width: videoBox.w,
-                      height: videoBox.h,
-                      zIndex: videoPreviewZIndex,
+                      left: video.x,
+                      top: video.y,
+                      width: video.w,
+                      height: video.h,
+                      zIndex: video.zIndex,
                       overflow: "hidden",
-                      borderRadius: 20,
+                      borderRadius: video.radius,
                       transformOrigin: "center center",
                       border: "1px solid rgba(15,23,42,0.10)",
                       background: "#111827",
@@ -372,21 +393,21 @@ export default function TemplateAPreview({
                       e.preventDefault();
                       e.stopPropagation();
                       suppressNextCanvasClickRef.current = true;
-                      if (selectedId === "video") {
-                        onVideoInteractionStart(e, "move");
+                      if (selectedId === "video" && selectedVideoId === video.id) {
+                        onVideoInteractionStart(e, "move", video);
                         return;
                       }
-                      onVideoSelect();
+                      onVideoSelect(video);
                     }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       suppressNextCanvasClickRef.current = true;
-                      onVideoSelect();
+                      onVideoSelect(video);
                     }}
                   >
                     <video
-                      src={videoPreviewUrl}
+                      src={video.previewUrl}
                       muted
                       playsInline
                       preload="metadata"
@@ -400,7 +421,7 @@ export default function TemplateAPreview({
                       }}
                     />
                   </div>
-                ) : null}
+                ))}
 
                 {selectedRect && !(editField && isPreviewTextSelectableId(selectedId)) ? (
                   <div
@@ -576,6 +597,31 @@ export default function TemplateAPreview({
                             onClick={(e) => {
                               e.stopPropagation();
                               onRemoveSelectedImage();
+                            }}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+
+                        {selectedId === "video" ? (
+                          <button
+                            type="button"
+                            style={{
+                              position: "absolute",
+                              right: -8,
+                              top: -40,
+                              height: 28,
+                              padding: "0 8px",
+                              borderRadius: 999,
+                              border: "1px solid rgba(0,0,0,0.12)",
+                              background: "#fff",
+                              fontSize: 12,
+                              cursor: "pointer",
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveSelectedVideo();
                             }}
                           >
                             Remove

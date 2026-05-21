@@ -486,12 +486,66 @@
   white-space: pre-wrap;
 }
 
+.li2-richTextHtml {
+  display: block;
+  white-space: pre-wrap;
+  line-height: inherit;
+}
+
+.li2-richTextHtml > :first-child {
+  margin-top: 0;
+}
+
+.li2-richTextHtml > :last-child {
+  margin-bottom: 0;
+}
+
+.li2-richTextHtml p,
+.li2-richTextHtml ul,
+.li2-richTextHtml ol,
+.li2-richTextHtml li {
+  margin-block: 0;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.li2-richTextHtml ul,
+.li2-richTextHtml ol,
+.li2-badge ul,
+.li2-badge ol,
+.li2-linkTitle ul,
+.li2-linkTitle ol,
+.li2-company ul,
+.li2-company ol,
+.li2-body ul,
+.li2-body ol {
+  padding-inline-start: 0;
+  list-style-position: inside;
+}
+
+.li2-richTextHtml li::marker,
+.li2-badge li::marker,
+.li2-linkTitle li::marker,
+.li2-company li::marker,
+.li2-body li::marker {
+  font-family: var(--listitem-marker-font-family, inherit);
+  font-size: var(--listitem-marker-font-size, inherit);
+  font-style: var(--listitem-marker-font-style, inherit);
+  font-weight: var(--listitem-marker-font-weight, inherit);
+  color: var(--listitem-marker-color, inherit);
+}
+
 .li2-company {
   margin-top: 8px;
   font-size: var(--li2-company-font);
   color: var(--li2-muted);
+  line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow: visible;
 }
 
 .li2-headline {

@@ -1,8 +1,34 @@
+import LexicalInlineEditor, {
+  type LexicalInlineEditorHandle,
+  type RichTextBlock,
+  type TextMark,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import EditorStatusMessage from "@/app/components/templates/linkedin-shared/EditorStatusMessage";
+import type { BoxTextStyle } from "../lib/templateA.types";
+
 type TemplateAExportPanelProps = {
   loadingPdf: boolean;
   hasVideo: boolean;
   finalLoading: boolean;
   finalUrl: string | null;
+  caption: string;
+  captionMarks: TextMark[];
+  captionBlocks: RichTextBlock[];
+  captionStyle: BoxTextStyle;
+  copied: boolean;
+  successMsg?: string;
+  errorMsg?: string;
+  captionEditorRef: React.RefObject<LexicalInlineEditorHandle | null>;
+  captionSectionRef: React.RefObject<HTMLDivElement | null>;
+  onCaptionBlur: () => void;
+  onCaptionFocus: () => void;
+  onCaptionChange: (payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: RichTextBlock[];
+    html: string;
+  }) => void;
+  onCopyCaption: () => void;
   onDownloadPdf: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onGenerateFinal: (e: React.MouseEvent<HTMLButtonElement>) => void;
 };
@@ -12,6 +38,19 @@ export default function TemplateAExportPanel({
   hasVideo,
   finalLoading,
   finalUrl,
+  caption,
+  captionMarks,
+  captionBlocks,
+  captionStyle,
+  copied,
+  successMsg,
+  errorMsg,
+  captionEditorRef,
+  captionSectionRef,
+  onCaptionBlur,
+  onCaptionFocus,
+  onCaptionChange,
+  onCopyCaption,
   onDownloadPdf,
   onGenerateFinal,
 }: TemplateAExportPanelProps) {
@@ -52,6 +91,56 @@ export default function TemplateAExportPanel({
             Download generated video
           </a>
         ) : null}
+      </div>
+
+      <EditorStatusMessage successMsg={successMsg} errorMsg={errorMsg} />
+
+      <div
+        ref={captionSectionRef}
+        className="tb__section"
+        style={{ marginTop: 16 }}
+      >
+        <div className="tb__captionPreviewHeader">
+          <div className="tb__sectionTitle" style={{ marginBottom: 0 }}>
+            <span>Caption</span>
+          </div>
+          <button
+            type="button"
+            onClick={onCopyCaption}
+            className="tb__copyBtn"
+          >
+            {copied ? "Copied" : "Copy Caption"}
+          </button>
+        </div>
+
+        <div className="tb__hint">{caption.length} characters</div>
+
+        <LexicalInlineEditor
+          ref={captionEditorRef}
+          text={caption}
+          marks={captionMarks}
+          blocks={captionBlocks}
+          multiline={true}
+          className="editor-textarea template-captionEditor"
+          style={{
+            fontFamily: captionStyle.fontFamily,
+            fontSize: captionStyle.fontSize,
+            color: captionStyle.color,
+            textAlign: captionStyle.textAlign,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+          onAlignChange={() => {}}
+          onChange={onCaptionChange}
+          onBlur={onCaptionBlur}
+          onKeyDown={() => {}}
+          onKeyUp={() => {}}
+          onPointerDown={() => onCaptionFocus()}
+          onMouseDown={() => onCaptionFocus()}
+          onMouseUp={() => {}}
+          onClick={() => onCaptionFocus()}
+          onDoubleClick={() => onCaptionFocus()}
+        />
       </div>
     </div>
   );
