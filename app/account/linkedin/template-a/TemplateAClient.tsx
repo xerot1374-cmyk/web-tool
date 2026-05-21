@@ -210,6 +210,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     removeImageById,
     setSelectedImageRadius,
     getSelectedImageRadius,
+    setSelectedVideoRadius,
+    getSelectedVideoRadius,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,
@@ -1211,6 +1213,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             selectedFrameSlotId={selectedFrameSlotId}
             selectedImageRadius={getSelectedImageRadius()}
             setSelectedImageRadius={setSelectedImageRadius}
+            selectedVideoRadius={getSelectedVideoRadius()}
+            setSelectedVideoRadius={setSelectedVideoRadius}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
             onPickVideos={addVideoFiles}
             videos={videos}

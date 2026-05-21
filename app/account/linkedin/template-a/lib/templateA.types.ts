@@ -47,6 +47,7 @@ export type MediaBox = {
 export type ImageItem = {
   id: string;
   src: string;
+  fileName?: string;
   base64?: string;
   orientation: "landscape" | "portrait";
   frameSlotId?: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { FRAME_PRESETS, type FrameSlot } from "@/app/lib/imageLayouts";
 import ToolboxSection from "./ToolboxSection";
 import ToolboxTextField from "./ToolboxTextField";
@@ -22,12 +22,81 @@ type EditorTextField = "badge" | "title" | "company" | "caption" | "body";
 type ImageLayoutMode = "manual" | "collage" | "frame";
 type ProductImageItem = {
   id: string;
+  fileName?: string;
   frameSlotId?: string;
 };
 type VideoListItem = {
   id: string;
   file: File;
   radius: number;
+};
+
+const HIDDEN_FILE_INPUT_STYLE: React.CSSProperties = {
+  position: "absolute",
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: "hidden",
+  clip: "rect(0, 0, 0, 0)",
+  whiteSpace: "nowrap",
+  border: 0,
+};
+
+const FILE_CONTROL_ROW_STYLE: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const FILE_BUTTON_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  minHeight: 48,
+  padding: "0 16px",
+  borderRadius: 16,
+  border: "1px solid rgba(164, 7, 47, 0.16)",
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(252,244,246,0.98) 100%)",
+  color: "var(--brand-ink)",
+  fontSize: 14,
+  fontWeight: 800,
+  cursor: "pointer",
+  boxShadow: "0 12px 24px rgba(15, 23, 42, 0.06)",
+};
+
+const FILE_SUMMARY_STYLE: React.CSSProperties = {
+  flex: "1 1 220px",
+  minWidth: 0,
+  pointerEvents: "none",
+  color: "#64748b",
+};
+
+const RADIUS_CONTROL_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#334155",
+};
+
+const FRAME_PREVIEW_CARD_STYLE: React.CSSProperties = {
+  marginTop: 12,
+  display: "grid",
+  gap: 12,
+  padding: 14,
+  borderRadius: 18,
+  border: "1px solid #e5e7eb",
+  background: "linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)",
+  boxShadow: "0 12px 28px rgba(15, 23, 42, 0.06)",
+};
+
+const FRAME_PREVIEW_META_STYLE: React.CSSProperties = {
+  display: "grid",
+  gap: 4,
 };
 
 type Props = {
@@ -87,6 +156,8 @@ type Props = {
   selectedFrameSlotId?: string | null;
   selectedImageRadius: number | null;
   setSelectedImageRadius: (radius: number) => void;
+  selectedVideoRadius: number | null;
+  setSelectedVideoRadius: (radius: number) => void;
   onAssignImageToFrameSlot: (slotId: string) => void;
 
   onPickVideos: (files: FileList | File[] | null) => void;
@@ -186,12 +257,19 @@ export default function LinkedInToolbox({
   selectedFrameSlotId,
   selectedImageRadius,
   setSelectedImageRadius,
+  selectedVideoRadius,
+  setSelectedVideoRadius,
   onAssignImageToFrameSlot,
   onPickVideos,
   videos,
   clearVideo,
   copyCaption,
 }: Props) {
+  const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedFramePreset =
+    FRAME_PRESETS.find((preset) => preset.id === framePresetId) ?? FRAME_PRESETS[0];
+
   return (
     <aside className="tb">
       <div className="tb__header">
@@ -323,26 +401,35 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Add Image</label>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
+              className="tb__fileControlRow"
+              style={FILE_CONTROL_ROW_STYLE}
             >
               <input
+                ref={imageInputRef}
+                className="tb__fileInput"
+                style={HIDDEN_FILE_INPUT_STYLE}
                 type="file"
                 accept="image/*"
                 onChange={(e) => onPickProductImage(e.target.files?.[0] ?? null)}
               />
+              <button
+                type="button"
+                className="tb__fileButton"
+                style={FILE_BUTTON_STYLE}
+                onClick={() => imageInputRef.current?.click()}
+              >
+                Choose image
+              </button>
+              <input
+                className="tb__fileSummary"
+                style={FILE_SUMMARY_STYLE}
+                value={productImages.length ? `${productImages.length} image${productImages.length === 1 ? "" : "s"} selected` : "No image selected"}
+                readOnly
+              />
 
               <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                }}
+                className="tb__radiusControl"
+                style={RADIUS_CONTROL_STYLE}
               >
                 <span>Radius</span>
                 <input
@@ -377,7 +464,7 @@ export default function LinkedInToolbox({
                       style={{ alignItems: "center" }}
                     >
                       <span className="tb__linkText">
-                        {`Image ${index + 1}${
+                        {`${image.fileName || `Image ${index + 1}`}${
                           slotIndex >= 0 ? ` - Slot ${slotIndex + 1}` : ""
                         }`}
                       </span>
@@ -419,44 +506,46 @@ export default function LinkedInToolbox({
             <>
               <div className="editor-field">
                 <label className="editor-label">Frame Examples</label>
-                <div className="tb__frameGrid">
+                <select
+                  value={framePresetId}
+                  onChange={(e) => setFramePresetId(e.target.value)}
+                  className="tb__frameSelect"
+                >
                   {FRAME_PRESETS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      className={
-                        preset.id === framePresetId
-                          ? "tb__frameCard tb__frameCard--active"
-                          : "tb__frameCard"
-                      }
-                      onClick={() => setFramePresetId(preset.id)}
-                    >
-                      <div
-                        className={`tb__frameMini tb__frameMini--${preset.id}`}
-                      >
-                        <div className="tb__frameMiniBackdrop" />
-                        {preset.slots.map((slot) => (
-                          <span
-                            key={slot.id}
-                            className="tb__frameMiniSlot"
-                            style={{
-                              left: `${slot.x * 100}%`,
-                              top: `${slot.y * 100}%`,
-                              width: `${slot.w * 100}%`,
-                              height: `${slot.h * 100}%`,
-                              borderRadius: slot.radius ?? 12,
-                              transform: `rotate(${slot.rotation ?? 0}deg)`,
-                              clipPath: slot.clipPath,
-                            }}
-                          />
-                        ))}
-                      </div>
-                      <span className="tb__frameCardTitle">{preset.label}</span>
-                      <span className="tb__frameCardMeta">
-                        {preset.description}
-                      </span>
-                    </button>
+                    <option key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </option>
                   ))}
+                </select>
+                <div className="tb__framePreviewCard" style={FRAME_PREVIEW_CARD_STYLE}>
+                  <div
+                    className={`tb__frameMini tb__frameMini--${selectedFramePreset.id}`}
+                  >
+                    <div className="tb__frameMiniBackdrop" />
+                    {selectedFramePreset.slots.map((slot) => (
+                      <span
+                        key={slot.id}
+                        className="tb__frameMiniSlot"
+                        style={{
+                          left: `${slot.x * 100}%`,
+                          top: `${slot.y * 100}%`,
+                          width: `${slot.w * 100}%`,
+                          height: `${slot.h * 100}%`,
+                          borderRadius: slot.radius ?? 12,
+                          transform: `rotate(${slot.rotation ?? 0}deg)`,
+                          clipPath: slot.clipPath,
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <div className="tb__framePreviewMeta" style={FRAME_PREVIEW_META_STYLE}>
+                    <span className="tb__frameCardTitle">
+                      {selectedFramePreset.label}
+                    </span>
+                    <span className="tb__frameCardMeta">
+                      {selectedFramePreset.description}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -492,19 +581,55 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Video</label>
             <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
+              className="tb__fileControlRow"
+              style={FILE_CONTROL_ROW_STYLE}
             >
               <input
+                ref={videoInputRef}
+                className="tb__fileInput"
+                style={HIDDEN_FILE_INPUT_STYLE}
                 type="file"
                 accept="video/*"
                 multiple
                 onChange={(e) => onPickVideos(e.target.files)}
               />
+              <button
+                type="button"
+                className="tb__fileButton"
+                style={FILE_BUTTON_STYLE}
+                onClick={() => videoInputRef.current?.click()}
+              >
+                Choose video
+              </button>
+              <input
+                className="tb__fileSummary"
+                style={FILE_SUMMARY_STYLE}
+                value={videos.length ? `${videos.length} video${videos.length === 1 ? "" : "s"} selected` : "No video selected"}
+                readOnly
+              />
+
+              <label
+                className="tb__radiusControl"
+                style={RADIUS_CONTROL_STYLE}
+              >
+                <span>Radius</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={selectedVideoRadius ?? ""}
+                  disabled={selectedVideoRadius == null}
+                  onChange={(e) =>
+                    setSelectedVideoRadius(Number(e.target.value || 0))
+                  }
+                  className="editor-input"
+                  style={{ width: 88 }}
+                />
+              </label>
+            </div>
+
+            <div className="tb__hint tb__hint--left">
+              Select a video on canvas to adjust its corner radius.
             </div>
 
             {videos.length ? (

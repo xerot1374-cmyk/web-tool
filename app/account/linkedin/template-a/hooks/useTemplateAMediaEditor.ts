@@ -364,6 +364,7 @@ export default function useTemplateAMediaEditor({
     const nextImage: ImageItem = {
       id: uid(),
       src: URL.createObjectURL(resized),
+      fileName: file.name,
       base64,
       orientation,
       frameSlotId: undefined,
@@ -602,6 +603,15 @@ export default function useTemplateAMediaEditor({
     }
 
     return getSelectedImage()?.radius ?? null;
+  }
+
+  function setSelectedVideoRadius(nextRadius: number) {
+    const radius = clamp(Math.round(nextRadius), 0, 999);
+    updateSelectedVideo((prev) => ({ ...prev, radius }));
+  }
+
+  function getSelectedVideoRadius() {
+    return getSelectedVideo()?.radius ?? null;
   }
 
   function clearSelection() {
@@ -1306,6 +1316,8 @@ export default function useTemplateAMediaEditor({
     removeImageById,
     setSelectedImageRadius,
     getSelectedImageRadius,
+    setSelectedVideoRadius,
+    getSelectedVideoRadius,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,
