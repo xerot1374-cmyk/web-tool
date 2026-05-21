@@ -184,7 +184,8 @@ export default function LinkedInToolbox({
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
   const selectedFramePreset =
-    FRAME_PRESETS.find((preset) => preset.id === framePresetId) ?? FRAME_PRESETS[0];
+    FRAME_PRESETS.find((preset) => preset.id === framePresetId) ??
+    FRAME_PRESETS[0];
 
   return (
     <aside className="tb">
@@ -202,7 +203,6 @@ export default function LinkedInToolbox({
           title="Content"
           meta="Core message"
           collapsible
-          defaultOpen={true}
         >
           <ToolboxTextField
             label="Eye-Catcher"
@@ -264,11 +264,7 @@ export default function LinkedInToolbox({
               onKeyDown={(e) => onTextKeyDown?.("body", e)}
               onChange={(e) => {
                 if (onTextChange) {
-                  onTextChange(
-                    "body",
-                    e.target.value,
-                    e.target.selectionStart,
-                  );
+                  onTextChange("body", e.target.value, e.target.selectionStart);
                 } else {
                   setBody(e.target.value);
                 }
@@ -279,7 +275,7 @@ export default function LinkedInToolbox({
           </div>
         </ToolboxSection>
 
-        <ToolboxSection title="Link" meta="CTA">
+        <ToolboxSection title="Link" meta="CTA" collapsible>
           <div className="editor-field">
             <label className="editor-label">Add Link (press Enter)</label>
 
@@ -318,20 +314,19 @@ export default function LinkedInToolbox({
           </div>
         </ToolboxSection>
 
-        <ToolboxSection title="Product" meta="Assets">
+        <ToolboxSection title="Product" meta="Assets" collapsible>
           <div className="editor-field">
             <label className="editor-label">Add Image</label>
-            <div
-              className="tb__fileControlRow"
-              style={FILE_CONTROL_ROW_STYLE}
-            >
+            <div className="tb__fileControlRow" style={FILE_CONTROL_ROW_STYLE}>
               <input
                 ref={imageInputRef}
                 className="tb__fileInput"
                 style={HIDDEN_FILE_INPUT_STYLE}
                 type="file"
                 accept="image/*"
-                onChange={(e) => onPickProductImage(e.target.files?.[0] ?? null)}
+                onChange={(e) =>
+                  onPickProductImage(e.target.files?.[0] ?? null)
+                }
               />
               <button
                 type="button"
@@ -344,14 +339,15 @@ export default function LinkedInToolbox({
               <input
                 className="tb__fileSummary"
                 style={FILE_SUMMARY_STYLE}
-                value={productImages.length ? `${productImages.length} image${productImages.length === 1 ? "" : "s"} selected` : "No image selected"}
+                value={
+                  productImages.length
+                    ? `${productImages.length} image${productImages.length === 1 ? "" : "s"} selected`
+                    : "No image selected"
+                }
                 readOnly
               />
 
-              <label
-                className="tb__radiusControl"
-                style={RADIUS_CONTROL_STYLE}
-              >
+              <label className="tb__radiusControl" style={RADIUS_CONTROL_STYLE}>
                 <span>Radius</span>
                 <input
                   type="number"
@@ -375,7 +371,9 @@ export default function LinkedInToolbox({
               <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                 {productImages.map((image, index) => {
                   const slotIndex = image.frameSlotId
-                    ? frameSlots.findIndex((slot) => slot.id === image.frameSlotId)
+                    ? frameSlots.findIndex(
+                        (slot) => slot.id === image.frameSlotId,
+                      )
                     : -1;
 
                   return (
@@ -438,7 +436,10 @@ export default function LinkedInToolbox({
                     </option>
                   ))}
                 </select>
-                <div className="tb__framePreviewCard" style={FRAME_PREVIEW_CARD_STYLE}>
+                <div
+                  className="tb__framePreviewCard"
+                  style={FRAME_PREVIEW_CARD_STYLE}
+                >
                   <div
                     className={`tb__frameMini tb__frameMini--${selectedFramePreset.id}`}
                   >
@@ -459,7 +460,10 @@ export default function LinkedInToolbox({
                       />
                     ))}
                   </div>
-                  <div className="tb__framePreviewMeta" style={FRAME_PREVIEW_META_STYLE}>
+                  <div
+                    className="tb__framePreviewMeta"
+                    style={FRAME_PREVIEW_META_STYLE}
+                  >
                     <span className="tb__frameCardTitle">
                       {selectedFramePreset.label}
                     </span>
@@ -498,13 +502,10 @@ export default function LinkedInToolbox({
           ) : null}
         </ToolboxSection>
 
-        <ToolboxSection title="Media" meta="Video">
+        <ToolboxSection title="Media" meta="Video" collapsible>
           <div className="editor-field">
             <label className="editor-label">Video</label>
-            <div
-              className="tb__fileControlRow"
-              style={FILE_CONTROL_ROW_STYLE}
-            >
+            <div className="tb__fileControlRow" style={FILE_CONTROL_ROW_STYLE}>
               <input
                 ref={videoInputRef}
                 className="tb__fileInput"
@@ -525,14 +526,15 @@ export default function LinkedInToolbox({
               <input
                 className="tb__fileSummary"
                 style={FILE_SUMMARY_STYLE}
-                value={videos.length ? `${videos.length} video${videos.length === 1 ? "" : "s"} selected` : "No video selected"}
+                value={
+                  videos.length
+                    ? `${videos.length} video${videos.length === 1 ? "" : "s"} selected`
+                    : "No video selected"
+                }
                 readOnly
               />
 
-              <label
-                className="tb__radiusControl"
-                style={RADIUS_CONTROL_STYLE}
-              >
+              <label className="tb__radiusControl" style={RADIUS_CONTROL_STYLE}>
                 <span>Radius</span>
                 <input
                   type="number"
@@ -578,7 +580,6 @@ export default function LinkedInToolbox({
             ) : null}
           </div>
         </ToolboxSection>
-
       </div>
     </aside>
   );
