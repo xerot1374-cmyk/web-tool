@@ -24,26 +24,26 @@ export default function ToolboxSection({
         collapsible && !open ? " tb__section--collapsed" : ""
       }`}
     >
-      <div className="tb__sectionTitle">
-        <div className="tb__sectionTitleCopy">
-          <span>{title}</span>
-          {/*<span className="tb__sectionMeta">{meta}</span>*/}
-        </div>
-        {collapsible ? (
-          <div
-            className="tb__sectionHeader"
-            role="button"
-            tabIndex={0}
-            aria-expanded={open}
-            aria-label={`${open ? "Hide" : "Show"} ${title} section`}
-            onClick={() => setOpen((prev) => !prev)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setOpen((prev) => !prev);
-              }
-            }}
-          >
+      {collapsible ? (
+        <div
+          className="tb__sectionTitle tb__sectionTitle--toggle"
+          role="button"
+          tabIndex={0}
+          aria-expanded={open}
+          aria-label={`${open ? "Hide" : "Show"} ${title} section`}
+          onClick={() => setOpen((prev) => !prev)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpen((prev) => !prev);
+            }
+          }}
+        >
+          <div className="tb__sectionTitleCopy">
+            <span>{title}</span>
+            {/*<span className="tb__sectionMeta">{meta}</span>*/}
+          </div>
+          <div className="tb__sectionHeader" aria-hidden="true">
             <span
               className={`tb__sectionToggleIcon${
                 open ? " tb__sectionToggleIcon--open" : ""
@@ -65,8 +65,15 @@ export default function ToolboxSection({
               </svg>
             </span>
           </div>
-        ) : null}
-      </div>
+        </div>
+      ) : (
+        <div className="tb__sectionTitle">
+          <div className="tb__sectionTitleCopy">
+            <span>{title}</span>
+            {/*<span className="tb__sectionMeta">{meta}</span>*/}
+          </div>
+        </div>
+      )}
       {!collapsible || open ? children : null}
     </section>
   );
