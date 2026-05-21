@@ -405,7 +405,11 @@ export default function useTemplateAMediaEditor({
 
   function removeSelectedImage() {
     if (!selectedImageId) return;
-    const imageId = selectedImageId;
+    removeImageById(selectedImageId);
+  }
+
+  function removeImageById(imageId: string) {
+    const removedImage = images.find((img) => img.id === imageId) ?? null;
     setImages((prev) => {
       const next = applyImageLayout(
         imageLayout,
@@ -419,9 +423,14 @@ export default function useTemplateAMediaEditor({
       delete imagesById[imageId];
       return { ...prev, images: imagesById };
     });
-    setSelectedImageId(null);
-    setSelectedId(null);
-    setSelectedRect(null);
+    if (selectedImageId === imageId) {
+      setSelectedImageId(null);
+      setSelectedId(null);
+      setSelectedRect(null);
+    }
+    if (removedImage?.frameSlotId && selectedFrameSlotId === removedImage.frameSlotId) {
+      setSelectedFrameSlotId(null);
+    }
   }
 
   function copySelectedImageToClipboard() {
@@ -749,6 +758,11 @@ export default function useTemplateAMediaEditor({
   function deleteSelectedVideo() {
     if (selectedId !== "video" || !videoFile) return;
     pushVideoUndoSnapshot();
+    removeVideoObject();
+  }
+
+  function clearVideo() {
+    if (!videoFile) return;
     removeVideoObject();
   }
 
@@ -1234,6 +1248,7 @@ export default function useTemplateAMediaEditor({
     suppressNextCanvasClickRef,
     onPickProductImage,
     removeSelectedImage,
+    removeImageById,
     setSelectedImageRadius,
     getSelectedImageRadius,
     assignSelectedImageToFrameSlot,
@@ -1253,6 +1268,7 @@ export default function useTemplateAMediaEditor({
     copySelectedVideo,
     cutSelectedVideo,
     deleteSelectedVideo,
+    clearVideo,
     pasteVideoFromClipboard,
     undoVideoAction,
     getSelectedFrameSlot,

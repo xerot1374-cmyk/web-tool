@@ -20,6 +20,10 @@ type TextMark = {
 
 type EditorTextField = "badge" | "title" | "company" | "caption" | "body";
 type ImageLayoutMode = "manual" | "collage" | "frame";
+type ProductImageItem = {
+  id: string;
+  frameSlotId?: string;
+};
 
 type Props = {
   badgeText: string;
@@ -68,6 +72,8 @@ type Props = {
   companyRef: React.RefObject<HTMLInputElement | null>;
 
   onPickProductImage: (file: File | null) => void;
+  productImages: ProductImageItem[];
+  removeImage: (imageId: string) => void;
   imageLayout: ImageLayoutMode;
   setImageLayout: (mode: ImageLayoutMode) => void;
   framePresetId: string;
@@ -79,9 +85,10 @@ type Props = {
   onAssignImageToFrameSlot: (slotId: string) => void;
 
   setVideoFile: (file: File | null) => void;
+  videoFile: File | null;
   videoRadius: number;
   setVideoRadius: (radius: number) => void;
-  removeSelectedVideo: () => void;
+  clearVideo: () => void;
 };
 
 function renderMarkedText(text: string, marks: TextMark[] = []) {
@@ -166,6 +173,8 @@ export default function LinkedInToolbox({
   setCompany,
   companyRef,
   onPickProductImage,
+  productImages,
+  removeImage,
   imageLayout,
   setImageLayout,
   framePresetId,
@@ -176,9 +185,10 @@ export default function LinkedInToolbox({
   setSelectedImageRadius,
   onAssignImageToFrameSlot,
   setVideoFile,
+  videoFile,
   videoRadius,
   setVideoRadius,
-  removeSelectedVideo,
+  clearVideo,
   copyCaption,
 }: Props) {
   return (
@@ -351,6 +361,38 @@ export default function LinkedInToolbox({
             <div className="tb__hint tb__hint--left">
               Select an image or frame slot to adjust its corner radius.
             </div>
+
+            {productImages.length ? (
+              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                {productImages.map((image, index) => {
+                  const slotIndex = image.frameSlotId
+                    ? frameSlots.findIndex((slot) => slot.id === image.frameSlotId)
+                    : -1;
+
+                  return (
+                    <div
+                      key={image.id}
+                      className="tb__linkItem"
+                      style={{ alignItems: "center" }}
+                    >
+                      <span className="tb__linkText">
+                        {`Image ${index + 1}${
+                          slotIndex >= 0 ? ` - Slot ${slotIndex + 1}` : ""
+                        }`}
+                      </span>
+                      <button
+                        type="button"
+                        className="tb__linkRemove"
+                        onClick={() => removeImage(image.id)}
+                        aria-label={`Remove image ${index + 1}`}
+                      >
+                        x
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
           <div className="editor-field">
@@ -481,15 +523,23 @@ export default function LinkedInToolbox({
                   style={{ width: 88 }}
                 />
               </label>
-
-              <button
-                type="button"
-                className="tb__copyBtn"
-                onClick={removeSelectedVideo}
-              >
-                Remove Selected Video
-              </button>
             </div>
+
+            {videoFile ? (
+              <div style={{ marginTop: 10 }}>
+                <div className="tb__linkItem" style={{ alignItems: "center" }}>
+                  <span className="tb__linkText">{videoFile.name}</span>
+                  <button
+                    type="button"
+                    className="tb__linkRemove"
+                    onClick={clearVideo}
+                    aria-label="Remove video"
+                  >
+                    x
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </ToolboxSection>
 

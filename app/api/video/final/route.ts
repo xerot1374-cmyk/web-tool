@@ -281,6 +281,30 @@ function getFinalVideoBox(
   };
 }
 
+function getRoundedVideoAlphaExpression(
+  width: number,
+  height: number,
+  radius: number,
+) {
+  const rounded = Math.max(
+    0,
+    Math.min(Math.round(radius), Math.floor(width / 2), Math.floor(height / 2)),
+  );
+
+  if (rounded === 0) return null;
+
+  const right = width - rounded - 1;
+  const bottom = height - rounded - 1;
+  const radiusSq = rounded * rounded;
+
+  return [
+    `if(lt(X,${rounded})*lt(Y,${rounded})*gt((X-${rounded})*(X-${rounded})+(Y-${rounded})*(Y-${rounded}),${radiusSq}),0,`,
+    `if(gt(X,${right})*lt(Y,${rounded})*gt((X-${right})*(X-${right})+(Y-${rounded})*(Y-${rounded}),${radiusSq}),0,`,
+    `if(lt(X,${rounded})*gt(Y,${bottom})*gt((X-${rounded})*(X-${rounded})+(Y-${bottom})*(Y-${bottom}),${radiusSq}),0,`,
+    `if(gt(X,${right})*gt(Y,${bottom})*gt((X-${right})*(X-${right})+(Y-${bottom})*(Y-${bottom}),${radiusSq}),0,255))))`,
+  ].join("");
+}
+
 function normalizePayloadImages(data: Payload, req: Request): PayloadImage[] {
   if (!Array.isArray(data.images)) return [];
 
@@ -759,8 +783,13 @@ async function buildVideoInsideTemplateWithAudio(
   foregroundPngPath: string,
   outputMp4Path: string,
   box: { x: number; y: number; w: number; h: number },
+  radius: number,
 ) {
   let ffErr = "";
+  const alphaExpr = getRoundedVideoAlphaExpression(box.w, box.h, radius);
+  const videoOverlayFilter = alphaExpr
+    ? `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h},format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alphaExpr}'[vid]`
+    : `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h}[vid]`;
 
   await new Promise<void>((resolve, reject) => {
     ffmpeg()
@@ -769,7 +798,7 @@ async function buildVideoInsideTemplateWithAudio(
       .input(userMp4Path)
       .input(foregroundPngPath)
       .complexFilter([
-        `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h}[vid]`,
+        videoOverlayFilter,
         `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[with_video]`,
         `[with_video][2:v]overlay=0:0:format=auto[v]`,
       ])
@@ -836,6 +865,7 @@ export async function POST(req: Request) {
       foregroundPng,
       finalMp4,
       box,
+      data.videoRadius ?? 20,
     );
 
     const out = await fs.readFile(finalMp4);

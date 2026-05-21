@@ -210,6 +210,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     suppressNextCanvasClickRef,
     onPickProductImage,
     removeSelectedImage,
+    removeImageById,
     setSelectedImageRadius,
     getSelectedImageRadius,
     assignSelectedImageToFrameSlot,
@@ -225,6 +226,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     startMediaInteraction,
     startVideoInteraction,
     deleteSelectedVideo,
+    clearVideo,
     startFrameImageDrag,
     startSelectedFrameSlotResize,
   } = useTemplateAMediaEditor({
@@ -1203,6 +1205,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             setCompany={setCompanyValue}
             companyRef={companyRef}
             onPickProductImage={onPickProductImage}
+            productImages={images}
+            removeImage={removeImageById}
             imageLayout={imageLayout}
             setImageLayout={setImageLayoutMode}
             framePresetId={framePresetId}
@@ -1213,9 +1217,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             setSelectedImageRadius={setSelectedImageRadius}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
             setVideoFile={setVideoFile}
+            videoFile={videoFile}
             videoRadius={videoRadius}
             setVideoRadius={setVideoRadius}
-            removeSelectedVideo={deleteSelectedVideo}
+            clearVideo={clearVideo}
           />
         }
         properties={
