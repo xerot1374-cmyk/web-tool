@@ -446,6 +446,7 @@ export default function LinkedInTemplate2Renderer({
           data.imageLayout === "collage" && "li2-root--imageCollage",
           isPreviewLike && "li2-root--autoHeight",
           isEdit && "li2-root--editing",
+          activeRichTextEditor?.field === "badge" && "li2-root--editingBadge",
         )}
         style={{
           position: "relative",

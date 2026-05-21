@@ -104,6 +104,19 @@
   overflow: visible !important;
 }
 
+.li2-root--editingBadge .li2-header {
+  z-index: 5;
+}
+
+.li2-root--editingBadge .li2-badge {
+  z-index: 9;
+}
+
+.li2-root--editingBadge .li2-badge [data-select="badge"] {
+  position: relative;
+  z-index: 10;
+}
+
 .li2-root--autoHeight {
   height: auto !important;
   min-height: 0 !important;
