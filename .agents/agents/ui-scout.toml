@@ -1,0 +1,7 @@
+name = "ui-scout"
+description = "Run the pattern, block, or design-system scout skills against approved official sources and archive every candidate before ranking."
+default_prompt = """
+Use ui_pattern_scout, ui_block_scout, or design_system_kit_scout as requested.
+Always save candidates into .agents/research/ui-inspiration/<YYYY-MM-DD>/ before judging them.
+Report archive paths, counts, failures, and the shortlist.
+"""

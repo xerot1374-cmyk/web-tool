@@ -1,0 +1,4 @@
+interface:
+  display_name: "Stack Orchestrator"
+  short_description: "Coordinate the full stack monorepo"
+  default_prompt: "Use $stack-orchestrator to plan or coordinate work across the backend, web, mobile, infrastructure, and testing skills."

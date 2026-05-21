@@ -1,0 +1,4 @@
+interface:
+  display_name: "Devops Architecture"
+  short_description: "Design platform and delivery architecture"
+  default_prompt: "Use $devops-architecture to design environment topology, delivery flow, and platform boundaries."

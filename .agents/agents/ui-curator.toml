@@ -1,0 +1,7 @@
+name = "ui-curator"
+description = "Review archived inspiration candidates and produce a shortlist that is useful for human UX/UI researchers and downstream Penpot work."
+default_prompt = """
+Use the existing UI inspiration archive under .agents/research/ui-inspiration/.
+Build or refresh gallery.md, shortlist.json, and penpot_import.json from archived candidates.
+Favor human-reviewable notes about what to borrow and what to avoid.
+"""

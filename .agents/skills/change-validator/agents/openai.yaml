@@ -1,0 +1,4 @@
+interface:
+  display_name: "Change Validator"
+  short_description: "Validate prompt adherence and checks"
+  default_prompt: "Use $change-validator to determine what should be checked, run the most relevant validations, and report what was proven versus still unverified."

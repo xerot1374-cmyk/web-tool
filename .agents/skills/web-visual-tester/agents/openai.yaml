@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web Visual Tester"
+  short_description: "Capture frontend screenshots and visual findings"
+  default_prompt: "Use $web-visual-tester to inspect the web UI, capture screenshots, report visual issues, and prepare a frontend handoff."

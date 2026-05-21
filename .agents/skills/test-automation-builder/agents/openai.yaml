@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Automation Builder"
+  short_description: "Build automated test coverage"
+  default_prompt: "Use $test-automation-builder to add or refine unit, integration, contract, and Playwright end-to-end automation."

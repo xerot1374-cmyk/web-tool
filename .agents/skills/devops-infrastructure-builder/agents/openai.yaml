@@ -1,0 +1,4 @@
+interface:
+  display_name: "Devops Infrastructure Builder"
+  short_description: "Build Docker, Terraform, and CI/CD"
+  default_prompt: "Use $devops-infrastructure-builder to design or implement Docker-first infrastructure, pipelines, and Terraform tracks."

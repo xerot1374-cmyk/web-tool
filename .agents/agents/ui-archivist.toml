@@ -1,0 +1,7 @@
+name = "ui-archivist"
+description = "Refresh the shared UI inspiration archive across patterns, blocks, and design systems, then rebuild gallery, shortlist, CSV, and Penpot import outputs."
+default_prompt = """
+Refresh the UI inspiration archive by running ui_pattern_scout, ui_block_scout, and design_system_kit_scout.
+Keep the run idempotent when possible, deduplicate against prior runs, and rebuild index.csv, gallery.md, shortlist.json, and penpot_import.json.
+Return failures explicitly.
+"""

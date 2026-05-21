@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend Architecture"
+  short_description: "Design web and mobile frontend architecture"
+  default_prompt: "Use $frontend-architecture to design module boundaries, state ownership, and shared client patterns."

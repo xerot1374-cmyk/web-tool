@@ -1,0 +1,4 @@
+interface:
+  display_name: "E2E Flow Tester"
+  short_description: "Discover and automate web app flows"
+  default_prompt: "Use $e2e-flow-tester to sweep the web app, discover flows, generate and run Playwright coverage in the existing test setup, and report automation gaps."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Internal Docs Builder"
+  short_description: "Maintain engineering and agent docs"
+  default_prompt: "Use $internal-docs-builder to create or update internal engineering docs, runbooks, ADRs, and agent instructions for meaningful repo changes."
