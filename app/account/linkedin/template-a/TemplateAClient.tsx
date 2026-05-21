@@ -51,6 +51,13 @@ import {
   shiftMarksAfterTextChange,
 } from "./lib/templateARichText.utils";
 
+const INITIAL_RICH_EDIT_SESSION_KEYS = {
+  badge: 0,
+  title: 0,
+  company: 0,
+  body: 0,
+} as const;
+
 export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const [{ isPdf, payload }] = useState<{
     isPdf: boolean;
@@ -63,6 +70,9 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const [canvasPreset, setCanvasPreset] = useState<CanvasPresetKey>("linkedin");
 
   const [editField, setEditField] = useState<EditField>(null);
+  const [richEditSessionKeys, setRichEditSessionKeys] = useState(
+    INITIAL_RICH_EDIT_SESSION_KEYS,
+  );
   const editRef = useRef<HTMLTextAreaElement | null>(null);
   const titleEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const bodyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
@@ -70,6 +80,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const badgeEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const captionEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const captionSectionRef = useRef<HTMLDivElement | null>(null);
+  const richEditSessionRef = useRef(INITIAL_RICH_EDIT_SESSION_KEYS);
   const richEditSelectionRef = useRef<
     Record<RichEditField, { start: number; end: number }>
   >({
@@ -370,6 +381,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   function startRichTextEdit(field: RichEditField, targetEl: HTMLElement) {
+    setRichEditSessionKeys((prev) => ({
+      ...prev,
+      [field]: richEditSessionRef.current[field] + 1,
+    }));
+    richEditSessionRef.current = {
+      ...richEditSessionRef.current,
+      [field]: richEditSessionRef.current[field] + 1,
+    };
     setEditField(field);
     setActiveField(field);
     setSelectedId(field);
@@ -510,9 +529,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
     const currentField = editField;
+    const currentSession =
+      currentField && isRichEditField(currentField)
+        ? richEditSessionRef.current[currentField]
+        : null;
     const currentTarget = e.currentTarget;
     const nextTarget = e.relatedTarget;
     const toolbar = document.querySelector('[data-lexical-toolbar="true"]');
+    const stickyToolbar = document.querySelector(".editor-bottomToolbarWrap");
 
     if (nextTarget instanceof Node) {
       if (currentTarget.contains(nextTarget)) {
@@ -522,10 +546,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       if (toolbar?.contains(nextTarget)) {
         return;
       }
+
+      if (stickyToolbar?.contains(nextTarget)) {
+        return;
+      }
     }
 
     requestAnimationFrame(() => {
       if (!currentField) return;
+      if (
+        isRichEditField(currentField) &&
+        currentSession != null &&
+        richEditSessionRef.current[currentField] !== currentSession
+      ) {
+        return;
+      }
 
       const activeElement = document.activeElement;
       const root = isRichEditField(currentField)
@@ -540,13 +575,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         if (toolbar?.contains(activeElement)) {
           return;
         }
-      }
 
-      const selection = window.getSelection();
-      const anchorNode = selection?.anchorNode ?? null;
-      if (anchorNode && root?.contains(anchorNode)) {
-        return;
+        if (stickyToolbar?.contains(activeElement)) {
+          return;
+        }
       }
+      window.getSelection()?.removeAllRanges();
 
       setEditField((prev) => (prev === currentField ? null : prev));
     });
@@ -1126,6 +1160,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   )
     ? {
         field: editField,
+        sessionKey: richEditSessionKeys[editField],
         editorRef:
           editField === "title"
             ? titleEditRef
@@ -1142,6 +1177,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         style: {
           display: "block",
           width: "100%",
+          maxWidth: "100%",
+          boxSizing: "border-box",
           minHeight:
             editField === "body" ? Math.max(selectedRect?.height ?? 0, 140) : undefined,
           padding: 0,
@@ -1150,7 +1187,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           background: "transparent",
           boxShadow: "none",
           outline: "none",
-          overflow: editField === "badge" ? "visible" : "hidden",
+          overflow:
+            editField === "badge" ||
+            editField === "body" ||
+            editField === "company"
+              ? "visible"
+              : "hidden",
           whiteSpace: editField === "badge" ? "nowrap" : "pre-wrap",
           wordBreak: editField === "badge" ? "normal" : "break-word",
           caretColor: String(editStyle.color ?? "#111827"),
@@ -1359,6 +1401,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             onCanvasDoubleClick={onCanvasDoubleClick}
             onSelectableClick={(field, event) => {
               event.stopPropagation();
+              if (event.detail >= 2) {
+                activateCanvasField(field, event.currentTarget);
+                return;
+              }
               selectCanvasField(field, event.currentTarget);
             }}
             onSelectableDoubleClick={(field, event) => {

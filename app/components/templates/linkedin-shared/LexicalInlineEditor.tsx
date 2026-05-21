@@ -105,6 +105,8 @@ type Props = {
   className?: string;
   style?: CSSProperties;
   multiline?: boolean;
+  editable?: boolean;
+  showToolbar?: boolean;
   onAlignChange?: (align: "left" | "center" | "right") => void;
   onBlur: (event: FocusEvent<HTMLElement>) => void;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
@@ -224,6 +226,8 @@ function buildCssStyle(style: RichStyle) {
   if (style.fontFamily) entries.push(`font-family:${style.fontFamily}`);
   if (style.fontSize) entries.push(`font-size:${style.fontSize}px`);
   if (style.color) entries.push(`color:${style.color}`);
+  if (style.fontWeight) entries.push(`font-weight:${style.fontWeight}`);
+  if (style.fontStyle) entries.push(`font-style:${style.fontStyle}`);
   if (style.highlight) {
     entries.push(
       `background-color:${style.highlightColor ?? "rgba(250,204,21,0.18)"}`,
@@ -521,9 +525,11 @@ function EnterBehaviorPlugin({ multiline }: { multiline: boolean }) {
 
 function NativeToolbarPlugin({
   multiline,
+  enabled,
   onAlignChange,
 }: {
   multiline: boolean;
+  enabled: boolean;
   onAlignChange?: (align: "left" | "center" | "right") => void;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -596,7 +602,11 @@ function NativeToolbarPlugin({
           "rgba(250,204,21,0.28)",
         ) || "rgba(250,204,21,0.28)";
       const anchorNode = selection.anchor.getNode();
-      const topLevel = anchorNode.getTopLevelElementOrThrow();
+      const topLevel = anchorNode.getTopLevelElement();
+      if (!topLevel) {
+        setToolbar((prev) => ({ ...prev, visible: false }));
+        return;
+      }
       const format = $isElementNode(topLevel) ? topLevel.getFormatType() : "";
       const textAlign: "left" | "center" | "right" =
         format === "center" || format === "right" ? format : "left";
@@ -738,7 +748,7 @@ function NativeToolbarPlugin({
     [editor, toolbar.listType, updateToolbar],
   );
 
-  if (!toolbar.visible || typeof document === "undefined") {
+  if (!enabled || !toolbar.visible || typeof document === "undefined") {
     return null;
   }
 
@@ -911,6 +921,8 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
       className,
       style,
       multiline = true,
+      editable = true,
+      showToolbar = true,
       onAlignChange,
       onBlur,
       onKeyDown,
@@ -1080,14 +1092,14 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
     const initialConfig = useMemo(
       () => ({
         namespace: "template-inline-editor",
-        editable: true,
+        editable,
         theme: {},
         nodes: [ParagraphNode, TextNode, LineBreakNode, ListNode, ListItemNode],
         onError(error: Error) {
           throw error;
         },
       }),
-      [],
+      [editable],
     );
 
     return (
@@ -1096,6 +1108,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         <EnterBehaviorPlugin multiline={multiline} />
         <NativeToolbarPlugin
           multiline={multiline}
+          enabled={editable && showToolbar}
           onAlignChange={onAlignChange}
         />
         <ListPlugin />

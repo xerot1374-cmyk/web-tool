@@ -73,7 +73,12 @@ export default function TemplateAStickyToolbar({
   if (!visible) return null;
 
   return (
-    <div className="editor-bottomToolbar editor-shell-card">
+    <div
+      className="editor-bottomToolbar editor-shell-card"
+      onMouseDown={(event) => {
+        event.preventDefault();
+      }}
+    >
       <div className="editor-bottomToolbar__meta">
         <span className="editor-bottomToolbar__label">Editing</span>
         <span className="editor-bottomToolbar__field">{activeField}</span>

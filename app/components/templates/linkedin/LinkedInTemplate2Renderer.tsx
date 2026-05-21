@@ -141,6 +141,7 @@ export type LinkedInTemplate2RendererProps = {
   scale?: number;
   activeRichTextEditor?: {
     field: "badge" | "title" | "body" | "company";
+    sessionKey: number;
     editorRef: React.Ref<LexicalInlineEditorHandle>;
     text: string;
     marks: TextMark[];
@@ -239,6 +240,7 @@ function renderMarkedText(
   text: string,
   marks?: TextMark[],
   blocks?: RichTextBlock[],
+  baseStyle?: React.CSSProperties,
 ) {
   const t = String(text ?? "");
   const safeMarks =
@@ -299,6 +301,24 @@ function renderMarkedText(
     return out;
   };
 
+  const getLeadingListItemStyle = (
+    rangeStart: number,
+    rangeEnd: number,
+  ): React.CSSProperties | undefined => {
+    const leadingMark = safeMarks.find(
+      (mark) => mark.end > rangeStart && mark.start < rangeEnd,
+    );
+    if (!leadingMark) return undefined;
+
+    return {
+      fontFamily: leadingMark.style.fontFamily ?? baseStyle?.fontFamily,
+      fontSize: leadingMark.style.fontSize ?? baseStyle?.fontSize,
+      color: leadingMark.style.color ?? baseStyle?.color,
+      fontWeight: leadingMark.style.fontWeight ?? baseStyle?.fontWeight,
+      fontStyle: leadingMark.style.fontStyle ?? baseStyle?.fontStyle,
+    };
+  };
+
   const safeBlocks =
     blocks
       ?.map((block) => ({
@@ -324,14 +344,13 @@ function renderMarkedText(
 
   const flushList = () => {
     if (!listType || !listItems.length) return;
-    const Tag = listType === "bullet" ? "ul" : "ol";
     nodes.push(
-      <Tag
+      <div
         key={`list-${nodes.length}`}
-        style={{ margin: 0, paddingInlineStart: "1.25em" }}
+        style={{ display: "grid", gap: "0.2em", margin: 0 }}
       >
         {listItems}
-      </Tag>,
+      </div>,
     );
     listItems = [];
     listType = null;
@@ -345,7 +364,39 @@ function renderMarkedText(
         flushList();
       }
       listType = block.type;
-      listItems.push(<li key={`li-${index}`}>{content}</li>);
+      const itemStyle = getLeadingListItemStyle(
+        block.contentStart,
+        block.contentEnd,
+      );
+      listItems.push(
+        <div
+          key={`li-${index}`}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "max-content minmax(0, 1fr)",
+            columnGap: "0.65em",
+            alignItems: "start",
+            overflow: "visible",
+            ...baseStyle,
+            ...itemStyle,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              minWidth: listType === "number" ? "1.8em" : "1.1em",
+              font: "inherit",
+              lineHeight: "inherit",
+              display: "inline-block",
+              textAlign: "right",
+              flexShrink: 0,
+            }}
+          >
+            {block.type === "number" ? `${listItems.length + 1}.` : "•"}
+          </span>
+          <div style={{ minWidth: 0, overflow: "visible" }}>{content}</div>
+        </div>,
+      );
       return;
     }
 
@@ -366,7 +417,7 @@ function renderRichHtml(html?: string) {
   if (!html?.trim()) return null;
   return (
     <div
-      style={{ display: "contents" }}
+      className="li2-richTextHtml"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
@@ -378,6 +429,32 @@ function getCropValues(img?: ImageItem) {
     cropY: Number.isFinite(img?.cropY) ? Number(img?.cropY) : 50,
     cropScale: Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1,
   };
+}
+
+function renderRichTextContent(params: {
+  active: React.ReactNode | null;
+  html?: string;
+  text: string;
+  marks?: TextMark[];
+  blocks?: RichTextBlock[];
+  baseStyle?: React.CSSProperties;
+  emptyFallback?: React.ReactNode;
+}) {
+  const {
+    active,
+    html,
+    text,
+    marks,
+    blocks,
+    baseStyle,
+    emptyFallback = "\u00A0",
+  } = params;
+
+  return (
+    active ??
+    (renderRichHtml(html) ??
+      (text ? renderMarkedText(text, marks, blocks, baseStyle) : emptyFallback))
+  );
 }
 
 export default function LinkedInTemplate2Renderer({
@@ -403,6 +480,7 @@ export default function LinkedInTemplate2Renderer({
 
     return (
       <LexicalInlineEditor
+        key={`${field}-${activeRichTextEditor.sessionKey}`}
         ref={activeRichTextEditor.editorRef}
         text={activeRichTextEditor.text}
         marks={activeRichTextEditor.marks}
@@ -789,11 +867,14 @@ export default function LinkedInTemplate2Renderer({
               }
               style={{ cursor: isEdit ? "pointer" : undefined }}
             >
-              {renderActiveRichTextEditor("badge") ??
-                renderRichHtml(data.badgeHtml) ??
-                (vBadge
-                  ? renderMarkedText(vBadge, data.badgeMarks, data.badgeBlocks)
-                  : "\u00A0")}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("badge"),
+                html: data.badgeHtml,
+                text: vBadge,
+                marks: data.badgeMarks,
+                blocks: data.badgeBlocks,
+                baseStyle: data.badgeStyle,
+              })}
             </div>
           </div>
 
@@ -838,11 +919,14 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.titleStyle?.textAlign,
               }}
             >
-              {renderActiveRichTextEditor("title") ??
-                renderRichHtml(data.titleHtml) ??
-                (vTitle
-                  ? renderMarkedText(vTitle, data.titleMarks, data.titleBlocks)
-                  : "\u00A0")}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("title"),
+                html: data.titleHtml,
+                text: vTitle,
+                marks: data.titleMarks,
+                blocks: data.titleBlocks,
+                baseStyle: data.titleStyle,
+              })}
             </div>
           ) : null}
 
@@ -861,13 +945,14 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.companyStyle?.textAlign,
               }}
             >
-              {renderActiveRichTextEditor("company") ??
-                renderRichHtml(data.companyHtml) ??
-                renderMarkedText(
-                  vCompany,
-                  data.companyMarks,
-                  data.companyBlocks,
-                )}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("company"),
+                html: data.companyHtml,
+                text: vCompany,
+                marks: data.companyMarks,
+                blocks: data.companyBlocks,
+                baseStyle: data.companyStyle,
+              })}
             </div>
           ) : null}
 
@@ -952,9 +1037,15 @@ export default function LinkedInTemplate2Renderer({
                 textAlign: data.bodyStyle?.textAlign,
               }}
             >
-              {renderActiveRichTextEditor("body") ??
-                renderRichHtml(data.bodyHtml) ??
-                renderMarkedText(vBody, data.bodyMarks, data.bodyBlocks)}
+              {renderRichTextContent({
+                active: renderActiveRichTextEditor("body"),
+                html: data.bodyHtml,
+                text: vBody,
+                marks: data.bodyMarks,
+                blocks: data.bodyBlocks,
+                baseStyle: data.bodyStyle,
+                emptyFallback: null,
+              })}
             </div>
           ) : null}
 

@@ -226,6 +226,7 @@ export type VideoClipboardPayload = {
 
 export type ActiveRichTextEditor = {
   field: RichEditField;
+  sessionKey: number;
   editorRef: React.Ref<LexicalInlineEditorHandle>;
   text: string;
   marks: TextMark[];
