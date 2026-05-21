@@ -2,6 +2,8 @@
 
 import React from "react";
 import { FRAME_PRESETS, type FrameSlot } from "@/app/lib/imageLayouts";
+import ToolboxSection from "./ToolboxSection";
+import ToolboxTextField from "./ToolboxTextField";
 
 type TextMark = {
   start: number;
@@ -181,80 +183,54 @@ export default function LinkedInToolbox({
       </div>
 
       <div className="tb__scroll">
-        <section className="tb__section">
-          <div className="tb__sectionTitle">
-            <span>Content</span>
-            <span className="tb__sectionMeta">Core message</span>
-          </div>
+        <ToolboxSection title="Content" meta="Core message">
+          <ToolboxTextField
+            label="Eye-Catcher"
+            value={badgeText}
+            inputRef={badgeRef}
+            onFocus={() => setActiveField("badge")}
+            onSelect={() => setActiveField("badge")}
+            onDoubleClick={() => setActiveField("badge")}
+            onChange={(value, selectionStart) => {
+              if (onTextChange) {
+                onTextChange("badge", value, selectionStart);
+              } else {
+                setBadgeText(value);
+              }
+            }}
+          />
 
-          <div className="editor-field">
-            <label className="editor-label">Eye-Catcher</label>
-            <input
-              ref={badgeRef}
-              className="editor-input"
-              value={badgeText}
-              onFocus={() => setActiveField("badge")}
-              onSelect={() => setActiveField("badge")}
-              onDoubleClick={() => setActiveField("badge")}
-              onChange={(e) => {
-                if (onTextChange) {
-                  onTextChange(
-                    "badge",
-                    e.target.value,
-                    e.target.selectionStart,
-                  );
-                } else {
-                  setBadgeText(e.target.value);
-                }
-              }}
-            />
-          </div>
+          <ToolboxTextField
+            label="Title"
+            value={title}
+            inputRef={titleRef}
+            onFocus={() => setActiveField("title")}
+            onSelect={() => setActiveField("title")}
+            onDoubleClick={() => setActiveField("title")}
+            onChange={(value, selectionStart) => {
+              if (onTextChange) {
+                onTextChange("title", value, selectionStart);
+              } else {
+                setTitle(value);
+              }
+            }}
+          />
 
-          <div className="editor-field">
-            <label className="editor-label">Title</label>
-            <input
-              ref={titleRef}
-              className="editor-input"
-              value={title}
-              onFocus={() => setActiveField("title")}
-              onSelect={() => setActiveField("title")}
-              onDoubleClick={() => setActiveField("title")}
-              onChange={(e) => {
-                if (onTextChange) {
-                  onTextChange(
-                    "title",
-                    e.target.value,
-                    e.target.selectionStart,
-                  );
-                } else {
-                  setTitle(e.target.value);
-                }
-              }}
-            />
-          </div>
-
-          <div className="editor-field">
-            <label className="editor-label">Company</label>
-            <input
-              ref={companyRef}
-              className="editor-input"
-              value={company}
-              onFocus={() => setActiveField("company")}
-              onSelect={() => setActiveField("company")}
-              onDoubleClick={() => setActiveField("company")}
-              onChange={(e) => {
-                if (onTextChange) {
-                  onTextChange(
-                    "company",
-                    e.target.value,
-                    e.target.selectionStart,
-                  );
-                } else {
-                  setCompany(e.target.value);
-                }
-              }}
-            />
-          </div>
+          <ToolboxTextField
+            label="Company"
+            value={company}
+            inputRef={companyRef}
+            onFocus={() => setActiveField("company")}
+            onSelect={() => setActiveField("company")}
+            onDoubleClick={() => setActiveField("company")}
+            onChange={(value, selectionStart) => {
+              if (onTextChange) {
+                onTextChange("company", value, selectionStart);
+              } else {
+                setCompany(value);
+              }
+            }}
+          />
 
           <div className="editor-field">
             <label className="editor-label">Body</label>
@@ -281,14 +257,9 @@ export default function LinkedInToolbox({
               rows={6}
             />
           </div>
-        </section>
+        </ToolboxSection>
 
-        <section className="tb__section">
-          <div className="tb__sectionTitle">
-            <span>Link</span>
-            <span className="tb__sectionMeta">CTA</span>
-          </div>
-
+        <ToolboxSection title="Link" meta="CTA">
           <div className="editor-field">
             <label className="editor-label">Add Link (press Enter)</label>
 
@@ -325,14 +296,9 @@ export default function LinkedInToolbox({
               </div>
             ) : null}
           </div>
-        </section>
+        </ToolboxSection>
 
-        <section className="tb__section">
-          <div className="tb__sectionTitle">
-            <span>Product</span>
-            <span className="tb__sectionMeta">Assets</span>
-          </div>
-
+        <ToolboxSection title="Product" meta="Assets">
           <div className="editor-field">
             <label className="editor-label">Add Image</label>
             <input
@@ -432,14 +398,9 @@ export default function LinkedInToolbox({
               </div>
             </>
           ) : null}
-        </section>
+        </ToolboxSection>
 
-        <section className="tb__section">
-          <div className="tb__sectionTitle">
-            <span>Media</span>
-            <span className="tb__sectionMeta">Video</span>
-          </div>
-
+        <ToolboxSection title="Media" meta="Video">
           <div className="editor-field">
             <label className="editor-label">Video</label>
             <input
@@ -448,16 +409,12 @@ export default function LinkedInToolbox({
               onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
             />
           </div>
-        </section>
+        </ToolboxSection>
 
-        <section className="tb__section">
-          <div className="tb__sectionTitle">
-            <span>Caption</span>
-            <span className="tb__sectionMeta">
-              {activeField === "caption" ? "Active" : "Social copy"}
-            </span>
-          </div>
-
+        <ToolboxSection
+          title="Caption"
+          meta={activeField === "caption" ? "Active" : "Social copy"}
+        >
           <textarea
             ref={captionRef}
             className="editor-textarea"
@@ -499,9 +456,9 @@ export default function LinkedInToolbox({
               <div className="tb__captionText">
                 {renderMarkedText(caption, captionMarks)}
               </div>
-            </div>
-          ) : null}
-        </section>
+              </div>
+            ) : null}
+        </ToolboxSection>
       </div>
     </aside>
   );

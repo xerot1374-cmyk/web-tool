@@ -2,7 +2,9 @@
 
 import React, { useMemo, useRef, useCallback } from "react";
 import { resolveFrameSlots, type FrameSlot } from "@/app/lib/imageLayouts";
-import LexicalInlineEditor from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import LexicalInlineEditor, {
+  type LexicalInlineEditorHandle,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 export type MediaBox = {
   x: number;
@@ -128,7 +130,7 @@ export type LinkedInTemplate2RendererProps = {
   scale?: number;
   activeRichTextEditor?: {
     field: "badge" | "title" | "body" | "company";
-    editorRef: React.Ref<unknown>;
+    editorRef: React.Ref<LexicalInlineEditorHandle>;
     text: string;
     marks: TextMark[];
     multiline: boolean;

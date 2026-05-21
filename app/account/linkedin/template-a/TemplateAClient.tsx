@@ -3,129 +3,64 @@
 import LinkedInEditorBaseClient from "@/app/components/templates/linkedin-shared/LinkedInEditorBaseClient";
 import LinkedInEditorLayout from "@/app/components/templates/linkedin-shared/LinkedInEditorLayout";
 import { LinkedInToolbox } from "@/app/components/templates/linkedin-shared/ToolBox";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-  type CSSProperties,
-} from "react";
-import { useRouter } from "next/navigation";
-import { type LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
-
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
 import {
-  FRAME_PRESETS,
+  useMemo,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type RefObject,
+} from "react";
+import { type LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import {
   getFirstAvailableFrameSlotId,
   getHeaderHeightForPreset,
   resolveFrameSlots,
   type FrameSlot,
   type ImageLayoutMode,
 } from "@/app/lib/imageLayouts";
+import { CANVAS_PRESETS, getCanvasFrame } from "@/app/lib/renderUtils";
+import TemplateAExportPanel from "./components/TemplateAExportPanel";
+import TemplateAPreview from "./components/TemplateAPreview";
+import type {
+  ActiveRichTextEditor,
+  BoxTextStyle,
+  CanvasPresetKey,
+  DragMode,
+  EditField,
+  EditorTextField,
+  FieldErrors,
+  ImageClipboardPayload,
+  ImageItem,
+  ImagePayloadItem,
+  MediaBox,
+  PdfPayload,
+  RichEditField,
+  RichStyle,
+  SelectableId,
+  TemplateAClientProps,
+  TextMark,
+  VideoClipboardPayload,
+  VideoSnapshot,
+} from "./lib/templateA.types";
 import {
-  CANVAS_PRESETS,
-  getCanvasFrame,
-  type CanvasPreset,
-} from "@/app/lib/renderUtils";
-
-type SessionUser = {
-  name: string;
-  role: string;
-  profileImage: string | null;
-};
-
-type TemplateAClientProps = {
-  sessionUser: SessionUser | null;
-};
-
-type FieldErrors = {
-  title?: string;
-  body?: string;
-};
-
-type RichStyle = {
-  fontFamily?: string;
-  fontSize?: number;
-  color?: string;
-  highlight?: boolean;
-  highlightColor?: string;
-  fontWeight?: number | string;
-  fontStyle?: "normal" | "italic";
-};
-
-export type TextMark = {
-  start: number;
-  end: number;
-  style: RichStyle;
-};
-
-type MediaBox = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-};
-
-type ImageItem = {
-  id: string;
-  src: string;
-  base64?: string;
-  orientation: "landscape" | "portrait";
-  frameSlotId?: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  cropX?: number;
-  cropY?: number;
-  cropScale?: number;
-};
-
-type ImagePayloadItem = {
-  id: string;
-  src?: string;
-  base64?: string;
-  orientation: "landscape" | "portrait";
-  frameSlotId?: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  cropX?: number;
-  cropY?: number;
-  cropScale?: number;
-};
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function normalizeUrl(raw: string): string | undefined {
-  const v = raw.trim();
-  if (!v) return undefined;
-  if (v.startsWith("http://") || v.startsWith("https://")) return v;
-  return `https://${v}`;
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function getLineBounds(text: string, index: number) {
-  const safeIndex = clamp(index, 0, text.length);
-  const start = text.lastIndexOf("\n", Math.max(0, safeIndex - 1)) + 1;
-  const next = text.indexOf("\n", safeIndex);
-  const end = next === -1 ? text.length : next;
-  return { start, end };
-}
+  DEFAULT_FRAME_PRESET_ID,
+  angleFromCenter,
+  arrangeImagesForLayout,
+  clamp,
+  copyTextToClipboard,
+  fileToBase64,
+  getLineBounds,
+  getPdfModeAndPayload,
+  imageToViewportRect,
+  isEditableTarget,
+  isPreviewSelectableId,
+  normalizeAngle,
+  normalizeUrl,
+  safePx,
+  uid,
+} from "./lib/templateA.utils";
 
 type LinePrefixChange = {
   oldLineStart: number;
@@ -134,514 +69,7 @@ type LinePrefixChange = {
   newPrefixLength: number;
 };
 
-async function copyTextToClipboard(
-  text: string,
-  fallbackEl?: HTMLTextAreaElement | HTMLInputElement | null,
-) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    try {
-      if (!fallbackEl) return false;
-      fallbackEl.focus();
-      fallbackEl.select();
-      document.execCommand("copy");
-      return true;
-    } catch {
-      return false;
-    }
-  }
-}
-
-type BoxTextStyle = {
-  fontFamily: string;
-  fontSize: number;
-  color: string;
-  textAlign: "left" | "center" | "right";
-};
-
-type PdfPayload = {
-  profileImage: string;
-  name: string;
-  role: string;
-
-  productImage?: string;
-  productOrientation?: "landscape" | "portrait";
-  productAlign?: "left" | "center" | "right";
-  imageLayout?: ImageLayoutMode;
-  framePresetId?: string;
-  frameSlots?: FrameSlot[];
-  productImageBase64?: string;
-  mediaBox?: MediaBox;
-
-  images?: ImagePayloadItem[];
-
-  badgeText?: string;
-  badgeStyle?: BoxTextStyle;
-
-  linkTitle?: string;
-  company?: string;
-  headline?: string;
-  subline?: string;
-  bodyText?: string;
-  bodyMarks?: TextMark[];
-  titleMarks?: TextMark[];
-  badgeMarks?: TextMark[];
-  companyMarks?: TextMark[];
-  captionMarks?: TextMark[];
-
-  titleStyle?: BoxTextStyle;
-  bodyStyle?: BoxTextStyle;
-  companyStyle?: BoxTextStyle;
-  headlineStyle?: BoxTextStyle;
-  sublineStyle?: BoxTextStyle;
-
-  link?: string;
-  linkLabel?: string;
-
-  canvasPreset?: "linkedin" | "instagram" | "instagramStory";
-};
-
-declare global {
-  interface Window {
-    __PDF_PAYLOAD__?: PdfPayload;
-  }
-}
-
-function getPdfModeAndPayload(): {
-  isPdf: boolean;
-  payload: PdfPayload | null;
-} {
-  if (typeof window === "undefined") return { isPdf: false, payload: null };
-  const isPdf =
-    new URLSearchParams(window.location.search).get("__pdf") === "1";
-  const payload = isPdf ? (window.__PDF_PAYLOAD__ ?? null) : null;
-  return { isPdf, payload };
-}
-
-type CanvasPresetKey = CanvasPreset;
-
-const CANVAS_LABELS: Record<CanvasPresetKey, string> = {
-  linkedin: "LinkedIn (800×3000)",
-  instagram: "Instagram Feed (1080×1080)",
-  instagramStory: "Instagram Story (1080×1920)",
-};
-
-type SelectableId =
-  | "title"
-  | "body"
-  | "badge"
-  | "productImage"
-  | "frameSlot"
-  | "video"
-  | "links"
-  | "company"
-  | "headline"
-  | "subline";
-
-const PREVIEW_TEXT_SELECTABLE_IDS = new Set<SelectableId>([
-  "title",
-  "body",
-  "badge",
-  "company",
-]);
-
-const PREVIEW_SELECTABLE_IDS = new Set<SelectableId>([
-  ...PREVIEW_TEXT_SELECTABLE_IDS,
-  "productImage",
-  "frameSlot",
-  "video",
-]);
-
-function isPreviewTextSelectableId(
-  id: SelectableId | null,
-): id is "title" | "body" | "badge" | "company" {
-  return id !== null && PREVIEW_TEXT_SELECTABLE_IDS.has(id);
-}
-
-function isPreviewSelectableId(id: string): id is SelectableId {
-  return PREVIEW_SELECTABLE_IDS.has(id as SelectableId);
-}
-
-type EditorTextField = "title" | "body" | "badge" | "company" | "caption";
-
-type EditField = Exclude<EditorTextField, "caption"> | null;
-
-type RichEditField = "title" | "body" | "company" | "badge";
-
-type DragMode =
-  | "frame-swap"
-  | "frame-image-pan"
-  | "frame-image-scale"
-  | "move"
-  | "resize-n"
-  | "resize-s"
-  | "resize-e"
-  | "resize-w"
-  | "resize-ne"
-  | "resize-nw"
-  | "resize-se"
-  | "resize-sw"
-  | "rotate";
-
-type SelectionHandle = {
-  key: string;
-  cursor: string;
-  mode: DragMode;
-  left?: number | string;
-  right?: number | string;
-  top?: number | string;
-  bottom?: number | string;
-  transform?: string;
-};
-
-type ImageClipboardPayload = {
-  type: "image";
-  image: ImageItem;
-};
-
-type VideoSnapshot = {
-  videoFile: File | null;
-  videoPreviewUrl: string | null;
-  videoBox: MediaBox;
-  videoZIndex: number;
-};
-
-type VideoClipboardPayload = {
-  type: "video";
-  snapshot: VideoSnapshot;
-} | null;
-
-function safePx(v: string | null | undefined, fallback: number) {
-  const n = v ? parseFloat(v) : NaN;
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function uid() {
-  return Math.random().toString(36).slice(2, 11);
-}
-
-function imageToViewportRect(
-  image: Pick<ImageItem, "x" | "y" | "w" | "h">,
-  _scale: number,
-) {
-  return new DOMRect(image.x, image.y, image.w, image.h);
-}
-
-function normalizeAngle(deg: number) {
-  let n = deg % 360;
-  if (n < 0) n += 360;
-  return n;
-}
-
-function angleFromCenter(cx: number, cy: number, px: number, py: number) {
-  return (Math.atan2(py - cy, px - cx) * 180) / Math.PI;
-}
-
-function isEditableTarget(el: EventTarget | null) {
-  const node = el as HTMLElement | null;
-  if (!node) return false;
-  const tag = node.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "TEXTAREA" ||
-    node.isContentEditable ||
-    Boolean(node.closest("input, textarea, [contenteditable='true']"))
-  );
-}
-
-function getCropX(img?: ImageItem | null) {
-  return Number.isFinite(img?.cropX) ? Number(img?.cropX) : 50;
-}
-function getCropY(img?: ImageItem | null) {
-  return Number.isFinite(img?.cropY) ? Number(img?.cropY) : 50;
-}
-function getCropScale(img?: ImageItem | null) {
-  return Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1;
-}
-
-function getImageAspectRatio(
-  image: Pick<ImageItem, "w" | "h" | "orientation">,
-) {
-  if (image.w > 0 && image.h > 0) {
-    return image.w / image.h;
-  }
-  return image.orientation === "portrait" ? 3 / 4 : 4 / 3;
-}
-
-function fitImageToBounds(
-  image: Pick<ImageItem, "w" | "h" | "orientation">,
-  maxW: number,
-  maxH: number,
-) {
-  const aspectRatio = getImageAspectRatio(image);
-  let width = maxW;
-  let height = width / aspectRatio;
-
-  if (height > maxH) {
-    height = maxH;
-    width = height * aspectRatio;
-  }
-
-  return {
-    w: Math.max(120, Math.round(width)),
-    h: Math.max(120, Math.round(height)),
-  };
-}
-
-function getCollageSlots(
-  count: number,
-  canvasW: number,
-  headerH: number,
-  align: "left" | "center" | "right",
-) {
-  const alignShift =
-    align === "left" ? -canvasW * 0.12 : align === "right" ? canvasW * 0.12 : 0;
-
-  if (count <= 1) {
-    return [
-      {
-        cx: canvasW * 0.5 + alignShift,
-        cy: headerH * 0.57,
-        bw: canvasW * 0.44,
-        bh: headerH * 0.5,
-        rotation: -3,
-      },
-    ];
-  }
-
-  if (count === 2) {
-    return [
-      {
-        cx: canvasW * 0.4 + alignShift,
-        cy: headerH * 0.57,
-        bw: canvasW * 0.34,
-        bh: headerH * 0.45,
-        rotation: -9,
-      },
-      {
-        cx: canvasW * 0.62 + alignShift,
-        cy: headerH * 0.52,
-        bw: canvasW * 0.34,
-        bh: headerH * 0.45,
-        rotation: 8,
-      },
-    ];
-  }
-
-  if (count === 3) {
-    return [
-      {
-        cx: canvasW * 0.3 + alignShift,
-        cy: headerH * 0.59,
-        bw: canvasW * 0.28,
-        bh: headerH * 0.38,
-        rotation: -11,
-      },
-      {
-        cx: canvasW * 0.7 + alignShift,
-        cy: headerH * 0.57,
-        bw: canvasW * 0.28,
-        bh: headerH * 0.38,
-        rotation: 10,
-      },
-      {
-        cx: canvasW * 0.5 + alignShift,
-        cy: headerH * 0.5,
-        bw: canvasW * 0.35,
-        bh: headerH * 0.47,
-        rotation: -2,
-      },
-    ];
-  }
-
-  if (count === 4) {
-    return [
-      {
-        cx: canvasW * 0.31 + alignShift,
-        cy: headerH * 0.43,
-        bw: canvasW * 0.24,
-        bh: headerH * 0.33,
-        rotation: -10,
-      },
-      {
-        cx: canvasW * 0.68 + alignShift,
-        cy: headerH * 0.42,
-        bw: canvasW * 0.24,
-        bh: headerH * 0.33,
-        rotation: 9,
-      },
-      {
-        cx: canvasW * 0.38 + alignShift,
-        cy: headerH * 0.68,
-        bw: canvasW * 0.24,
-        bh: headerH * 0.33,
-        rotation: -4,
-      },
-      {
-        cx: canvasW * 0.62 + alignShift,
-        cy: headerH * 0.64,
-        bw: canvasW * 0.24,
-        bh: headerH * 0.33,
-        rotation: 6,
-      },
-    ];
-  }
-
-  const baseSlots = [
-    {
-      cx: canvasW * 0.25 + alignShift,
-      cy: headerH * 0.44,
-      bw: canvasW * 0.22,
-      bh: headerH * 0.3,
-      rotation: -12,
-    },
-    {
-      cx: canvasW * 0.74 + alignShift,
-      cy: headerH * 0.43,
-      bw: canvasW * 0.22,
-      bh: headerH * 0.3,
-      rotation: 12,
-    },
-    {
-      cx: canvasW * 0.35 + alignShift,
-      cy: headerH * 0.68,
-      bw: canvasW * 0.22,
-      bh: headerH * 0.3,
-      rotation: -6,
-    },
-    {
-      cx: canvasW * 0.65 + alignShift,
-      cy: headerH * 0.66,
-      bw: canvasW * 0.22,
-      bh: headerH * 0.3,
-      rotation: 7,
-    },
-    {
-      cx: canvasW * 0.5 + alignShift,
-      cy: headerH * 0.54,
-      bw: canvasW * 0.28,
-      bh: headerH * 0.38,
-      rotation: -1,
-    },
-  ];
-
-  return Array.from({ length: count }, (_, index) => {
-    if (index < baseSlots.length) return baseSlots[index];
-
-    const extraIndex = index - baseSlots.length;
-    return {
-      cx: canvasW * 0.5 + alignShift + (extraIndex % 2 === 0 ? -30 : 30),
-      cy: headerH * 0.52 + extraIndex * 16,
-      bw: canvasW * 0.18,
-      bh: headerH * 0.24,
-      rotation: extraIndex % 2 === 0 ? -8 : 8,
-    };
-  });
-}
-
-function arrangeImagesForLayout(
-  sourceImages: ImageItem[],
-  layout: ImageLayoutMode,
-  preset: CanvasPreset,
-  align: "left" | "center" | "right",
-  framePresetId: string,
-  frameSlotsOverride?: FrameSlot[],
-) {
-  if (sourceImages.length === 0) {
-    return sourceImages;
-  }
-
-  if (layout === "frame") {
-    const frameSlots = frameSlotsOverride?.length
-      ? frameSlotsOverride
-      : resolveFrameSlots(framePresetId, preset);
-    const slotIds = frameSlots.map((slot) => slot.id);
-    const assigned = new Set<string>();
-    let slotIndex = 0;
-
-    return sourceImages.map((img) => {
-      let nextSlotId =
-        img.frameSlotId && slotIds.includes(img.frameSlotId)
-          ? img.frameSlotId
-          : undefined;
-
-      if (!nextSlotId || assigned.has(nextSlotId)) {
-        while (slotIndex < slotIds.length && assigned.has(slotIds[slotIndex])) {
-          slotIndex += 1;
-        }
-        nextSlotId = slotIds[slotIndex];
-        slotIndex += 1;
-      }
-
-      if (!nextSlotId) {
-        return {
-          ...img,
-          frameSlotId: undefined,
-        };
-      }
-
-      assigned.add(nextSlotId);
-      const slot = frameSlots.find((item) => item.id === nextSlotId);
-      if (!slot) {
-        return {
-          ...img,
-          frameSlotId: undefined,
-        };
-      }
-
-      return {
-        ...img,
-        frameSlotId: nextSlotId,
-        x: slot.x,
-        y: slot.y,
-        w: slot.w,
-        h: slot.h,
-        rotation: 0,
-      };
-    });
-  }
-
-  if (layout !== "collage") {
-    return sourceImages;
-  }
-
-  const canvas = CANVAS_PRESETS[preset];
-  const headerH = getHeaderHeightForPreset(preset);
-  const safeTop = 118;
-  const safeBottom = 34;
-  const safeSide = 28;
-  const slots = getCollageSlots(sourceImages.length, canvas.w, headerH, align);
-
-  return sourceImages.map((img, index) => {
-    const slot = slots[index] ?? slots[slots.length - 1];
-    const fit = fitImageToBounds(img, slot.bw, slot.bh);
-    const x = clamp(
-      Math.round(slot.cx - fit.w / 2),
-      safeSide,
-      Math.max(safeSide, canvas.w - safeSide - fit.w),
-    );
-    const y = clamp(
-      Math.round(slot.cy - fit.h / 2),
-      safeTop,
-      Math.max(safeTop, headerH - safeBottom - fit.h),
-    );
-
-    return {
-      ...img,
-      x,
-      y,
-      w: fit.w,
-      h: fit.h,
-      rotation: normalizeAngle(slot.rotation),
-    };
-  });
-}
-
 export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
-  const router = useRouter();
-
   const [{ isPdf, payload }, setPdfCtx] = useState<{
     isPdf: boolean;
     payload: PdfPayload | null;
@@ -665,7 +93,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const [selectedFrameSlotId, setSelectedFrameSlotId] = useState<string | null>(
     null,
   );
-  const [hoverFrameSlotId, setHoverFrameSlotId] = useState<string | null>(null);
+  const [, setHoverFrameSlotId] = useState<string | null>(null);
   const [objectLayers, setObjectLayers] = useState({
     images: {} as Record<string, number>,
     video: 1,
@@ -722,7 +150,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
-  const [errors, setErrors] = useState<FieldErrors>({});
+  const [, setErrors] = useState<FieldErrors>({});
 
   const sessionName = sessionUser?.name ?? "";
   const sessionRole = sessionUser?.role ?? "";
@@ -808,10 +236,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   );
   const [imageLayout, setImageLayout] = useState<ImageLayoutMode>("manual");
   const [framePresetId, setFramePresetId] = useState<string>(
-    FRAME_PRESETS[0].id,
+    DEFAULT_FRAME_PRESET_ID,
   );
   const [frameSlotsState, setFrameSlotsState] = useState<FrameSlot[]>(() =>
-    resolveFrameSlots(FRAME_PRESETS[0].id, "linkedin"),
+    resolveFrameSlots(DEFAULT_FRAME_PRESET_ID, "linkedin"),
   );
 
   const [images, setImages] = useState<ImageItem[]>([]);
@@ -1181,7 +609,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       return next;
     });
     setObjectLayers((prev) => {
-      const { [imageId]: _removed, ...imagesById } = prev.images;
+      const imagesById = { ...prev.images };
+      delete imagesById[imageId];
       return { ...prev, images: imagesById };
     });
     setSelectedImageId(null);
@@ -1948,7 +1377,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
     setSelectedId("productImage");
     setSelectedImageId(current.id);
-    setSelectedRect(imageToViewportRect(current, previewScale));
+    setSelectedRect(imageToViewportRect(current));
     setEditField(null);
 
     const centerX = current.x + current.w / 2;
@@ -2318,7 +1747,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     if (selectedId !== "productImage" || !selectedImageId) return;
     const current = getSelectedImage();
     if (!current) return;
-    setSelectedRect(imageToViewportRect(current, previewScale));
+    setSelectedRect(imageToViewportRect(current));
   }, [images, previewScale, selectedId, selectedImageId]);
 
   useEffect(() => {
@@ -3073,7 +2502,9 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-  const activeRichTextEditor = isRichEditField(editField)
+  const activeRichTextEditor: ActiveRichTextEditor | null = isRichEditField(
+    editField,
+  )
     ? {
         field: editField,
         editorRef:
@@ -3149,12 +2580,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setProductOrientation(payload.productOrientation ?? "landscape");
     setProductAlign(payload.productAlign ?? "center");
     setImageLayout(payload.imageLayout ?? "manual");
-    setFramePresetId(payload.framePresetId ?? FRAME_PRESETS[0].id);
+    setFramePresetId(payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID);
     setFrameSlotsState(
       payload.frameSlots?.length
         ? payload.frameSlots
         : resolveFrameSlots(
-            payload.framePresetId ?? FRAME_PRESETS[0].id,
+            payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
             payload.canvasPreset ?? "linkedin",
           ),
     );
@@ -3217,11 +2648,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         productOrientation: payload.productOrientation ?? "landscape",
         productAlign: payload.productAlign ?? "center",
         imageLayout: payload.imageLayout ?? "manual",
-        framePresetId: payload.framePresetId ?? FRAME_PRESETS[0].id,
+        framePresetId: payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
         frameSlots: payload.frameSlots?.length
           ? payload.frameSlots
           : resolveFrameSlots(
-              payload.framePresetId ?? FRAME_PRESETS[0].id,
+              payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
               payload.canvasPreset ?? "linkedin",
             ),
         mediaBox: payload.mediaBox ?? mediaBox,
@@ -3570,6 +3001,26 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   const selectedImage = getSelectedImage();
+
+  function startSelectedFrameSlotResize(
+    e: React.MouseEvent<HTMLDivElement>,
+    mode: DragMode,
+  ) {
+    const current = getSelectedFrameSlot();
+    if (!current) return;
+
+    dragStateRef.current = {
+      mode,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startImage: selectedImage,
+      startFrameSlot: current,
+      startAngle: 0,
+      centerX: 0,
+      centerY: 0,
+    };
+  }
+
   const frameSlots = useMemo(
     () =>
       resolveFrameSlots(framePresetId, canvasPreset).map((slot) => ({
@@ -3578,71 +3029,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       })),
     [framePresetId, canvasPreset, images],
   );
-
-  const selectionHandles: SelectionHandle[] = selectedRect
-    ? [
-        {
-          key: "nw",
-          left: -8,
-          top: -8,
-          cursor: "nwse-resize",
-          mode: "resize-nw" as DragMode,
-        },
-        {
-          key: "n",
-          left: "50%",
-          top: -8,
-          transform: "translateX(-50%)",
-          cursor: "ns-resize",
-          mode: "resize-n" as DragMode,
-        },
-        {
-          key: "ne",
-          right: -8,
-          top: -8,
-          cursor: "nesw-resize",
-          mode: "resize-ne" as DragMode,
-        },
-        {
-          key: "e",
-          right: -8,
-          top: "50%",
-          transform: "translateY(-50%)",
-          cursor: "ew-resize",
-          mode: "resize-e" as DragMode,
-        },
-        {
-          key: "se",
-          right: -8,
-          bottom: -8,
-          cursor: "nwse-resize",
-          mode: "resize-se" as DragMode,
-        },
-        {
-          key: "s",
-          left: "50%",
-          bottom: -8,
-          transform: "translateX(-50%)",
-          cursor: "ns-resize",
-          mode: "resize-s" as DragMode,
-        },
-        {
-          key: "sw",
-          left: -8,
-          bottom: -8,
-          cursor: "nesw-resize",
-          mode: "resize-sw" as DragMode,
-        },
-        {
-          key: "w",
-          left: -8,
-          top: "50%",
-          transform: "translateY(-50%)",
-          cursor: "ew-resize",
-          mode: "resize-w" as DragMode,
-        },
-      ]
-    : [];
 
   if (isPdf) {
     return (
@@ -3698,496 +3084,48 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     >
       <LinkedInEditorLayout
         preview={
-          <>
-            <div className="editor-previewShell">
-              <div className="editor-previewHeader">
-                <div>
-                  <div className="editor-previewEyebrow">Live canvas</div>
-                  <h2 className="editor-previewTitle">Preview</h2>
-                  <p className="editor-previewText">
-                    Edit directly on canvas, then fine-tune details from the
-                    side panels.
-                  </p>
-                </div>
-
-                <label className="editor-previewControl">
-                  <span>Canvas</span>
-                  <select
-                    value={canvasPreset}
-                    onChange={(e) => {
-                      const v = e.target.value as CanvasPresetKey;
-                      setCanvasPreset(v);
-                      clearSelection();
-                    }}
-                    className="editor-previewSelect"
-                  >
-                    <option value="linkedin">{CANVAS_LABELS.linkedin}</option>
-                    <option value="instagram">{CANVAS_LABELS.instagram}</option>
-                    <option value="instagramStory">
-                      {CANVAS_LABELS.instagramStory}
-                    </option>
-                  </select>
-                </label>
-              </div>
-
-              <div className="preview-stage">
-                <div
-                  ref={canvasWrapRef}
-                  className="preview-canvasWrap"
-                  style={{
-                    width: previewViewportW,
-                    height: previewViewportH,
-                    position: "relative",
-                    overflow: "visible",
-                    userSelect: editField ? "text" : "none",
-                  }}
-                  onClick={onCanvasClick}
-                  onDoubleClick={onCanvasDoubleClick}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      overflow: "hidden",
-                      borderRadius: "inherit",
-                    }}
-                  >
-                    <div
-                      ref={stageRef}
-                      className="li2-stage"
-                      style={{
-                        width: currentCanvas.w,
-                        height: previewContentHeight,
-                        transform: `scale(${previewScale})`,
-                        transformOrigin: "top left",
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                      }}
-                    >
-                      <div className="li2-template">
-                        <LinkedInTemplate2
-                          scale={1}
-                          mode="edit"
-                          activeRichTextEditor={activeRichTextEditor}
-                          canvasPreset={canvasPreset}
-                          productImage={effective.productImage}
-                          productImages={effective.productImages}
-                          editorHideProductMedia
-                          editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
-                          productOrientation={effective.productOrientation}
-                          productAlign={effective.productAlign}
-                          imageLayout={effective.imageLayout}
-                          framePresetId={effective.framePresetId}
-                          frameSlots={effective.frameSlots}
-                          mediaBox={effective.mediaBox}
-                          profileImage={effective.profileImage}
-                          name={effective.name}
-                          role={effective.role}
-                          badgeText={effective.badgeText}
-                          badgeMarks={effective.badgeMarks}
-                          linkTitle={effective.linkTitle}
-                          titleMarks={effective.titleMarks}
-                          company={effective.company}
-                          companyMarks={effective.companyMarks}
-                          bodyText={effective.bodyText}
-                          bodyMarks={effective.bodyMarks}
-                          companyLogo="/logo.png"
-                          linkUrl={effective.linkUrl}
-                          headline={effective.headline}
-                          subline={effective.subline}
-                          titleStyle={effective.titleStyle}
-                          bodyStyle={effective.bodyStyle}
-                          badgeStyle={effective.badgeStyle}
-                          companyStyle={effective.companyStyle}
-                          headlineStyle={effective.headlineStyle}
-                          sublineStyle={effective.sublineStyle}
-                          onStartFrameImageDrag={startFrameImageDrag}
-                          onSelectableClick={(field, event) => {
-                            event.stopPropagation();
-                            selectCanvasField(field, event.currentTarget);
-                          }}
-                          onSelectableDoubleClick={(field, event) => {
-                            event.stopPropagation();
-                            activateCanvasField(field, event.currentTarget);
-                          }}
-                        />
-                      </div>
-
-                      {editorMediaImages.map((img) => {
-                      const cropX = Number.isFinite(img.cropX)
-                        ? Number(img.cropX)
-                        : 50;
-                      const cropY = Number.isFinite(img.cropY)
-                        ? Number(img.cropY)
-                        : 50;
-                      const cropScale = Number.isFinite(img.cropScale)
-                        ? Number(img.cropScale)
-                        : 1;
-
-                      return (
-                        <div
-                          key={`editor-media-${img.id}`}
-                          data-select="productImage"
-                          data-image-id={img.id}
-                          data-frame-slot-id={img.frameSlotId}
-                          aria-label="Product image"
-                          style={{
-                            position: "absolute",
-                            left: img.x,
-                            top: img.y,
-                            width: img.w,
-                            height: img.h,
-                            zIndex: img.zIndex,
-                            overflow: "hidden",
-                            borderRadius: img.radius,
-                            clipPath: img.clipPath,
-                            transform: `rotate(${img.rotation}deg)`,
-                            transformOrigin: "center center",
-                            border:
-                              imageLayout === "collage"
-                                ? "1px solid rgba(255,255,255,0.92)"
-                                : "1px solid rgba(15,23,42,0.10)",
-                            background:
-                              imageLayout === "collage"
-                                ? "#ffffff"
-                                : "transparent",
-                            pointerEvents: "auto",
-                            boxSizing: "border-box",
-                          }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            suppressNextCanvasClickRef.current = true;
-                            if (
-                              selectedId === "productImage" &&
-                              selectedImageId === img.id
-                            ) {
-                              startMediaInteraction(
-                                e,
-                                imageLayout === "frame"
-                                  ? "frame-image-pan"
-                                  : "move",
-                                img,
-                              );
-                              return;
-                            }
-                            selectImageObject(img);
-                          }}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            suppressNextCanvasClickRef.current = true;
-                            selectImageObject(img);
-                          }}
-                        >
-                          <img
-                            src={img.src}
-                            alt="product"
-                            draggable={false}
-                            style={{
-                              position: "absolute",
-                              left: `${cropX}%`,
-                              top: `${cropY}%`,
-                              width: `${cropScale * 100}%`,
-                              height: `${cropScale * 100}%`,
-                              maxWidth: "none",
-                              maxHeight: "none",
-                              transform: "translate(-50%, -50%)",
-                              objectFit: "cover",
-                              display: "block",
-                              userSelect: "none",
-                              pointerEvents: "none",
-                            }}
-                          />
-                        </div>
-                      );
-                    })}
-
-                      {videoPreviewUrl ? (
-                      <div
-                        data-select="video"
-                        aria-label="Uploaded video preview"
-                        style={{
-                          position: "absolute",
-                          left: videoBox.x,
-                          top: videoBox.y,
-                          width: videoBox.w,
-                          height: videoBox.h,
-                          zIndex: videoPreviewZIndex,
-                          overflow: "hidden",
-                          borderRadius: 20,
-                          transformOrigin: "center center",
-                          border: "1px solid rgba(15,23,42,0.10)",
-                          background: "#111827",
-                          pointerEvents: "auto",
-                          boxSizing: "border-box",
-                        }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          suppressNextCanvasClickRef.current = true;
-                          if (selectedId === "video") {
-                            startVideoInteraction(e, "move");
-                            return;
-                          }
-                          selectVideoObject();
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          suppressNextCanvasClickRef.current = true;
-                          selectVideoObject();
-                        }}
-                      >
-                        <video
-                          src={videoPreviewUrl}
-                          muted
-                          playsInline
-                          preload="metadata"
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            pointerEvents: "none",
-                            userSelect: "none",
-                          }}
-                        />
-                      </div>
-                    ) : null}
-
-                      {selectedRect &&
-                      !(editField && isPreviewTextSelectableId(selectedId)) ? (
-                      <div
-                        className={`editor-canvasSelection ${
-                          isPreviewTextSelectableId(selectedId)
-                            ? "editor-canvasSelection--text"
-                            : "editor-canvasSelection--media"
-                        }`}
-                        data-selection-overlay="true"
-                        data-media-selection-ui="true"
-                        data-select={selectedId ?? undefined}
-                        data-image-id={
-                          selectedId === "productImage"
-                            ? (selectedImageId ?? undefined)
-                            : undefined
-                        }
-                        data-active-element={selectedId ?? undefined}
-                        style={{
-                          position: "absolute",
-                          left: selectedRect.x,
-                          top: selectedRect.y,
-                          width: selectedRect.width,
-                          height: selectedRect.height,
-                          pointerEvents:
-                            (selectedId === "productImage" ||
-                              selectedId === "frameSlot" ||
-                              selectedId === "video") &&
-                            !editField
-                              ? "auto"
-                              : "none",
-                          boxSizing: "border-box",
-                          cursor:
-                            selectedId === "productImage"
-                              ? imageLayout === "frame"
-                                ? "grab"
-                                : "move"
-                              : selectedId === "video"
-                                ? "move"
-                                : "default",
-                          zIndex: 9999,
-                        }}
-                        onMouseDown={
-                          selectedId === "productImage"
-                            ? (e) => {
-                                e.stopPropagation();
-                                startMediaInteraction(
-                                  e,
-                                  imageLayout === "frame"
-                                    ? "frame-image-pan"
-                                    : "move",
-                                );
-                              }
-                            : selectedId === "video"
-                              ? (e) => {
-                                  e.stopPropagation();
-                                  startVideoInteraction(e, "move");
-                                }
-                              : undefined
-                        }
-                      >
-                        {(selectedId === "productImage" &&
-                          !editField &&
-                          imageLayout !== "frame") ||
-                        (selectedId === "video" && !editField) ||
-                        (imageLayout === "frame" &&
-                          !editField &&
-                          (selectedId === "productImage" ||
-                            selectedId === "frameSlot")) ? (
-                          <>
-                            {selectionHandles.map((h) => (
-                              <div
-                                key={h.key}
-                                data-resize-handle="true"
-                                style={{
-                                  position: "absolute",
-                                  width: 16,
-                                  height: 16,
-                                  borderRadius: 999,
-                                  background: "#2563eb",
-                                  border: "2px solid #fff",
-                                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                  cursor: h.cursor,
-                                  left: h.left,
-                                  right: h.right,
-                                  top: h.top,
-                                  bottom: h.bottom,
-                                  transform: h.transform,
-                                }}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (selectedId === "video") {
-                                    startVideoInteraction(e, h.mode);
-                                  } else if (
-                                    imageLayout === "frame" &&
-                                    selectedId === "frameSlot"
-                                  ) {
-                                    const current = getSelectedFrameSlot();
-                                    if (!current) return;
-                                    dragStateRef.current = {
-                                      mode: h.mode,
-                                      startClientX: e.clientX,
-                                      startClientY: e.clientY,
-                                      startImage: selectedImage,
-                                      startFrameSlot: current,
-                                      startAngle: 0,
-                                      centerX: 0,
-                                      centerY: 0,
-                                    };
-                                  } else {
-                                    startMediaInteraction(e, h.mode);
-                                  }
-                                }}
-                              />
-                            ))}
-
-                            {imageLayout !== "frame" &&
-                            selectedId === "productImage" ? (
-                              <div
-                                style={{
-                                  position: "absolute",
-                                  left: "50%",
-                                  top: -34,
-                                  width: 16,
-                                  height: 16,
-                                  borderRadius: 999,
-                                  background: "#111827",
-                                  border: "2px solid #fff",
-                                  transform: "translateX(-50%)",
-                                  cursor: "grab",
-                                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                }}
-                                onMouseDown={(e) =>
-                                  startMediaInteraction(e, "rotate")
-                                }
-                              />
-                            ) : null}
-
-                            {imageLayout === "frame" &&
-                            selectedId === "productImage" ? (
-                              <div
-                                title="Drag to move image inside frame"
-                                style={{
-                                  position: "absolute",
-                                  left: 16,
-                                  bottom: 16,
-                                  height: 28,
-                                  padding: "0 10px",
-                                  borderRadius: 999,
-                                  border: "1px solid rgba(0,0,0,0.12)",
-                                  background: "rgba(255,255,255,0.96)",
-                                  fontSize: 12,
-                                  display: "flex",
-                                  alignItems: "center",
-                                  cursor: "grab",
-                                }}
-                                onMouseDown={(e) =>
-                                  startMediaInteraction(e, "frame-image-pan")
-                                }
-                              >
-                                Move image
-                              </div>
-                            ) : null}
-
-                            {imageLayout === "frame" &&
-                            selectedId === "productImage" ? (
-                              <div
-                                title="Resize image inside frame"
-                                style={{
-                                  position: "absolute",
-                                  right: 18,
-                                  bottom: 18,
-                                  width: 18,
-                                  height: 18,
-                                  borderRadius: 6,
-                                  background: "#111827",
-                                  border: "2px solid #fff",
-                                  cursor: "nwse-resize",
-                                  boxShadow: "0 1px 4px rgba(0,0,0,0.25)",
-                                }}
-                                onMouseDown={(e) =>
-                                  startMediaInteraction(e, "frame-image-scale")
-                                }
-                              />
-                            ) : null}
-
-                            {selectedId === "productImage" ? (
-                              <button
-                                type="button"
-                                style={{
-                                  position: "absolute",
-                                  right: -8,
-                                  top: -40,
-                                  height: 28,
-                                  padding: "0 8px",
-                                  borderRadius: 999,
-                                  border: "1px solid rgba(0,0,0,0.12)",
-                                  background: "#fff",
-                                  fontSize: 12,
-                                  cursor: "pointer",
-                                }}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeSelectedImage();
-                                }}
-                              >
-                                Remove
-                              </button>
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {finalUrl ? (
-              <div className="preview-videoWrap">
-                <video
-                  className="preview-video"
-                  src={finalUrl}
-                  controls
-                  playsInline
-                />
-              </div>
-            ) : null}
-          </>
+          <TemplateAPreview
+            canvasPreset={canvasPreset}
+            onCanvasPresetChange={setCanvasPreset}
+            clearSelection={clearSelection}
+            previewViewportW={previewViewportW}
+            previewViewportH={previewViewportH}
+            previewScale={previewScale}
+            previewContentHeight={previewContentHeight}
+            currentCanvas={currentCanvas}
+            canvasWrapRef={canvasWrapRef}
+            stageRef={stageRef}
+            editField={editField}
+            selectedId={selectedId}
+            selectedImageId={selectedImageId}
+            imageLayout={imageLayout}
+            selectedRect={selectedRect}
+            activeRichTextEditor={activeRichTextEditor}
+            effective={effective}
+            editorMediaImages={editorMediaImages}
+            videoPreviewUrl={videoPreviewUrl}
+            videoBox={videoBox}
+            videoPreviewZIndex={videoPreviewZIndex}
+            finalUrl={finalUrl}
+            suppressNextCanvasClickRef={suppressNextCanvasClickRef}
+            onCanvasClick={onCanvasClick}
+            onCanvasDoubleClick={onCanvasDoubleClick}
+            onSelectableClick={(field, event) => {
+              event.stopPropagation();
+              selectCanvasField(field, event.currentTarget);
+            }}
+            onSelectableDoubleClick={(field, event) => {
+              event.stopPropagation();
+              activateCanvasField(field, event.currentTarget);
+            }}
+            onStartFrameImageDrag={startFrameImageDrag}
+            onImageSelect={selectImageObject}
+            onImageInteractionStart={startMediaInteraction}
+            onVideoSelect={selectVideoObject}
+            onVideoInteractionStart={startVideoInteraction}
+            onFrameSlotResizeStart={startSelectedFrameSlotResize}
+            onRemoveSelectedImage={removeSelectedImage}
+          />
         }
         toolbox={
           <LinkedInToolbox
@@ -4230,51 +3168,17 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           />
         }
         properties={
-          <div className="export-actions-panel">
-            <div className="export-actions-panel__header">
-              <h3>Export</h3>
-              <p>Generate or download the final content.</p>
-            </div>
-
-            <div className="export-actions-panel__actions">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  downloadPDF(e);
-                }}
-                disabled={loadingPdf || hasVideo}
-                className="tb__action tb__action--primary"
-              >
-                {loadingPdf ? "Generating PDF..." : "Download PDF"}
-              </button>
-              {hasVideo ? (
-                <p className="export-actions-panel__hint">
-                  PDF export is disabled while a video object is on the canvas.
-                  Please use Generate final.mp4.
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                onClick={(e) => generateFinal(e)}
-                disabled={finalLoading || !hasVideo}
-                className="tb__action tb__action--dark"
-              >
-                {finalLoading ? "Generating..." : "Generate final.mp4"}
-              </button>
-
-              {finalUrl ? (
-                <a
-                  href={finalUrl}
-                  download="final.mp4"
-                  className="tb__download"
-                >
-                  Download generated video
-                </a>
-              ) : null}
-            </div>
-          </div>
+          <TemplateAExportPanel
+            loadingPdf={loadingPdf}
+            hasVideo={hasVideo}
+            finalLoading={finalLoading}
+            finalUrl={finalUrl}
+            onDownloadPdf={(e) => {
+              e.preventDefault();
+              downloadPDF(e);
+            }}
+            onGenerateFinal={generateFinal}
+          />
         }
       />
     </LinkedInEditorBaseClient>
