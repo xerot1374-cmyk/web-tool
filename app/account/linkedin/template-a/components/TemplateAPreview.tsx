@@ -47,6 +47,7 @@ type EffectivePreviewData = {
   bodyMarks: TextMark[];
   bodyBlocks: RichTextBlock[];
   linkUrl?: string;
+  hashtags?: string;
   headline?: string;
   subline?: string;
   titleStyle: BoxTextStyle;
@@ -277,6 +278,7 @@ export default function TemplateAPreview({
                     bodyBlocks={effective.bodyBlocks}
                     companyLogo="/logo.png"
                     linkUrl={effective.linkUrl}
+                    hashtags={effective.hashtags}
                     headline={effective.headline}
                     subline={effective.subline}
                     titleStyle={effective.titleStyle}

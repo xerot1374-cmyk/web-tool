@@ -33,6 +33,8 @@ export default function useTemplateATextState() {
 
   const [link, setLink] = useState<string[]>([]);
   const [linkInput, setLinkInput] = useState("");
+  const [hashtags, setHashtags] = useState<string[]>([]);
+  const [hashtagInput, setHashtagInput] = useState("");
   const [company, setCompany] = useState("PROTOS-3D Metrology GmbH");
   const [activeField, setActiveField] = useState<EditorTextField>("body");
   const [copied, setCopied] = useState(false);
@@ -173,6 +175,19 @@ export default function useTemplateATextState() {
     }
   }
 
+  function handleAddHashtag(e: React.KeyboardEvent<HTMLInputElement>) {
+    const value = hashtagInput.trim();
+
+    if (e.key === "Enter" && value) {
+      e.preventDefault();
+      setHashtags((prev) => [
+        ...prev,
+        value.startsWith("#") ? value : `#${value}`,
+      ]);
+      setHashtagInput("");
+    }
+  }
+
   async function copyCaption(text: string, fieldRef?: HTMLTextAreaElement | HTMLInputElement | null) {
     const ok = await copyTextToClipboard(text, fieldRef);
     if (!ok) return;
@@ -231,6 +246,10 @@ export default function useTemplateATextState() {
     setLink,
     linkInput,
     setLinkInput,
+    hashtags,
+    setHashtags,
+    hashtagInput,
+    setHashtagInput,
     company,
     setCompany,
     setCompanyValue,
@@ -262,6 +281,7 @@ export default function useTemplateATextState() {
     getRichEditBlocks,
     getRichEditHtml,
     handleAddLink,
+    handleAddHashtag,
     copyCaption,
   };
 }

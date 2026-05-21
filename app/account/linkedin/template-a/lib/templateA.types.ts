@@ -161,6 +161,7 @@ export type PdfPayload = {
   sublineStyle?: BoxTextStyle;
   link?: string;
   linkLabel?: string;
+  hashtags?: string;
   canvasPreset?: CanvasPreset;
 };
 
@@ -174,6 +175,7 @@ export type SelectableId =
   | "frameSlot"
   | "video"
   | "links"
+  | "hashtags"
   | "company"
   | "headline"
   | "subline";

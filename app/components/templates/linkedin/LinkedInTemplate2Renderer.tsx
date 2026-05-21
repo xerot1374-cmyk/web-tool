@@ -109,6 +109,7 @@ export type LinkedInTemplate2Data = {
 
   linkUrl?: string | string[];
   linkUrls?: string[];
+  hashtags?: string | string[];
 
   productOrientation?: "landscape" | "portrait";
   productAlign?: "left" | "center" | "right";
@@ -199,6 +200,12 @@ function linkLabel(linkUrl: string) {
   const withoutProtocol = value.replace(/^https?:\/\//i, "");
   const host = withoutProtocol.split(/[/?#]/)[0];
   return (host || linkUrl.trim()).replace(/^www\./i, "");
+}
+
+function normalizeHashtag(raw: string) {
+  const value = raw.trim();
+  if (!value) return "";
+  return value.startsWith("#") ? value : `#${value}`;
 }
 
 function cx(...parts: Array<string | false | null | undefined>) {
@@ -623,6 +630,17 @@ export default function LinkedInTemplate2Renderer({
       .map((s) => normalizeHttpUrl(s))
       .filter(Boolean);
   }, [data.linkUrls, data.linkUrl]);
+
+  const hashtags = useMemo((): string[] => {
+    if (Array.isArray(data.hashtags)) {
+      return data.hashtags.map((value) => normalizeHashtag(value)).filter(Boolean);
+    }
+
+    return String(data.hashtags ?? "")
+      .split("\n")
+      .map((value) => normalizeHashtag(value))
+      .filter(Boolean);
+  }, [data.hashtags]);
 
   const linkText = useMemo(() => (urls[0] ? linkLabel(urls[0]) : ""), [urls]);
 
@@ -1160,6 +1178,22 @@ export default function LinkedInTemplate2Renderer({
                   ))}
                 </div>
               )}
+            </div>
+          ) : null}
+
+          {hashtags.length ? (
+            <div className="li2-linkRow" data-select="hashtags">
+              <div className="li2-linksList">
+                {hashtags.map((hashtag, index) => (
+                  <span
+                    key={`${hashtag}-${index}`}
+                    className="li2-link"
+                    style={{ display: "inline-block", marginRight: 12 }}
+                  >
+                    {hashtag}
+                  </span>
+                ))}
+              </div>
             </div>
           ) : null}
         </div>
