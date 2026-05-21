@@ -30,12 +30,19 @@ export default function ToolboxSection({
           {/*<span className="tb__sectionMeta">{meta}</span>*/}
         </div>
         {collapsible ? (
-          <button
-            type="button"
+          <div
             className="tb__sectionHeader"
+            role="button"
+            tabIndex={0}
             aria-expanded={open}
             aria-label={`${open ? "Hide" : "Show"} ${title} section`}
             onClick={() => setOpen((prev) => !prev)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setOpen((prev) => !prev);
+              }
+            }}
           >
             <span
               className={`tb__sectionToggleIcon${
@@ -43,9 +50,21 @@ export default function ToolboxSection({
               }`}
               aria-hidden="true"
             >
-              ▾
+              <svg
+                viewBox="0 0 12 12"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M3 4.5L6 7.5L9 4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </span>
-          </button>
+          </div>
         ) : null}
       </div>
       {!collapsible || open ? children : null}
