@@ -411,15 +411,19 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       cs.lineHeight === "normal"
         ? Math.round(fontSize * 1.35)
         : safePx(cs.lineHeight, Math.round(fontSize * 1.35));
+    const lineHeightRatio = Math.max(
+      1,
+      Number((lineHeight / Math.max(fontSize, 1)).toFixed(3)),
+    );
 
     setEditStyle({
       fontFamily: cs.fontFamily || "system-ui",
       fontSize,
       fontWeight: cs.fontWeight,
       letterSpacing: cs.letterSpacing,
-      lineHeight: `${lineHeight}px`,
+      lineHeight: String(lineHeightRatio),
       textAlign: (cs.textAlign as CSSProperties["textAlign"]) || "left",
-      padding: "0",
+      padding: cs.padding,
       margin: 0,
       color: cs.color || "#111827",
       background: "transparent",

@@ -198,7 +198,12 @@ export default function LinkedInToolbox({
       </div>
 
       <div className="tb__scroll">
-        <ToolboxSection title="Content" meta="Core message">
+        <ToolboxSection
+          title="Content"
+          meta="Core message"
+          collapsible
+          defaultOpen={true}
+        >
           <ToolboxTextField
             label="Eye-Catcher"
             value={badgeText}

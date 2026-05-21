@@ -748,11 +748,15 @@
 .template-inline-editor p,
 .template-inline-editor ul,
 .template-inline-editor ol,
+.template-inline-editor li,
 .template-captionEditor p,
 .template-captionEditor ul,
-.template-captionEditor ol {
+.template-captionEditor ol,
+.template-captionEditor li {
   margin: 0;
   max-width: 100%;
+  line-height: inherit;
+  white-space: pre-wrap;
 }
 
 .template-inline-editor ul,

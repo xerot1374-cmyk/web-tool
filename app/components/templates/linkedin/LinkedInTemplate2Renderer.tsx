@@ -433,6 +433,7 @@ function getCropValues(img?: ImageItem) {
 
 function renderRichTextContent(params: {
   active: React.ReactNode | null;
+  readOnly?: React.ReactNode | null;
   html?: string;
   text: string;
   marks?: TextMark[];
@@ -442,6 +443,7 @@ function renderRichTextContent(params: {
 }) {
   const {
     active,
+    readOnly,
     html,
     text,
     marks,
@@ -452,6 +454,7 @@ function renderRichTextContent(params: {
 
   return (
     active ??
+    readOnly ??
     (renderRichHtml(html) ??
       (text ? renderMarkedText(text, marks, blocks, baseStyle) : emptyFallback))
   );
@@ -497,6 +500,51 @@ export default function LinkedInTemplate2Renderer({
         onClick={activeRichTextEditor.onClick}
         onDoubleClick={activeRichTextEditor.onDoubleClick}
         onChange={activeRichTextEditor.onChange}
+      />
+    );
+  };
+
+  const renderReadOnlyRichText = (
+    field: "badge" | "title" | "body" | "company",
+    text: string,
+    marks: TextMark[] | undefined,
+    blocks: RichTextBlock[] | undefined,
+    multiline: boolean,
+  ) => {
+    if (activeRichTextEditor?.field === field) return null;
+    if (mode === "export") return null;
+
+    return (
+      <LexicalInlineEditor
+        key={`readonly-${field}-${text}-${JSON.stringify(marks ?? [])}-${JSON.stringify(blocks ?? [])}`}
+        text={text}
+        marks={marks ?? []}
+        blocks={blocks ?? []}
+        multiline={multiline}
+        editable={false}
+        showToolbar={false}
+        className="template-inline-editor"
+        style={{
+          display: "block",
+          width: "100%",
+          padding: 0,
+          margin: 0,
+          border: "none",
+          background: "transparent",
+          boxShadow: "none",
+          outline: "none",
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+        onBlur={() => {}}
+        onKeyDown={() => {}}
+        onKeyUp={() => {}}
+        onMouseUp={() => {}}
+        onPointerDown={() => {}}
+        onMouseDown={() => {}}
+        onClick={() => {}}
+        onDoubleClick={() => {}}
+        onChange={() => {}}
       />
     );
   };
@@ -869,6 +917,13 @@ export default function LinkedInTemplate2Renderer({
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("badge"),
+                readOnly: renderReadOnlyRichText(
+                  "badge",
+                  vBadge,
+                  data.badgeMarks,
+                  data.badgeBlocks,
+                  false,
+                ),
                 html: data.badgeHtml,
                 text: vBadge,
                 marks: data.badgeMarks,
@@ -921,6 +976,13 @@ export default function LinkedInTemplate2Renderer({
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("title"),
+                readOnly: renderReadOnlyRichText(
+                  "title",
+                  vTitle,
+                  data.titleMarks,
+                  data.titleBlocks,
+                  true,
+                ),
                 html: data.titleHtml,
                 text: vTitle,
                 marks: data.titleMarks,
@@ -947,6 +1009,13 @@ export default function LinkedInTemplate2Renderer({
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("company"),
+                readOnly: renderReadOnlyRichText(
+                  "company",
+                  vCompany,
+                  data.companyMarks,
+                  data.companyBlocks,
+                  true,
+                ),
                 html: data.companyHtml,
                 text: vCompany,
                 marks: data.companyMarks,
@@ -1039,6 +1108,13 @@ export default function LinkedInTemplate2Renderer({
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("body"),
+                readOnly: renderReadOnlyRichText(
+                  "body",
+                  vBody,
+                  data.bodyMarks,
+                  data.bodyBlocks,
+                  true,
+                ),
                 html: data.bodyHtml,
                 text: vBody,
                 marks: data.bodyMarks,

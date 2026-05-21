@@ -199,6 +199,31 @@
   justify-content: space-between;
 }
 
+.tb__sectionTitleCopy {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tb__sectionMeta {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.tb__sectionToggle {
+  border: 1px solid rgba(164, 7, 47, 0.14);
+  background: rgba(252, 244, 246, 0.9);
+  color: var(--brand-red);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
 .tb__actions {
   position: sticky;
   bottom: 0;
