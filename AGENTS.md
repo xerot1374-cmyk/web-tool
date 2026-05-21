@@ -17,6 +17,18 @@ Keep this `AGENTS.md` at the repository root as the main entrypoint for agent to
 Store repo-specific skills under `.agents/skills/`.
 Keep supporting agent material under `.agents/agents/` and `.agents/research/` when needed.
 
+Current curated skill set in this repo:
+- `.agents/skills/frontend-architecture/`
+- `.agents/skills/devops-infrastructure-builder/`
+- `.agents/skills/devops-architecture/`
+- `.agents/skills/stack-orchestrator/`
+- `.agents/skills/test-automation-builder/`
+- `.agents/skills/e2e-flow-tester/`
+- `.agents/skills/web-visual-tester/`
+- `.agents/skills/change-validator/`
+- `.agents/skills/internal-docs-builder/`
+- `.agents/skills/_shared/`
+
 ## Actual repo shape
 Do not assume the default polyglot monorepo layout. This repo is currently centered around one web app.
 
@@ -79,18 +91,15 @@ Environment and data notes:
 ## Skill routing
 Use the minimal set of skills that fits the task. Announce the skill names briefly when you use them.
 
+- Use `frontend-architecture` for React, TypeScript, Next.js route organization, component boundaries, rendering strategy, and state ownership decisions.
+- Use `devops-infrastructure-builder` for Docker, compose workflow, CI, deployment, and environment automation changes.
+- Use `devops-architecture` for higher-level environment, runtime, container, and deployment topology decisions.
 - Use `stack-orchestrator` for repo-wide planning or work that spans app routes, data, infra, and tests.
-- Use `vue3-frontend-builder` only if the user explicitly asks for Vue work elsewhere; do not assume it applies to this repo.
-- Use `go-backend-builder` only if the user is intentionally adding a separate Go service; do not default to it here.
-- Use `internal-docs-builder` for updates to repo guidance, engineering docs, and agent-facing instructions.
 - Use `test-automation-builder` when adding or improving automated checks for this app.
-- Use `e2e-flow-tester` when the user wants Playwright-style coverage or route-flow discovery for the web app.
+- Use `e2e-flow-tester` when the user wants end-to-end coverage or route-flow discovery for the web app.
 - Use `web-visual-tester` when UI changes need browser validation or screenshot evidence.
-- Use `frontend-architecture` for route organization, component boundaries, rendering strategy, or state ownership decisions in the Next.js app.
-- Use `backend-architecture` for Prisma, data access, route-handler boundaries, auth, or service extraction decisions.
-- Use `devops-infrastructure-builder` for Docker, container workflow, CI, deployment, or environment automation changes.
 - Use `change-validator` when the user wants explicit proof that a change satisfies the request.
-- Use the UX, research, and Penpot skills only when the task clearly calls for them.
+- Use `internal-docs-builder` for updates to repo guidance, engineering docs, and agent-facing instructions.
 
 ## Shared defaults
 - Prefer changes that fit the current single-app architecture before proposing a larger repo restructure.
