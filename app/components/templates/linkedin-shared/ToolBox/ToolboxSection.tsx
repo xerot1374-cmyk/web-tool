@@ -19,42 +19,35 @@ export default function ToolboxSection({
   const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="tb__section">
-      {collapsible ? (
-        <div
-          className="tb__sectionHeader"
-          role="button"
-          tabIndex={0}
-          aria-expanded={open}
-          onClick={() => setOpen((prev) => !prev)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setOpen((prev) => !prev);
-            }
-          }}
-        >
-          <div className="tb__sectionTitleCopy">
-            <span>{title}</span>
-            {/*<span className="tb__sectionMeta">{meta}</span>*/}
-          </div>
-          <span
-            className={`tb__sectionToggleIcon${
-              open ? " tb__sectionToggleIcon--open" : ""
-            }`}
-            aria-hidden="true"
+    <section
+      className={`tb__section${
+        collapsible && !open ? " tb__section--collapsed" : ""
+      }`}
+    >
+      <div className="tb__sectionTitle">
+        <div className="tb__sectionTitleCopy">
+          <span>{title}</span>
+          {/*<span className="tb__sectionMeta">{meta}</span>*/}
+        </div>
+        {collapsible ? (
+          <button
+            type="button"
+            className="tb__sectionHeader"
+            aria-expanded={open}
+            aria-label={`${open ? "Hide" : "Show"} ${title} section`}
+            onClick={() => setOpen((prev) => !prev)}
           >
-            ▾
-          </span>
-        </div>
-      ) : (
-        <div className="tb__sectionTitle">
-          <div className="tb__sectionTitleCopy">
-            <span>{title}</span>
-            {/*<span className="tb__sectionMeta">{meta}</span>*/}
-          </div>
-        </div>
-      )}
+            <span
+              className={`tb__sectionToggleIcon${
+                open ? " tb__sectionToggleIcon--open" : ""
+              }`}
+              aria-hidden="true"
+            >
+              ▾
+            </span>
+          </button>
+        ) : null}
+      </div>
       {!collapsible || open ? children : null}
     </section>
   );
