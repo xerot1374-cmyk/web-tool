@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { resolveFrameSlots } from "@/app/lib/imageLayouts";
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
-import type { FieldErrors, ImageItem, ImagePayloadItem, MediaBox, PdfPayload, SessionUser, TextMark, BoxTextStyle } from "../lib/templateA.types";
+import type { BoxTextStyle, FieldErrors, ImageItem, ImagePayloadItem, MediaBox, PdfPayload, SessionUser, TextMark, VideoItem, VideoPayloadItem } from "../lib/templateA.types";
 import { DEFAULT_FRAME_PRESET_ID, fileToBase64 } from "../lib/templateA.utils";
 
 type UseTemplateAExportParams = {
@@ -47,9 +47,7 @@ type UseTemplateAExportParams = {
   headlineStyle: BoxTextStyle;
   sublineStyle: BoxTextStyle;
   canvasPreset: "linkedin" | "instagram" | "instagramStory";
-  videoFile: File | null;
-  videoBox: MediaBox;
-  videoRadius: number;
+  videos: VideoItem[];
   setErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
 };
 
@@ -94,9 +92,7 @@ export default function useTemplateAExport({
   headlineStyle,
   sublineStyle,
   canvasPreset,
-  videoFile,
-  videoBox,
-  videoRadius,
+  videos,
   setErrors,
 }: UseTemplateAExportParams) {
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
@@ -148,7 +144,6 @@ export default function useTemplateAExport({
               payload.canvasPreset ?? "linkedin",
             ),
         mediaBox,
-        videoRadius: payload.videoRadius ?? videoRadius,
         badgeText: payload.badgeText?.trim()
           ? payload.badgeText.trim()
           : undefined,
@@ -194,7 +189,6 @@ export default function useTemplateAExport({
       framePresetId,
       frameSlots: frameSlotsState,
       mediaBox,
-      videoRadius,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
       badgeHtml,
       badgeMarks,
@@ -236,7 +230,6 @@ export default function useTemplateAExport({
     framePresetId,
     frameSlotsState,
     mediaBox,
-    videoRadius,
     badgeText,
     badgeHtml,
     badgeMarks,
@@ -327,7 +320,7 @@ export default function useTemplateAExport({
         productImageBase64: legacyProductImageBase64,
         mediaBox,
         images: imagePayload,
-        videoRadius,
+        videoRadius: videos[0]?.radius ?? 20,
         badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
         badgeHtml,
         badgeMarks,
@@ -392,7 +385,7 @@ export default function useTemplateAExport({
       setErrorMsg("Please fill in the form completely!");
       return;
     }
-    if (!videoFile) {
+    if (!videos.length) {
       setErrorMsg("first choose a Video!");
       return;
     }
@@ -417,6 +410,21 @@ export default function useTemplateAExport({
       }));
 
       const form = new FormData();
+      const videoPayload: VideoPayloadItem[] = videos.map((video) => {
+        const fileKey = `video:${video.id}`;
+        form.append(fileKey, video.file);
+        return {
+          id: video.id,
+          fileKey,
+          x: video.x,
+          y: video.y,
+          w: video.w,
+          h: video.h,
+          radius: video.radius,
+          zIndex: video.zIndex,
+        };
+      });
+
       form.append(
         "data",
         JSON.stringify({
@@ -445,7 +453,7 @@ export default function useTemplateAExport({
           link: link.length ? link.join("\n") : "",
           mediaBox,
           images: imagePayload,
-          videoRadius,
+          videos: videoPayload,
           titleStyle,
           bodyStyle: bodyBoxStyle,
           companyStyle,
@@ -459,8 +467,6 @@ export default function useTemplateAExport({
           frameSlots: frameSlotsState,
         }),
       );
-      form.append("videoBox", JSON.stringify(videoBox));
-      form.append("video", videoFile);
 
       const res = await fetch("/api/video/final", {
         method: "POST",

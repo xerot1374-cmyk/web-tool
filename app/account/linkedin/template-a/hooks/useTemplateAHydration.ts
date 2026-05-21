@@ -48,7 +48,7 @@ type UseTemplateAHydrationParams = {
   setFrameSlotsState: Setter<FrameSlot[]>;
   setMediaBox: Setter<MediaBox>;
   setImages: Setter<ImageItem[]>;
-  setVideoRadius: Setter<number>;
+  setVideoRadius?: Setter<number>;
   setTitleStyle: Setter<BoxTextStyle>;
   setBodyBoxStyle: Setter<BoxTextStyle>;
   setBadgeStyle: Setter<BoxTextStyle>;
@@ -165,7 +165,7 @@ export default function useTemplateAHydration({
       );
     }
 
-    setVideoRadius(payload.videoRadius ?? 20);
+    setVideoRadius?.(payload.videoRadius ?? 20);
 
     if (payload.titleStyle) setTitleStyle(payload.titleStyle);
     if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);

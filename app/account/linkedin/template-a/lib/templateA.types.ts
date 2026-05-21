@@ -84,6 +84,29 @@ export type ImagePayloadItem = {
   cropScale?: number;
 };
 
+export type VideoItem = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  zIndex?: number;
+};
+
+export type VideoPayloadItem = {
+  id: string;
+  fileKey: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  zIndex?: number;
+};
+
 export type BoxTextStyle = {
   fontFamily: string;
   fontSize: number;
@@ -104,6 +127,7 @@ export type PdfPayload = {
   productImageBase64?: string;
   mediaBox?: MediaBox;
   images?: ImagePayloadItem[];
+  videos?: VideoPayloadItem[];
   videoRadius?: number;
   badgeText?: string;
   badgeStyle?: BoxTextStyle;
@@ -187,10 +211,7 @@ export type ImageClipboardPayload = {
 };
 
 export type VideoSnapshot = {
-  videoFile: File | null;
-  videoPreviewUrl: string | null;
-  videoBox: MediaBox;
-  videoZIndex: number;
+  video: VideoItem | null;
 };
 
 export type VideoClipboardPayload = {

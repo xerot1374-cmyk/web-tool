@@ -192,13 +192,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setImages,
     editorMediaImages,
     frameSlots,
-    videoFile,
-    setVideoFile,
-    videoPreviewUrl,
-    videoBox,
-    videoRadius,
-    setVideoRadius,
-    videoPreviewZIndex,
+    videos,
+    editorVideos,
+    selectedVideoId,
+    addVideoFiles,
     selectedId,
     setSelectedId,
     selectedRect,
@@ -238,7 +235,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     badgeText,
   });
 
-  const hasVideo = !!videoFile;
+  const hasVideo = videos.length > 0;
 
   const {
     effective,
@@ -290,9 +287,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     headlineStyle,
     sublineStyle,
     canvasPreset,
-    videoFile,
-    videoBox,
-    videoRadius,
+    videos,
     setErrors,
   });
 
@@ -338,7 +333,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         setSelectedRect(getFrameSlotRect(frameSlotId));
       }
     } else if (id === "video") {
-      selectVideoObject();
+      const videoId = t.getAttribute("data-video-id");
+      if (videoId) {
+        const video = videos.find((item) => item.id === videoId);
+        if (video) selectVideoObject(video);
+      }
       const rect = computeRectRelativeToStage(t);
       if (rect) setSelectedRect(rect);
     } else {
@@ -695,7 +694,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setFrameSlotsState,
     setMediaBox,
     setImages,
-    setVideoRadius,
     setTitleStyle,
     setBodyBoxStyle,
     setBadgeStyle,
@@ -1149,10 +1147,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             activeRichTextEditor={activeRichTextEditor}
             effective={effective}
             editorMediaImages={editorMediaImages}
-            videoPreviewUrl={videoPreviewUrl}
-            videoBox={videoBox}
-            videoRadius={videoRadius}
-            videoPreviewZIndex={videoPreviewZIndex}
+            editorVideos={editorVideos}
+            selectedVideoId={selectedVideoId}
             finalUrl={finalUrl}
             suppressNextCanvasClickRef={suppressNextCanvasClickRef}
             onCanvasClick={onCanvasClick}
@@ -1216,10 +1212,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             selectedImageRadius={getSelectedImageRadius()}
             setSelectedImageRadius={setSelectedImageRadius}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
-            setVideoFile={setVideoFile}
-            videoFile={videoFile}
-            videoRadius={videoRadius}
-            setVideoRadius={setVideoRadius}
+            onPickVideos={addVideoFiles}
+            videos={videos}
             clearVideo={clearVideo}
           />
         }

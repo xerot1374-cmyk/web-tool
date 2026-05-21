@@ -24,6 +24,11 @@ type ProductImageItem = {
   id: string;
   frameSlotId?: string;
 };
+type VideoListItem = {
+  id: string;
+  file: File;
+  radius: number;
+};
 
 type Props = {
   badgeText: string;
@@ -84,11 +89,9 @@ type Props = {
   setSelectedImageRadius: (radius: number) => void;
   onAssignImageToFrameSlot: (slotId: string) => void;
 
-  setVideoFile: (file: File | null) => void;
-  videoFile: File | null;
-  videoRadius: number;
-  setVideoRadius: (radius: number) => void;
-  clearVideo: () => void;
+  onPickVideos: (files: FileList | File[] | null) => void;
+  videos: VideoListItem[];
+  clearVideo: (videoId: string) => void;
 };
 
 function renderMarkedText(text: string, marks: TextMark[] = []) {
@@ -184,10 +187,8 @@ export default function LinkedInToolbox({
   selectedImageRadius,
   setSelectedImageRadius,
   onAssignImageToFrameSlot,
-  setVideoFile,
-  videoFile,
-  videoRadius,
-  setVideoRadius,
+  onPickVideos,
+  videos,
   clearVideo,
   copyCaption,
 }: Props) {
@@ -501,43 +502,32 @@ export default function LinkedInToolbox({
               <input
                 type="file"
                 accept="video/*"
-                onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
+                multiple
+                onChange={(e) => onPickVideos(e.target.files)}
               />
-
-              <label
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                }}
-              >
-                <span>Radius</span>
-                <input
-                  type="number"
-                  min={0}
-                  max={999}
-                  value={videoRadius}
-                  onChange={(e) => setVideoRadius(Number(e.target.value || 0))}
-                  className="editor-input"
-                  style={{ width: 88 }}
-                />
-              </label>
             </div>
 
-            {videoFile ? (
-              <div style={{ marginTop: 10 }}>
-                <div className="tb__linkItem" style={{ alignItems: "center" }}>
-                  <span className="tb__linkText">{videoFile.name}</span>
-                  <button
-                    type="button"
-                    className="tb__linkRemove"
-                    onClick={clearVideo}
-                    aria-label="Remove video"
+            {videos.length ? (
+              <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                {videos.map((video, index) => (
+                  <div
+                    key={video.id}
+                    className="tb__linkItem"
+                    style={{ alignItems: "center" }}
                   >
-                    x
-                  </button>
-                </div>
+                    <span className="tb__linkText">
+                      {`Video ${index + 1} - ${video.file.name}`}
+                    </span>
+                    <button
+                      type="button"
+                      className="tb__linkRemove"
+                      onClick={() => clearVideo(video.id)}
+                      aria-label={`Remove video ${index + 1}`}
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
               </div>
             ) : null}
           </div>

@@ -13,6 +13,7 @@ import type {
   ImageItem,
   SelectableId,
   TextMark,
+  VideoItem,
 } from "../lib/templateA.types";
 import { useMemo, type MouseEvent, type MutableRefObject, type RefObject } from "react";
 
@@ -75,10 +76,8 @@ type TemplateAPreviewProps = {
   activeRichTextEditor: ActiveRichTextEditor | null;
   effective: EffectivePreviewData;
   editorMediaImages: EditorMediaImage[];
-  videoPreviewUrl: string | null;
-  videoBox: { x: number; y: number; w: number; h: number };
-  videoRadius: number;
-  videoPreviewZIndex: number;
+  editorVideos: Array<VideoItem & { zIndex?: number }>;
+  selectedVideoId: string | null;
   finalUrl: string | null;
   suppressNextCanvasClickRef: MutableRefObject<boolean>;
   onCanvasClick: (e: MouseEvent<HTMLDivElement>) => void;
@@ -101,10 +100,11 @@ type TemplateAPreviewProps = {
     mode: DragMode,
     image?: EditorMediaImage | null,
   ) => void;
-  onVideoSelect: () => void;
+  onVideoSelect: (video?: VideoItem | null) => void;
   onVideoInteractionStart: (
     e: MouseEvent<HTMLDivElement>,
     mode: DragMode,
+    video?: VideoItem | null,
   ) => void;
   onFrameSlotResizeStart: (
     e: MouseEvent<HTMLDivElement>,
@@ -153,10 +153,8 @@ export default function TemplateAPreview({
   activeRichTextEditor,
   effective,
   editorMediaImages,
-  videoPreviewUrl,
-  videoBox,
-  videoRadius,
-  videoPreviewZIndex,
+  editorVideos,
+  selectedVideoId,
   finalUrl,
   suppressNextCanvasClickRef,
   onCanvasClick,
@@ -251,7 +249,7 @@ export default function TemplateAPreview({
                     productImage={effective.productImage}
                     productImages={effective.productImages}
                     editorHideProductMedia
-                    editorReserveProductMediaSlot={Boolean(videoPreviewUrl)}
+                    editorReserveProductMediaSlot={editorVideos.length > 0}
                     productOrientation={effective.productOrientation}
                     productAlign={effective.productAlign}
                     imageLayout={effective.imageLayout}
@@ -370,19 +368,21 @@ export default function TemplateAPreview({
                   );
                 })}
 
-                {videoPreviewUrl ? (
+                {editorVideos.map((video) => (
                   <div
+                    key={video.id}
                     data-select="video"
+                    data-video-id={video.id}
                     aria-label="Uploaded video preview"
                     style={{
                       position: "absolute",
-                      left: videoBox.x,
-                      top: videoBox.y,
-                      width: videoBox.w,
-                      height: videoBox.h,
-                      zIndex: videoPreviewZIndex,
+                      left: video.x,
+                      top: video.y,
+                      width: video.w,
+                      height: video.h,
+                      zIndex: video.zIndex,
                       overflow: "hidden",
-                      borderRadius: videoRadius,
+                      borderRadius: video.radius,
                       transformOrigin: "center center",
                       border: "1px solid rgba(15,23,42,0.10)",
                       background: "#111827",
@@ -393,21 +393,21 @@ export default function TemplateAPreview({
                       e.preventDefault();
                       e.stopPropagation();
                       suppressNextCanvasClickRef.current = true;
-                      if (selectedId === "video") {
-                        onVideoInteractionStart(e, "move");
+                      if (selectedId === "video" && selectedVideoId === video.id) {
+                        onVideoInteractionStart(e, "move", video);
                         return;
                       }
-                      onVideoSelect();
+                      onVideoSelect(video);
                     }}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       suppressNextCanvasClickRef.current = true;
-                      onVideoSelect();
+                      onVideoSelect(video);
                     }}
                   >
                     <video
-                      src={videoPreviewUrl}
+                      src={video.previewUrl}
                       muted
                       playsInline
                       preload="metadata"
@@ -421,7 +421,7 @@ export default function TemplateAPreview({
                       }}
                     />
                   </div>
-                ) : null}
+                ))}
 
                 {selectedRect && !(editField && isPreviewTextSelectableId(selectedId)) ? (
                   <div

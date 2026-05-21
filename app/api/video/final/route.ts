@@ -46,6 +46,16 @@ type Payload = {
     h: number;
   };
   videoRadius?: number;
+  videos?: Array<{
+    id: string;
+    fileKey: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    radius: number;
+    zIndex?: number;
+  }>;
 
   images?: unknown[];
   productAlign?: "left" | "center" | "right";
@@ -89,7 +99,6 @@ type PayloadImage = {
 };
 
 type PayloadFrameSlot = NonNullable<Payload["frameSlots"]>[number];
-
 type TextMark = {
   start: number;
   end: number;
@@ -235,6 +244,34 @@ function normalizePayload(data: Payload): Payload {
       typeof data.videoRadius === "number" && Number.isFinite(data.videoRadius)
         ? Math.max(0, Math.round(data.videoRadius))
         : 20,
+    videos:
+      data.videos?.flatMap((video) => {
+        if (
+          !video ||
+          typeof video.id !== "string" ||
+          typeof video.fileKey !== "string" ||
+          typeof video.x !== "number" ||
+          typeof video.y !== "number" ||
+          typeof video.w !== "number" ||
+          typeof video.h !== "number"
+        ) {
+          return [];
+        }
+
+        return [
+          {
+            ...video,
+            radius:
+              typeof video.radius === "number" && Number.isFinite(video.radius)
+                ? Math.max(0, Math.round(video.radius))
+                : 20,
+            zIndex:
+              typeof video.zIndex === "number" && Number.isFinite(video.zIndex)
+                ? video.zIndex
+                : undefined,
+          },
+        ];
+      }) ?? [],
   };
 }
 
@@ -779,29 +816,61 @@ async function screenshotCoverPng(
 
 async function buildVideoInsideTemplateWithAudio(
   coverPngPath: string,
-  userMp4Path: string,
+  videos: Array<{
+    path: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    radius: number;
+    zIndex?: number;
+  }>,
   foregroundPngPath: string,
   outputMp4Path: string,
-  box: { x: number; y: number; w: number; h: number },
-  radius: number,
 ) {
   let ffErr = "";
-  const alphaExpr = getRoundedVideoAlphaExpression(box.w, box.h, radius);
-  const videoOverlayFilter = alphaExpr
-    ? `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h},format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alphaExpr}'[vid]`
-    : `[1:v]scale=${box.w}:${box.h}:force_original_aspect_ratio=increase,crop=${box.w}:${box.h}[vid]`;
+  const sortedVideos = [...videos].sort(
+    (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0),
+  );
+  const complexFilters: string[] = [];
+  let lastLabel = "[0:v]";
+
+  sortedVideos.forEach((video, index) => {
+    const inputIndex = index + 1;
+    const alphaExpr = getRoundedVideoAlphaExpression(
+      video.w,
+      video.h,
+      video.radius,
+    );
+    const streamLabel = `[vid${index}]`;
+    complexFilters.push(
+      alphaExpr
+        ? `[${inputIndex}:v]scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alphaExpr}'${streamLabel}`
+        : `[${inputIndex}:v]scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h}${streamLabel}`,
+    );
+    const nextLabel =
+      index === sortedVideos.length - 1 ? "[with_video]" : `[stage${index}]`;
+    complexFilters.push(
+      `${lastLabel}${streamLabel}overlay=${video.x}:${video.y}:shortest=1${nextLabel}`,
+    );
+    lastLabel = nextLabel;
+  });
+
+  const foregroundInputIndex = sortedVideos.length + 1;
+  complexFilters.push(
+    `${lastLabel}[${foregroundInputIndex}:v]overlay=0:0:format=auto[v]`,
+  );
 
   await new Promise<void>((resolve, reject) => {
-    ffmpeg()
-      .input(coverPngPath)
-      .inputOptions(["-loop 1"])
-      .input(userMp4Path)
+    const command = ffmpeg().input(coverPngPath).inputOptions(["-loop 1"]);
+
+    sortedVideos.forEach((video) => {
+      command.input(video.path);
+    });
+
+    command
       .input(foregroundPngPath)
-      .complexFilter([
-        videoOverlayFilter,
-        `[0:v][vid]overlay=${box.x}:${box.y}:shortest=1[with_video]`,
-        `[with_video][2:v]overlay=0:0:format=auto[v]`,
-      ])
+      .complexFilter(complexFilters)
       .outputOptions([
         "-map [v]",
         "-map 1:a?",
@@ -826,7 +895,6 @@ export async function POST(req: Request) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "final-"));
   const coverPng = path.join(tmpDir, "cover.png");
   const foregroundPng = path.join(tmpDir, "foreground.png");
-  const uploadedVideoPath = path.join(tmpDir, "upload.mp4");
   const finalMp4 = path.join(tmpDir, "final.mp4");
 
   try {
@@ -846,26 +914,82 @@ export async function POST(req: Request) {
       ...normalizePayload(JSON.parse(rawData) as Payload),
       videoBox: parseVideoBox(formData.get("videoBox")),
     };
-    const videoField = formData.get("video");
 
-    if (!(videoField instanceof File) || videoField.size === 0) {
+    const videoEntries =
+      data.videos?.flatMap((video) => {
+        const fileField = formData.get(video.fileKey);
+        if (!(fileField instanceof File) || fileField.size === 0) return [];
+        return [
+          {
+            meta: video,
+            file: fileField,
+          },
+        ];
+      }) ?? [];
+
+    if (!videoEntries.length) {
+      const videoField = formData.get("video");
+      if (!(videoField instanceof File) || videoField.size === 0) {
+        return NextResponse.json(
+          { error: "No video uploaded" },
+          { status: 400 },
+        );
+      }
+      const legacyBox = data.videoBox
+        ? {
+            x: Math.round(data.videoBox.x),
+            y: Math.round(data.videoBox.y),
+            w: Math.round(data.videoBox.w),
+            h: Math.round(data.videoBox.h),
+            radius: data.videoRadius ?? 20,
+            zIndex: 1,
+            fileKey: "video",
+            id: "legacy-video",
+          }
+        : {
+            ...getFinalVideoBox(data.canvasPreset, data.mediaBox),
+            radius: data.videoRadius ?? 20,
+            zIndex: 1,
+            fileKey: "video",
+            id: "legacy-video",
+          };
+
+      videoEntries.push({
+        meta: legacyBox,
+        file: videoField,
+      });
+    }
+
+    if (!videoEntries.length) {
       return NextResponse.json(
-        { error: "No video uploaded (field name must be 'video')" },
+        { error: "No video uploaded" },
         { status: 400 },
       );
     }
 
-    await persistUploadedFile(videoField, uploadedVideoPath);
+    const persistedVideos = await Promise.all(
+      videoEntries.map(async ({ meta, file }, index) => {
+        const videoPath = path.join(tmpDir, `upload-${index}.mp4`);
+        await persistUploadedFile(file, videoPath);
+        return {
+          path: videoPath,
+          x: Math.round(meta.x),
+          y: Math.round(meta.y),
+          w: Math.round(meta.w),
+          h: Math.round(meta.h),
+          radius: meta.radius,
+          zIndex: meta.zIndex,
+        };
+      }),
+    );
 
-    const box = await screenshotCoverPng(req, data, coverPng, "base");
+    await screenshotCoverPng(req, data, coverPng, "base");
     await screenshotCoverPng(req, data, foregroundPng, "foreground");
     await buildVideoInsideTemplateWithAudio(
       coverPng,
-      uploadedVideoPath,
+      persistedVideos,
       foregroundPng,
       finalMp4,
-      box,
-      data.videoRadius ?? 20,
     );
 
     const out = await fs.readFile(finalMp4);
