@@ -2,7 +2,7 @@
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
 import { getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 type TextMark = {
   start: number;
@@ -158,8 +158,16 @@ function getPayload(): Payload | null {
   );
 }
 
+function subscribeToPayload() {
+  return () => {};
+}
+
 export default function PdfRenderClient() {
-  const payload = getPayload();
+  const payload = useSyncExternalStore(
+    subscribeToPayload,
+    getPayload,
+    () => null,
+  );
 
   const effective = useMemo(() => {
     if (!payload) return null;
