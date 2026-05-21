@@ -758,6 +758,22 @@ a {
   background: var(--surface-muted);
 }
 
+.analytics-file-field {
+  width: 100%;
+}
+
+.analytics-import-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.analytics-upload-placeholder .portal-alert {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 0;
+}
+
 .analytics-public-note {
   display: grid;
   grid-template-columns: minmax(220px, 0.6fr) minmax(0, 1fr);
