@@ -232,7 +232,11 @@ function applyTextWithBreaks(
   });
 }
 
-function syncEditorContent(editor: LexicalEditor, text: string, marks: TextMark[]) {
+function syncEditorContent(
+  editor: LexicalEditor,
+  text: string,
+  marks: TextMark[],
+) {
   editor.update(() => {
     const root = $getRoot();
     root.clear();
@@ -398,7 +402,8 @@ function NativeToolbarPlugin({
     const domSelection = window.getSelection();
     const activeElement = document.activeElement;
     const focusIsInToolbar = Boolean(
-      activeElement instanceof Node && toolbarRef.current?.contains(activeElement),
+      activeElement instanceof Node &&
+      toolbarRef.current?.contains(activeElement),
     );
     if (!root || !domSelection || domSelection.rangeCount === 0) {
       if (focusIsInToolbar) return;
@@ -444,9 +449,7 @@ function NativeToolbarPlugin({
         ) || "rgba(250,204,21,0.28)";
       const anchorNode = selection.anchor.getNode();
       const topLevel = anchorNode.getTopLevelElementOrThrow();
-      const format = $isElementNode(topLevel)
-        ? topLevel.getFormatType()
-        : "";
+      const format = $isElementNode(topLevel) ? topLevel.getFormatType() : "";
       const textAlign: "left" | "center" | "right" =
         format === "center" || format === "right" ? format : "left";
       let listType: "bullet" | "number" | null = null;
@@ -458,6 +461,8 @@ function NativeToolbarPlugin({
             type === "bullet" ? "bullet" : type === "number" ? "number" : null;
           break;
         }
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
         currentNode = currentNode.getParent();
       }
 
@@ -685,9 +690,7 @@ function NativeToolbarPlugin({
         className="lexical-toolbar__color"
         type="color"
         value={toolbar.color}
-        onChange={(event) =>
-          patchSelectionStyle({ color: event.target.value })
-        }
+        onChange={(event) => patchSelectionStyle({ color: event.target.value })}
       />
       <input
         className="lexical-toolbar__color"
@@ -788,13 +791,16 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
     const editorRef = useRef<LexicalEditor | null>(null);
     const latestContentRef = useRef<string>("");
 
-    const setEditor = useCallback((editor: LexicalEditor) => {
-      editorRef.current = editor;
-      const initialSerialized = JSON.stringify({ text, marks });
-      if (latestContentRef.current === initialSerialized) return;
-      syncEditorContent(editor, text, marks);
-      latestContentRef.current = initialSerialized;
-    }, [text, marks]);
+    const setEditor = useCallback(
+      (editor: LexicalEditor) => {
+        editorRef.current = editor;
+        const initialSerialized = JSON.stringify({ text, marks });
+        if (latestContentRef.current === initialSerialized) return;
+        syncEditorContent(editor, text, marks);
+        latestContentRef.current = initialSerialized;
+      },
+      [text, marks],
+    );
 
     useImperativeHandle(
       ref,
@@ -808,7 +814,10 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         syncContent(nextText, nextMarks) {
           const editor = editorRef.current;
           if (!editor) return;
-          const nextSerialized = JSON.stringify({ text: nextText, marks: nextMarks });
+          const nextSerialized = JSON.stringify({
+            text: nextText,
+            marks: nextMarks,
+          });
           if (latestContentRef.current === nextSerialized) return;
           syncEditorContent(editor, nextText, nextMarks);
           latestContentRef.current = nextSerialized;
