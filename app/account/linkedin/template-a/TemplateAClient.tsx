@@ -24,6 +24,7 @@ import { CANVAS_PRESETS, getCanvasFrame } from "@/app/lib/renderUtils";
 import TemplateAExportPanel from "./components/TemplateAExportPanel";
 import TemplateAPreview from "./components/TemplateAPreview";
 import useTemplateAExport from "./hooks/useTemplateAExport";
+import useTemplateAHydration from "./hooks/useTemplateAHydration";
 import useTemplateATextState from "./hooks/useTemplateATextState";
 import type {
   ActiveRichTextEditor,
@@ -38,7 +39,6 @@ import type {
   MediaBox,
   PdfPayload,
   RichEditField,
-  RichStyle,
   SelectableId,
   TemplateAClientProps,
   TextMark,
@@ -60,13 +60,16 @@ import {
   safePx,
   uid,
 } from "./lib/templateA.utils";
-
-type LinePrefixChange = {
-  oldLineStart: number;
-  oldLineEnd: number;
-  oldPrefixLength: number;
-  newPrefixLength: number;
-};
+import {
+  getContentEditablePlainText,
+  getTextChangeRange,
+  hasStyle,
+  mergeMarks,
+  readContentEditableSelection,
+  remapMarksForLinePrefixChanges,
+  restoreContentEditableSelection,
+  shiftMarksAfterTextChange,
+} from "./lib/templateARichText.utils";
 
 export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const [{ isPdf, payload }, setPdfCtx] = useState<{
@@ -75,6 +78,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }>(() => ({ isPdf: false, payload: null }));
 
   useEffect(() => {
+    // This client-only sync is required to read window PDF payload state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPdfCtx(getPdfModeAndPayload());
   }, []);
 
@@ -1142,6 +1147,16 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     startRichTextEdit(field, targetEl);
   }
 
+  const getRichEditEditor = (field: RichEditField) => {
+    if (field === "title") return titleEditRef.current;
+    if (field === "company") return companyEditRef.current;
+    if (field === "badge") return badgeEditRef.current;
+    return bodyEditRef.current;
+  };
+
+  const getRichEditRoot = (field: RichEditField) =>
+    getRichEditEditor(field)?.getRootElement() ?? null;
+
   useEffect(() => {
     if (!editField) return;
     requestAnimationFrame(() => {
@@ -1221,7 +1236,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     const root = getRichEditRoot("body");
     if (!root) return false;
 
-    const selection = readContentEditableSelection("body", root);
+    const selection = readContentEditableSelection(
+      "body",
+      root,
+      richEditSelectionRef,
+    );
     if (selection.start !== selection.end) return false;
 
     const text = getContentEditablePlainText(root);
@@ -1731,12 +1750,14 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     if (selectedId !== "productImage" || !selectedImageId) return;
     const current = getSelectedImage();
     if (!current) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedRect(imageToViewportRect(current));
   }, [images, previewScale, selectedId, selectedImageId]);
 
   useEffect(() => {
     if (selectedId !== "frameSlot" || !selectedFrameSlotId) return;
     const rect = getFrameSlotRect(selectedFrameSlotId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (rect) setSelectedRect(rect);
   }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
 
@@ -1747,6 +1768,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     ) as HTMLElement | null;
     if (!videoEl) return;
     const rect = computeRectRelativeToStage(videoEl);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (rect) setSelectedRect(rect);
   }, [selectedId, videoPreviewUrl, videoBox, previewScale]);
 
@@ -1757,6 +1779,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
         ? resolveFrameSlots(framePresetId, canvasPreset)
         : frameSlotsState;
     if (imageLayout === "frame") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFrameSlotsState(nextFrameSlots);
     }
     setImages((prev) => {
@@ -1925,114 +1948,37 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     link,
   ]);
 
-  function getRichEditEditor(field: RichEditField) {
-    if (field === "title") return titleEditRef.current;
-    if (field === "company") return companyEditRef.current;
-    if (field === "badge") return badgeEditRef.current;
-    return bodyEditRef.current;
-  }
-
-  function getNodeTextLength(node: Node | null) {
-    return node?.textContent?.length ?? 0;
-  }
-
-  function getRichEditRoot(field: RichEditField) {
-    return getRichEditEditor(field)?.getRootElement() ?? null;
-  }
-
-  function getContentEditableOffset(
-    root: HTMLElement,
-    node: Node,
-    offset: number,
-  ) {
-    let total = 0;
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-
-    while (walker.nextNode()) {
-      const current = walker.currentNode;
-      if (current === node) {
-        return total + Math.min(offset, getNodeTextLength(current));
-      }
-      total += getNodeTextLength(current);
-    }
-
-    if (node === root) {
-      return Array.from(root.childNodes)
-        .slice(0, offset)
-        .reduce((sum, child) => sum + getNodeTextLength(child), 0);
-    }
-
-    return total;
-  }
-
-  function readContentEditableSelection(
-    field: RichEditField,
-    root: HTMLElement | null,
-  ) {
-    const selection = window.getSelection();
-    if (!root || !selection || selection.rangeCount === 0) {
-      return richEditSelectionRef.current[field];
-    }
-
-    const range = selection.getRangeAt(0);
-    if (
-      !root.contains(range.startContainer) ||
-      !root.contains(range.endContainer)
-    ) {
-      return richEditSelectionRef.current[field];
-    }
-
-    const start = getContentEditableOffset(
-      root,
-      range.startContainer,
-      range.startOffset,
-    );
-    const end = getContentEditableOffset(
-      root,
-      range.endContainer,
-      range.endOffset,
-    );
-    const next = { start: Math.min(start, end), end: Math.max(start, end) };
-    richEditSelectionRef.current[field] = next;
-    return next;
-  }
-
-  function findContentEditablePosition(root: HTMLElement, target: number) {
-    let remaining = Math.max(0, target);
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-
-    while (walker.nextNode()) {
-      const current = walker.currentNode;
-      const length = getNodeTextLength(current);
-      if (remaining <= length) {
-        return { node: current, offset: remaining };
-      }
-      remaining -= length;
-    }
-
-    return { node: root, offset: root.childNodes.length };
-  }
-
-  function restoreContentEditableSelection(
-    root: HTMLElement | null,
-    range: { start: number; end: number },
-  ) {
-    if (!root) return;
-    const selection = window.getSelection();
-    if (!selection) return;
-
-    const start = findContentEditablePosition(root, range.start);
-    const end = findContentEditablePosition(root, range.end);
-    const domRange = document.createRange();
-    domRange.setStart(start.node, start.offset);
-    domRange.setEnd(end.node, end.offset);
-    selection.removeAllRanges();
-    selection.addRange(domRange);
-  }
-
-  function getContentEditablePlainText(root: HTMLElement) {
-    return root.innerText.replace(/\r\n/g, "\n").replace(/\n$/, "");
-  }
+  useTemplateAHydration({
+    isPdf,
+    payload,
+    setCanvasPreset,
+    setHeadline,
+    setSubline,
+    setBadgeText,
+    setTitle,
+    setBodyRaw: _setBody,
+    setBadgeMarks,
+    setTitleMarks,
+    setBodyMarks,
+    setCompanyMarks,
+    setCaptionMarks,
+    setLink,
+    setCompany,
+    setProductImage,
+    setProductOrientation,
+    setProductAlign,
+    setImageLayout,
+    setFramePresetId,
+    setFrameSlotsState,
+    setMediaBox,
+    setImages,
+    setTitleStyle,
+    setBodyBoxStyle,
+    setBadgeStyle,
+    setCompanyStyle,
+    setHeadlineStyle,
+    setSublineStyle,
+  });
 
   function handleRichEditableInput(
     field: RichEditField,
@@ -2052,7 +1998,11 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
 
     const root = getRichEditRoot(field);
-    const selection = readContentEditableSelection(field, root);
+    const selection = readContentEditableSelection(
+      field,
+      root,
+      richEditSelectionRef,
+    );
     richEditSelectionRef.current[field] = selection;
 
     if (field === "badge") {
@@ -2135,30 +2085,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     }
   }
 
-  function getTextChangeRange(prev: string, next: string) {
-    let start = 0;
-    while (
-      start < prev.length &&
-      start < next.length &&
-      prev[start] === next[start]
-    ) {
-      start += 1;
-    }
-
-    let prevEnd = prev.length;
-    let nextEnd = next.length;
-    while (
-      prevEnd > start &&
-      nextEnd > start &&
-      prev[prevEnd - 1] === next[nextEnd - 1]
-    ) {
-      prevEnd -= 1;
-      nextEnd -= 1;
-    }
-
-    return { start, prevEnd, nextEnd };
-  }
-
   function handleTextChange(
     field: EditorTextField,
     next: string,
@@ -2201,92 +2127,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     });
   }
 
-  function shiftMarksAfterTextChange(
-    marks: TextMark[],
-    replaceStart: number,
-    replaceEnd: number,
-    delta: number,
-    replacementMarkLength = 0,
-  ) {
-    const replacementStyle =
-      replacementMarkLength > 0
-        ? cleanStyle(styleForSegment(marks, replaceStart, replaceEnd))
-        : {};
-    const shifted = marks
-      .flatMap((mark) => {
-        if (mark.end <= replaceStart) return [mark];
-        if (mark.start >= replaceEnd) {
-          return [
-            { ...mark, start: mark.start + delta, end: mark.end + delta },
-          ];
-        }
-
-        const pieces: TextMark[] = [];
-        if (mark.start < replaceStart) {
-          pieces.push({ ...mark, end: replaceStart });
-        }
-        if (mark.end > replaceEnd) {
-          pieces.push({
-            ...mark,
-            start: replaceStart + Math.max(0, delta),
-            end: mark.end + delta,
-          });
-        }
-        return pieces;
-      })
-      .filter((mark) => mark.end > mark.start);
-
-    if (replacementMarkLength > 0 && hasStyle(replacementStyle)) {
-      shifted.push({
-        start: replaceStart,
-        end: replaceStart + replacementMarkLength,
-        style: replacementStyle,
-      });
-    }
-
-    return mergeMarks(shifted);
-  }
-
-  function remapMarksForLinePrefixChanges(
-    marks: TextMark[],
-    changes: LinePrefixChange[],
-  ) {
-    if (!changes.length) return marks;
-
-    const shiftPoint = (pos: number) => {
-      let cumulativeDelta = 0;
-
-      for (const change of changes) {
-        const oldContentStart = change.oldLineStart + change.oldPrefixLength;
-        const delta = change.newPrefixLength - change.oldPrefixLength;
-
-        if (pos < change.oldLineStart) continue;
-        if (pos <= change.oldLineEnd) {
-          const newPrefixStart = change.oldLineStart + cumulativeDelta;
-          if (pos <= oldContentStart) {
-            return newPrefixStart + change.newPrefixLength;
-          } else {
-            return pos + cumulativeDelta + delta;
-          }
-        }
-
-        cumulativeDelta += delta;
-      }
-
-      return pos + cumulativeDelta;
-    };
-
-    return mergeMarks(
-      marks
-        .map((mark) => ({
-          ...mark,
-          start: shiftPoint(mark.start),
-          end: shiftPoint(mark.end),
-        }))
-        .filter((mark) => mark.end > mark.start),
-    );
-  }
-
   function getActiveMarksState(
     field: EditorTextField = editField ?? activeField,
   ) {
@@ -2323,64 +2163,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     if (editField === field) {
       setEditStyle((prev) => ({ ...prev, textAlign }));
     }
-  }
-
-  function overlaps(
-    a: { start: number; end: number },
-    b: { start: number; end: number },
-  ) {
-    return a.start < b.end && b.start < a.end;
-  }
-
-  function cleanStyle(style: RichStyle): RichStyle {
-    const next: RichStyle = {};
-    if (style.fontFamily) next.fontFamily = style.fontFamily;
-    if (style.fontSize) next.fontSize = style.fontSize;
-    if (style.color) next.color = style.color;
-    if (style.highlight) next.highlight = true;
-    if (style.highlight && style.highlightColor)
-      next.highlightColor = style.highlightColor;
-    if (style.fontWeight && style.fontWeight !== "normal") {
-      next.fontWeight = style.fontWeight;
-    }
-    if (style.fontStyle && style.fontStyle !== "normal") {
-      next.fontStyle = style.fontStyle;
-    }
-    return next;
-  }
-
-  function hasStyle(style: RichStyle) {
-    return Object.keys(cleanStyle(style)).length > 0;
-  }
-
-  function stylesEqual(a: RichStyle, b: RichStyle) {
-    return JSON.stringify(cleanStyle(a)) === JSON.stringify(cleanStyle(b));
-  }
-
-  function mergeMarks(next: TextMark[]) {
-    next.sort((a, b) => a.start - b.start);
-
-    const merged: TextMark[] = [];
-    for (const m of next) {
-      const style = cleanStyle(m.style ?? {});
-      if (m.end <= m.start || !hasStyle(style)) continue;
-
-      const last = merged[merged.length - 1];
-      if (last && last.end === m.start && stylesEqual(last.style, style)) {
-        last.end = m.end;
-      } else {
-        merged.push({ ...m, style });
-      }
-    }
-
-    return merged;
-  }
-
-  function styleForSegment(prev: TextMark[], start: number, end: number) {
-    return prev.reduce<RichStyle>((style, mark) => {
-      if (!overlaps(mark, { start, end })) return style;
-      return { ...style, ...(mark.style ?? {}) };
-    }, {});
   }
 
   function handleNumberedListEnter(
@@ -2518,74 +2300,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     : null;
 
   useEffect(() => {
-    if (!isPdf || !payload) return;
-
-    setCanvasPreset(payload.canvasPreset ?? "linkedin");
-
-    setHeadline(payload.headline ?? "");
-    setSubline(payload.subline ?? "");
-    setBadgeText(payload.badgeText ?? "");
-    setTitle(payload.linkTitle ?? "");
-    _setBody(payload.bodyText ?? "");
-    setBadgeMarks(payload.badgeMarks ?? []);
-    setTitleMarks(payload.titleMarks ?? []);
-    setBodyMarks(payload.bodyMarks ?? []);
-    setCompanyMarks(payload.companyMarks ?? []);
-    setCaptionMarks(payload.captionMarks ?? []);
-    setLink(
-      payload.link
-        ? payload.link
-            .split("\n")
-            .map((s) => s.trim())
-            .filter(Boolean)
-        : [],
-    );
-    setCompany(payload.company ?? "PROTOS-3D Metrology GmbH");
-
-    setProductImage(payload.productImageBase64 ?? payload.productImage ?? "");
-    setProductOrientation(payload.productOrientation ?? "landscape");
-    setProductAlign(payload.productAlign ?? "center");
-    setImageLayout(payload.imageLayout ?? "manual");
-    setFramePresetId(payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID);
-    setFrameSlotsState(
-      payload.frameSlots?.length
-        ? payload.frameSlots
-        : resolveFrameSlots(
-            payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
-            payload.canvasPreset ?? "linkedin",
-          ),
-    );
-    if (payload.mediaBox) setMediaBox(payload.mediaBox);
-
-    if (payload.images?.length) {
-      const nextImages: ImageItem[] = payload.images.map((img) => ({
-        id: img.id,
-        src: img.base64 ?? img.src ?? "",
-        base64: img.base64,
-        orientation: img.orientation,
-        frameSlotId: img.frameSlotId,
-        x: img.x,
-        y: img.y,
-        w: img.w,
-        h: img.h,
-        rotation: img.rotation ?? 0,
-        cropX: img.cropX ?? 50,
-        cropY: img.cropY ?? 50,
-        cropScale: img.cropScale ?? 1,
-      }));
-      setImages(nextImages);
-    }
-
-    if (payload.titleStyle) setTitleStyle(payload.titleStyle);
-    if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
-    if (payload.badgeStyle) setBadgeStyle(payload.badgeStyle);
-    if (payload.companyStyle) setCompanyStyle(payload.companyStyle);
-    if (payload.headlineStyle) setHeadlineStyle(payload.headlineStyle);
-    if (payload.sublineStyle) setSublineStyle(payload.sublineStyle);
-  }, [isPdf, payload]);
-
-  useEffect(() => {
     if (!videoFile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVideoPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
