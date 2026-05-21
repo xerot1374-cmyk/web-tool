@@ -14,6 +14,7 @@ type TemplateAExportPanelProps = {
   caption: string;
   captionMarks: TextMark[];
   captionBlocks: RichTextBlock[];
+  linkedInReadyCaption: string;
   captionStyle: BoxTextStyle;
   copied: boolean;
   successMsg?: string;
@@ -41,6 +42,7 @@ export default function TemplateAExportPanel({
   caption,
   captionMarks,
   captionBlocks,
+  linkedInReadyCaption,
   captionStyle,
   copied,
   successMsg,
@@ -104,13 +106,6 @@ export default function TemplateAExportPanel({
           <div className="tb__sectionTitle" style={{ marginBottom: 0 }}>
             <span>Caption</span>
           </div>
-          <button
-            type="button"
-            onClick={onCopyCaption}
-            className="tb__copyBtn"
-          >
-            {copied ? "Copied" : "Copy Caption"}
-          </button>
         </div>
 
         <div className="tb__hint">{caption.length} characters</div>
@@ -141,6 +136,29 @@ export default function TemplateAExportPanel({
           onClick={() => onCaptionFocus()}
           onDoubleClick={() => onCaptionFocus()}
         />
+
+        <div className="tb__captionPreview" style={{ marginTop: 12 }}>
+          <div className="tb__captionPreviewHeader">
+            <div className="tb__captionPreviewTitle">
+              LinkedIn Caption Preview
+            </div>
+            <button
+              type="button"
+              onClick={onCopyCaption}
+              className="tb__copyBtn"
+            >
+              {copied ? "Copied" : "Copy Caption"}
+            </button>
+          </div>
+
+          <div className="tb__captionText" style={{ whiteSpace: "pre-wrap" }}>
+            {linkedInReadyCaption || "\u00a0"}
+          </div>
+          <div className="tb__hint">
+            Highlight is visual in the editor; LinkedIn caption copy keeps
+            text-safe formatting.
+          </div>
+        </div>
       </div>
     </div>
   );

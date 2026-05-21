@@ -7,6 +7,7 @@ import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTempl
 import {
   useEffect,
   useEffectEvent,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -50,6 +51,7 @@ import {
   restoreContentEditableSelection,
   shiftMarksAfterTextChange,
 } from "./lib/templateARichText.utils";
+import { buildLinkedInReadyCaption } from "./lib/captionLinkedInText";
 
 const INITIAL_RICH_EDIT_SESSION_KEYS = {
   badge: 0,
@@ -1127,8 +1129,13 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     });
   }
 
+  const linkedInReadyCaption = useMemo(
+    () => buildLinkedInReadyCaption(caption, captionMarks, captionBlocks),
+    [caption, captionMarks, captionBlocks],
+  );
+
   async function copyCaption() {
-    await copyCaptionText(caption);
+    await copyCaptionText(linkedInReadyCaption);
   }
 
   function handleCaptionBlur() {
@@ -1487,6 +1494,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             caption={caption}
             captionMarks={captionMarks}
             captionBlocks={captionBlocks}
+            linkedInReadyCaption={linkedInReadyCaption}
             captionStyle={captionStyle}
             copied={copied}
             successMsg={successMsg}
