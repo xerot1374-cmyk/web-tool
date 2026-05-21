@@ -74,9 +74,14 @@ type Props = {
   setFramePresetId: (id: string) => void;
   frameSlots: Array<FrameSlot & { imageId?: string }>;
   selectedFrameSlotId?: string | null;
+  selectedImageRadius: number | null;
+  setSelectedImageRadius: (radius: number) => void;
   onAssignImageToFrameSlot: (slotId: string) => void;
 
   setVideoFile: (file: File | null) => void;
+  videoRadius: number;
+  setVideoRadius: (radius: number) => void;
+  removeSelectedVideo: () => void;
 };
 
 function renderMarkedText(text: string, marks: TextMark[] = []) {
@@ -167,8 +172,13 @@ export default function LinkedInToolbox({
   setFramePresetId,
   frameSlots,
   selectedFrameSlotId,
+  selectedImageRadius,
+  setSelectedImageRadius,
   onAssignImageToFrameSlot,
   setVideoFile,
+  videoRadius,
+  setVideoRadius,
+  removeSelectedVideo,
   copyCaption,
 }: Props) {
   return (
@@ -301,11 +311,46 @@ export default function LinkedInToolbox({
         <ToolboxSection title="Product" meta="Assets">
           <div className="editor-field">
             <label className="editor-label">Add Image</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => onPickProductImage(e.target.files?.[0] ?? null)}
-            />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => onPickProductImage(e.target.files?.[0] ?? null)}
+              />
+
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                }}
+              >
+                <span>Radius</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={selectedImageRadius ?? ""}
+                  disabled={selectedImageRadius == null}
+                  onChange={(e) =>
+                    setSelectedImageRadius(Number(e.target.value || 0))
+                  }
+                  className="editor-input"
+                  style={{ width: 88 }}
+                />
+              </label>
+            </div>
+            <div className="tb__hint tb__hint--left">
+              Select an image or frame slot to adjust its corner radius.
+            </div>
           </div>
 
           <div className="editor-field">
@@ -403,11 +448,48 @@ export default function LinkedInToolbox({
         <ToolboxSection title="Media" meta="Video">
           <div className="editor-field">
             <label className="editor-label">Video</label>
-            <input
-              type="file"
-              accept="video/*"
-              onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
-            />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <input
+                type="file"
+                accept="video/*"
+                onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
+              />
+
+              <label
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 13,
+                }}
+              >
+                <span>Radius</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={videoRadius}
+                  onChange={(e) => setVideoRadius(Number(e.target.value || 0))}
+                  className="editor-input"
+                  style={{ width: 88 }}
+                />
+              </label>
+
+              <button
+                type="button"
+                className="tb__copyBtn"
+                onClick={removeSelectedVideo}
+              >
+                Remove Selected Video
+              </button>
+            </div>
           </div>
         </ToolboxSection>
 

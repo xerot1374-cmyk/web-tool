@@ -45,6 +45,7 @@ type Payload = {
     w: number;
     h: number;
   };
+  videoRadius?: number;
 
   images?: unknown[];
   productAlign?: "left" | "center" | "right";
@@ -81,6 +82,7 @@ type PayloadImage = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -229,6 +231,10 @@ function normalizePayload(data: Payload): Payload {
     ...data,
     linkTitle: data.linkTitle ?? data.title,
     bodyText: data.bodyText ?? data.body,
+    videoRadius:
+      typeof data.videoRadius === "number" && Number.isFinite(data.videoRadius)
+        ? Math.max(0, Math.round(data.videoRadius))
+        : 20,
   };
 }
 
@@ -313,6 +319,10 @@ function normalizePayloadImages(data: Payload, req: Request): PayloadImage[] {
           typeof image.rotation === "number" && Number.isFinite(image.rotation)
             ? image.rotation
             : 0,
+        radius:
+          typeof image.radius === "number" && Number.isFinite(image.radius)
+            ? Math.max(0, Math.round(image.radius))
+            : 20,
         cropX: getCropValue(image.cropX, 50),
         cropY: getCropValue(image.cropY, 50),
         cropScale: getCropValue(image.cropScale, 1),
@@ -336,7 +346,7 @@ function renderProductImagesHtml(
       >
         <div
           class="li2-productFrame li2-productFrame--landscape"
-          style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(0deg);transform-origin:center center;border-radius:20px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
+          style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(0deg);transform-origin:center center;border-radius:${data.videoRadius ?? 20}px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
         >
           <img
             class="li2-productImg li2-productImg--cropped"
@@ -414,7 +424,7 @@ function renderProductImagesHtml(
         >
           <div
             class="li2-productFrame ${imageOrientationClass}${isCollage ? " li2-productFrame--collage" : ""}"
-            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:${slot?.radius ?? 20}px;background:${isCollage ? "#ffffff" : "transparent"};border:${isCollage ? "1px solid rgba(255,255,255,0.92)" : "1px solid rgba(15,23,42,0.10)"};${slot?.clipPath ? `clip-path:${slot.clipPath};` : ""}"
+            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:${img.radius ?? 20}px;background:${isCollage ? "#ffffff" : "transparent"};border:${isCollage ? "1px solid rgba(255,255,255,0.92)" : "1px solid rgba(15,23,42,0.10)"};${slot?.clipPath ? `clip-path:${slot.clipPath};` : ""}"
           >
             <div class="${isCollage ? "li2-productFrameInner--collage" : ""}">
               <img

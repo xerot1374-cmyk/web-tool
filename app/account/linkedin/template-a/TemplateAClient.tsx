@@ -196,6 +196,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setVideoFile,
     videoPreviewUrl,
     videoBox,
+    videoRadius,
+    setVideoRadius,
     videoPreviewZIndex,
     selectedId,
     setSelectedId,
@@ -208,6 +210,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     suppressNextCanvasClickRef,
     onPickProductImage,
     removeSelectedImage,
+    setSelectedImageRadius,
+    getSelectedImageRadius,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,
@@ -220,6 +224,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     selectVideoObject,
     startMediaInteraction,
     startVideoInteraction,
+    deleteSelectedVideo,
     startFrameImageDrag,
     startSelectedFrameSlotResize,
   } = useTemplateAMediaEditor({
@@ -285,6 +290,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     canvasPreset,
     videoFile,
     videoBox,
+    videoRadius,
     setErrors,
   });
 
@@ -687,6 +693,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setFrameSlotsState,
     setMediaBox,
     setImages,
+    setVideoRadius,
     setTitleStyle,
     setBodyBoxStyle,
     setBadgeStyle,
@@ -1142,6 +1149,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             editorMediaImages={editorMediaImages}
             videoPreviewUrl={videoPreviewUrl}
             videoBox={videoBox}
+            videoRadius={videoRadius}
             videoPreviewZIndex={videoPreviewZIndex}
             finalUrl={finalUrl}
             suppressNextCanvasClickRef={suppressNextCanvasClickRef}
@@ -1162,6 +1170,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             onVideoInteractionStart={startVideoInteraction}
             onFrameSlotResizeStart={startSelectedFrameSlotResize}
             onRemoveSelectedImage={removeSelectedImage}
+            onRemoveSelectedVideo={deleteSelectedVideo}
           />
         }
         toolbox={
@@ -1200,8 +1209,13 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             setFramePresetId={setFramePresetValue}
             frameSlots={frameSlots}
             selectedFrameSlotId={selectedFrameSlotId}
+            selectedImageRadius={getSelectedImageRadius()}
+            setSelectedImageRadius={setSelectedImageRadius}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
             setVideoFile={setVideoFile}
+            videoRadius={videoRadius}
+            setVideoRadius={setVideoRadius}
+            removeSelectedVideo={deleteSelectedVideo}
           />
         }
         properties={

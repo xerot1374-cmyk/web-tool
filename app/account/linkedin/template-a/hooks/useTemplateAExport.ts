@@ -49,6 +49,7 @@ type UseTemplateAExportParams = {
   canvasPreset: "linkedin" | "instagram" | "instagramStory";
   videoFile: File | null;
   videoBox: MediaBox;
+  videoRadius: number;
   setErrors: React.Dispatch<React.SetStateAction<FieldErrors>>;
 };
 
@@ -95,6 +96,7 @@ export default function useTemplateAExport({
   canvasPreset,
   videoFile,
   videoBox,
+  videoRadius,
   setErrors,
 }: UseTemplateAExportParams) {
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
@@ -122,6 +124,7 @@ export default function useTemplateAExport({
           w: img.w,
           h: img.h,
           rotation: img.rotation ?? 0,
+          radius: img.radius ?? 20,
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
@@ -145,6 +148,7 @@ export default function useTemplateAExport({
               payload.canvasPreset ?? "linkedin",
             ),
         mediaBox,
+        videoRadius: payload.videoRadius ?? videoRadius,
         badgeText: payload.badgeText?.trim()
           ? payload.badgeText.trim()
           : undefined,
@@ -190,6 +194,7 @@ export default function useTemplateAExport({
       framePresetId,
       frameSlots: frameSlotsState,
       mediaBox,
+      videoRadius,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
       badgeHtml,
       badgeMarks,
@@ -231,6 +236,7 @@ export default function useTemplateAExport({
     framePresetId,
     frameSlotsState,
     mediaBox,
+    videoRadius,
     badgeText,
     badgeHtml,
     badgeMarks,
@@ -302,6 +308,7 @@ export default function useTemplateAExport({
         w: img.w,
         h: img.h,
         rotation: img.rotation,
+        radius: img.radius ?? 20,
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
@@ -320,6 +327,7 @@ export default function useTemplateAExport({
         productImageBase64: legacyProductImageBase64,
         mediaBox,
         images: imagePayload,
+        videoRadius,
         badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
         badgeHtml,
         badgeMarks,
@@ -402,6 +410,7 @@ export default function useTemplateAExport({
         w: img.w,
         h: img.h,
         rotation: img.rotation,
+        radius: img.radius ?? 20,
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
@@ -436,6 +445,7 @@ export default function useTemplateAExport({
           link: link.length ? link.join("\n") : "",
           mediaBox,
           images: imagePayload,
+          videoRadius,
           titleStyle,
           bodyStyle: bodyBoxStyle,
           companyStyle,

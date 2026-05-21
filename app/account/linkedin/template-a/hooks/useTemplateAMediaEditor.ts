@@ -118,6 +118,7 @@ export default function useTemplateAMediaEditor({
     w: 240,
     h: 240,
   });
+  const [videoRadius, setVideoRadius] = useState(20);
 
   const videoPreviewZIndex = objectLayers.video;
 
@@ -131,7 +132,7 @@ export default function useTemplateAMediaEditor({
 
         return {
           ...img,
-          radius: slot?.radius ?? 20,
+          radius: slot?.radius ?? img.radius ?? 20,
           clipPath: slot?.clipPath,
           rotation: slot?.rotation ?? img.rotation ?? 0,
           zIndex: objectLayers.images[img.id] ?? 2 + index,
@@ -353,6 +354,7 @@ export default function useTemplateAMediaEditor({
       w: fit.w,
       h: fit.h,
       rotation: 0,
+      radius: 20,
       cropX: 50,
       cropY: 50,
       cropScale: 1,
@@ -554,6 +556,25 @@ export default function useTemplateAMediaEditor({
     setSelectedId("productImage");
     const rect = getFrameSlotRect(slotId);
     setSelectedRect(rect);
+  }
+
+  function setSelectedImageRadius(nextRadius: number) {
+    const radius = clamp(Math.round(nextRadius), 0, 999);
+
+    if (imageLayout === "frame" && selectedFrameSlotId) {
+      updateSelectedFrameSlot((prev) => ({ ...prev, radius }));
+      return;
+    }
+
+    updateSelectedImage((prev) => ({ ...prev, radius }));
+  }
+
+  function getSelectedImageRadius() {
+    if (imageLayout === "frame") {
+      return getSelectedFrameSlot()?.radius ?? null;
+    }
+
+    return getSelectedImage()?.radius ?? null;
   }
 
   function clearSelection() {
@@ -1199,6 +1220,8 @@ export default function useTemplateAMediaEditor({
     videoPreviewUrl,
     videoBox,
     setVideoBox,
+    videoRadius,
+    setVideoRadius,
     videoPreviewZIndex,
     selectedId,
     setSelectedId,
@@ -1211,6 +1234,8 @@ export default function useTemplateAMediaEditor({
     suppressNextCanvasClickRef,
     onPickProductImage,
     removeSelectedImage,
+    setSelectedImageRadius,
+    getSelectedImageRadius,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,

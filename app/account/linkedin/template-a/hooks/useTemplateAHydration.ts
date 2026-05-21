@@ -48,6 +48,7 @@ type UseTemplateAHydrationParams = {
   setFrameSlotsState: Setter<FrameSlot[]>;
   setMediaBox: Setter<MediaBox>;
   setImages: Setter<ImageItem[]>;
+  setVideoRadius: Setter<number>;
   setTitleStyle: Setter<BoxTextStyle>;
   setBodyBoxStyle: Setter<BoxTextStyle>;
   setBadgeStyle: Setter<BoxTextStyle>;
@@ -88,6 +89,7 @@ export default function useTemplateAHydration({
   setFrameSlotsState,
   setMediaBox,
   setImages,
+  setVideoRadius,
   setTitleStyle,
   setBodyBoxStyle,
   setBadgeStyle,
@@ -155,12 +157,15 @@ export default function useTemplateAHydration({
           w: img.w,
           h: img.h,
           rotation: img.rotation ?? 0,
+          radius: img.radius ?? 20,
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
         })),
       );
     }
+
+    setVideoRadius(payload.videoRadius ?? 20);
 
     if (payload.titleStyle) setTitleStyle(payload.titleStyle);
     if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
@@ -200,6 +205,7 @@ export default function useTemplateAHydration({
     setFrameSlotsState,
     setMediaBox,
     setImages,
+    setVideoRadius,
     setTitleStyle,
     setBodyBoxStyle,
     setBadgeStyle,

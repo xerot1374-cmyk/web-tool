@@ -55,6 +55,7 @@ export type ImageItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -77,6 +78,7 @@ export type ImagePayloadItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -102,6 +104,7 @@ export type PdfPayload = {
   productImageBase64?: string;
   mediaBox?: MediaBox;
   images?: ImagePayloadItem[];
+  videoRadius?: number;
   badgeText?: string;
   badgeStyle?: BoxTextStyle;
   linkTitle?: string;

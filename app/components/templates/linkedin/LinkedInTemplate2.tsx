@@ -44,6 +44,7 @@ export type ImageItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -79,6 +80,7 @@ type Props = LinkedInTemplate2Data & {
   sublineStyle?: BoxTextStyle;
 
   mediaBox?: MediaBox;
+  videoRadius?: number;
   productImages?: ImageItem[];
   editorHideProductMedia?: boolean;
   editorReserveProductMediaSlot?: boolean;

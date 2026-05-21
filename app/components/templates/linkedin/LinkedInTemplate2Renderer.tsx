@@ -25,6 +25,7 @@ export type ImageItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -115,6 +116,7 @@ export type LinkedInTemplate2Data = {
   framePresetId?: string;
   frameSlots?: FrameSlot[];
   mediaBox?: MediaBox;
+  videoRadius?: number;
 
   canvasPreset?: "linkedin" | "instagram" | "instagramStory";
 };
@@ -712,7 +714,7 @@ export default function LinkedInTemplate2Renderer({
                         top: "auto",
                         transform: `rotate(${img.rotation ?? 0}deg)`,
                         transformOrigin: "center center",
-                        borderRadius: 20,
+                        borderRadius: img.radius ?? 20,
                         background: isCollage ? "#ffffff" : "transparent",
                         border: isCollage
                           ? "1px solid rgba(255,255,255,0.92)"

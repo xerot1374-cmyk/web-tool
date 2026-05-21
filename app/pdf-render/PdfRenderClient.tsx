@@ -36,6 +36,7 @@ type ImagePayloadItem = {
   w: number;
   h: number;
   rotation: number;
+  radius?: number;
   cropX?: number;
   cropY?: number;
   cropScale?: number;
@@ -73,6 +74,7 @@ type Payload = {
     h: number;
   };
   images?: ImagePayloadItem[];
+  videoRadius?: number;
   badgeText?: string;
   badgeMarks?: TextMark[];
   badgeStyle?: BoxTextStyle;
@@ -179,6 +181,7 @@ export default function PdfRenderClient() {
           w: img.w,
           h: img.h,
           rotation: img.rotation ?? 0,
+          radius: img.radius ?? 20,
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
@@ -189,6 +192,7 @@ export default function PdfRenderClient() {
       framePresetId: payload.framePresetId,
       frameSlots: payload.frameSlots,
       mediaBox: payload.mediaBox,
+      videoRadius: payload.videoRadius ?? 20,
       badgeText: payload.badgeText?.trim()
         ? payload.badgeText.trim()
         : undefined,

@@ -77,6 +77,7 @@ type TemplateAPreviewProps = {
   editorMediaImages: EditorMediaImage[];
   videoPreviewUrl: string | null;
   videoBox: { x: number; y: number; w: number; h: number };
+  videoRadius: number;
   videoPreviewZIndex: number;
   finalUrl: string | null;
   suppressNextCanvasClickRef: MutableRefObject<boolean>;
@@ -110,6 +111,7 @@ type TemplateAPreviewProps = {
     mode: DragMode,
   ) => void;
   onRemoveSelectedImage: () => void;
+  onRemoveSelectedVideo: () => void;
 };
 
 const SELECTION_HANDLES = [
@@ -153,6 +155,7 @@ export default function TemplateAPreview({
   editorMediaImages,
   videoPreviewUrl,
   videoBox,
+  videoRadius,
   videoPreviewZIndex,
   finalUrl,
   suppressNextCanvasClickRef,
@@ -167,6 +170,7 @@ export default function TemplateAPreview({
   onVideoInteractionStart,
   onFrameSlotResizeStart,
   onRemoveSelectedImage,
+  onRemoveSelectedVideo,
 }: TemplateAPreviewProps) {
   const selectionHandles = useMemo(
     () => (selectedRect ? SELECTION_HANDLES : []),
@@ -378,7 +382,7 @@ export default function TemplateAPreview({
                       height: videoBox.h,
                       zIndex: videoPreviewZIndex,
                       overflow: "hidden",
-                      borderRadius: 20,
+                      borderRadius: videoRadius,
                       transformOrigin: "center center",
                       border: "1px solid rgba(15,23,42,0.10)",
                       background: "#111827",
@@ -593,6 +597,31 @@ export default function TemplateAPreview({
                             onClick={(e) => {
                               e.stopPropagation();
                               onRemoveSelectedImage();
+                            }}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+
+                        {selectedId === "video" ? (
+                          <button
+                            type="button"
+                            style={{
+                              position: "absolute",
+                              right: -8,
+                              top: -40,
+                              height: 28,
+                              padding: "0 8px",
+                              borderRadius: 999,
+                              border: "1px solid rgba(0,0,0,0.12)",
+                              background: "#fff",
+                              fontSize: 12,
+                              cursor: "pointer",
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onRemoveSelectedVideo();
                             }}
                           >
                             Remove
