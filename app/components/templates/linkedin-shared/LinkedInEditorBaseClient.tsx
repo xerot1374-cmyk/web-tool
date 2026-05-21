@@ -5,15 +5,11 @@ import "@/app/lib/editor/editor.css";
 
 type Props = {
   title: string;
-  successMsg?: string;
-  errorMsg?: string;
   children: React.ReactNode; // Contains the preview + toolbox layout.
 };
 
 export default function LinkedInEditorBaseClient({
   title,
-  successMsg,
-  errorMsg,
   children,
 }: Props) {
   return (
@@ -28,13 +24,6 @@ export default function LinkedInEditorBaseClient({
           </p>
         </div>
       </div>
-
-      {successMsg ? (
-        <div className="editor-msg editor-msg--success">{successMsg}</div>
-      ) : null}
-      {errorMsg ? (
-        <div className="editor-msg editor-msg--error">{errorMsg}</div>
-      ) : null}
 
       {children}
     </main>

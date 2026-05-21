@@ -1,8 +1,12 @@
+import EditorStatusMessage from "@/app/components/templates/linkedin-shared/EditorStatusMessage";
+
 type TemplateAExportPanelProps = {
   loadingPdf: boolean;
   hasVideo: boolean;
   finalLoading: boolean;
   finalUrl: string | null;
+  successMsg?: string;
+  errorMsg?: string;
   onDownloadPdf: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onGenerateFinal: (e: React.MouseEvent<HTMLButtonElement>) => void;
 };
@@ -12,6 +16,8 @@ export default function TemplateAExportPanel({
   hasVideo,
   finalLoading,
   finalUrl,
+  successMsg,
+  errorMsg,
   onDownloadPdf,
   onGenerateFinal,
 }: TemplateAExportPanelProps) {
@@ -53,6 +59,8 @@ export default function TemplateAExportPanel({
           </a>
         ) : null}
       </div>
+
+      <EditorStatusMessage successMsg={successMsg} errorMsg={errorMsg} />
     </div>
   );
 }

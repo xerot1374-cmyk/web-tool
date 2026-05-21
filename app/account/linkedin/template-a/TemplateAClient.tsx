@@ -1085,13 +1085,21 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
           name={effective.name}
           role={effective.role}
           badgeText={effective.badgeText}
+          badgeHtml={effective.badgeHtml}
           badgeMarks={effective.badgeMarks}
+          badgeBlocks={effective.badgeBlocks}
           linkTitle={effective.linkTitle}
+          titleHtml={effective.titleHtml}
           titleMarks={effective.titleMarks}
+          titleBlocks={effective.titleBlocks}
           company={effective.company}
+          companyHtml={effective.companyHtml}
           companyMarks={effective.companyMarks}
+          companyBlocks={effective.companyBlocks}
           bodyText={effective.bodyText}
+          bodyHtml={effective.bodyHtml}
           bodyMarks={effective.bodyMarks}
+          bodyBlocks={effective.bodyBlocks}
           linkUrl={effective.linkUrl}
           headline={effective.headline}
           subline={effective.subline}
@@ -1108,10 +1116,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }
 
   return (
-    <LinkedInEditorBaseClient
+      <LinkedInEditorBaseClient
       title="LinkedIn - Template A"
-      successMsg={successMsg}
-      errorMsg={errorMsg}
     >
       <LinkedInEditorLayout
         preview={
@@ -1204,6 +1210,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             hasVideo={hasVideo}
             finalLoading={finalLoading}
             finalUrl={finalUrl}
+            successMsg={successMsg}
+            errorMsg={errorMsg}
             onDownloadPdf={(e) => {
               e.preventDefault();
               void downloadPDF();
