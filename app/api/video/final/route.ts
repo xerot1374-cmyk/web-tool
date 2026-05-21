@@ -125,6 +125,45 @@ export const dynamic = "force-dynamic";
 
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn7n6QAAAAASUVORK5CYII=";
+const LINKEDIN_VIDEO_TARGET_ASPECT = 4 / 5;
+const MAX_FINAL_VIDEO_DIMENSION = 4096;
+
+type FinalVideoFrame = {
+  w: number;
+  h: number;
+  templateOffsetX: number;
+};
+
+function makeEven(value: number) {
+  const rounded = Math.max(2, Math.round(value));
+  return rounded % 2 === 0 ? rounded : rounded + 1;
+}
+
+function clampVideoDimension(value: number) {
+  return Math.min(MAX_FINAL_VIDEO_DIMENSION, Math.max(2, value));
+}
+
+function getFinalVideoFrame(
+  preset: CanvasPreset | undefined,
+  templateContentWidth: number,
+  measuredHeight: number,
+): FinalVideoFrame {
+  const finalHeight = makeEven(clampVideoDimension(Math.ceil(measuredHeight)));
+  const desiredWidth =
+    preset === undefined || preset === "linkedin"
+      ? Math.round(finalHeight * LINKEDIN_VIDEO_TARGET_ASPECT)
+      : templateContentWidth;
+  const finalWidth = makeEven(
+    clampVideoDimension(Math.max(templateContentWidth, desiredWidth)),
+  );
+
+  return {
+    w: finalWidth,
+    h: finalHeight,
+    templateOffsetX: Math.round((finalWidth - templateContentWidth) / 2),
+  };
+}
+
 function normalizeHttpUrl(raw?: string): string | undefined {
   const value = raw?.trim();
   if (!value) return undefined;
@@ -537,6 +576,9 @@ function renderVideoTemplateHtml(
     * { box-sizing: border-box; }
     .video-stage {
       width: ${canvas.w}px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
       background: ${foregroundOnly ? "transparent" : "#ffffff"};
       overflow: visible;
     }
@@ -740,7 +782,8 @@ async function screenshotCoverPng(
   data: Payload,
   outPngPath: string,
   mode: "base" | "foreground" = "base",
-): Promise<{ x: number; y: number; w: number; h: number }> {
+  outputFrame?: FinalVideoFrame,
+): Promise<FinalVideoFrame> {
   const puppeteer = (await import("puppeteer")).default;
 
   const frame = getCanvasFrame(data.canvasPreset);
@@ -784,21 +827,42 @@ async function screenshotCoverPng(
       { timeout: 60000 },
     );
 
-    const clip = await page.$eval(
+    const measuredHeight = await page.$eval(
       ".li2-root",
-      (node, frameWidth) => {
+      (node) => {
         const el = node as HTMLElement;
         const rect = el.getBoundingClientRect();
-        const rawHeight = Math.max(1, Math.ceil(rect.height));
-        const evenHeight = rawHeight % 2 === 0 ? rawHeight : rawHeight + 1;
+        return Math.max(1, Math.ceil(rect.height));
+      },
+    );
+    const finalFrame =
+      outputFrame ?? getFinalVideoFrame(data.canvasPreset, frame.w, measuredHeight);
+
+    await page.$eval(".video-stage", (node, finalWidth) => {
+      const stage = node as HTMLElement;
+      stage.style.width = `${finalWidth}px`;
+    }, finalFrame.w);
+
+    await page.setViewport({
+      width: finalFrame.w,
+      height: Math.min(finalFrame.h, 2000),
+      deviceScaleFactor: 1,
+    });
+
+    const clip = await page.$eval(
+      ".video-stage",
+      (node, finalWidth, finalHeight) => {
+        const stage = node as HTMLElement;
+        const rect = stage.getBoundingClientRect();
         return {
           x: Math.max(0, Math.floor(rect.left)),
           y: Math.max(0, Math.floor(rect.top)),
-          width: Math.ceil(frameWidth as number),
-          height: evenHeight,
+          width: Math.ceil(finalWidth as number),
+          height: Math.ceil(finalHeight as number),
         };
       },
-      frame.w,
+      finalFrame.w,
+      finalFrame.h,
     );
 
     const buffer = await page.screenshot({
@@ -808,7 +872,7 @@ async function screenshotCoverPng(
     });
     await fs.writeFile(outPngPath, buffer);
 
-    return box;
+    return finalFrame;
   } finally {
     await browser.close();
   }
@@ -827,6 +891,7 @@ async function buildVideoInsideTemplateWithAudio(
   }>,
   foregroundPngPath: string,
   outputMp4Path: string,
+  frame: FinalVideoFrame,
 ) {
   let ffErr = "";
   const sortedVideos = [...videos].sort(
@@ -851,7 +916,7 @@ async function buildVideoInsideTemplateWithAudio(
     const nextLabel =
       index === sortedVideos.length - 1 ? "[with_video]" : `[stage${index}]`;
     complexFilters.push(
-      `${lastLabel}${streamLabel}overlay=${video.x}:${video.y}:shortest=1${nextLabel}`,
+      `${lastLabel}${streamLabel}overlay=${video.x + frame.templateOffsetX}:${video.y}:shortest=1${nextLabel}`,
     );
     lastLabel = nextLabel;
   });
@@ -983,13 +1048,20 @@ export async function POST(req: Request) {
       }),
     );
 
-    await screenshotCoverPng(req, data, coverPng, "base");
-    await screenshotCoverPng(req, data, foregroundPng, "foreground");
+    const finalFrame = await screenshotCoverPng(req, data, coverPng, "base");
+    await screenshotCoverPng(
+      req,
+      data,
+      foregroundPng,
+      "foreground",
+      finalFrame,
+    );
     await buildVideoInsideTemplateWithAudio(
       coverPng,
       persistedVideos,
       foregroundPng,
       finalMp4,
+      finalFrame,
     );
 
     const out = await fs.readFile(finalMp4);
