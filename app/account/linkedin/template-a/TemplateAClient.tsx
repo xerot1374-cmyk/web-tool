@@ -23,6 +23,8 @@ import {
 import { CANVAS_PRESETS, getCanvasFrame } from "@/app/lib/renderUtils";
 import TemplateAExportPanel from "./components/TemplateAExportPanel";
 import TemplateAPreview from "./components/TemplateAPreview";
+import useTemplateAExport from "./hooks/useTemplateAExport";
+import useTemplateATextState from "./hooks/useTemplateATextState";
 import type {
   ActiveRichTextEditor,
   BoxTextStyle,
@@ -33,7 +35,6 @@ import type {
   FieldErrors,
   ImageClipboardPayload,
   ImageItem,
-  ImagePayloadItem,
   MediaBox,
   PdfPayload,
   RichEditField,
@@ -49,7 +50,6 @@ import {
   angleFromCenter,
   arrangeImagesForLayout,
   clamp,
-  copyTextToClipboard,
   fileToBase64,
   getLineBounds,
   getPdfModeAndPayload,
@@ -57,7 +57,6 @@ import {
   isEditableTarget,
   isPreviewSelectableId,
   normalizeAngle,
-  normalizeUrl,
   safePx,
   uid,
 } from "./lib/templateA.utils";
@@ -144,87 +143,67 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     getCanvasFrame("linkedin").h,
   );
 
-  const [finalUrl, setFinalUrl] = useState<string | null>(null);
-  const [finalLoading, setFinalLoading] = useState(false);
-  const [loadingPdf, setLoadingPdf] = useState(false);
-
-  const [successMsg, setSuccessMsg] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
   const [, setErrors] = useState<FieldErrors>({});
-
-  const sessionName = sessionUser?.name ?? "";
-  const sessionRole = sessionUser?.role ?? "";
-  const sessionProfileImage = sessionUser?.profileImage ?? "/profile.jpg";
-
-  const [headline, setHeadline] = useState("");
-  const [subline, setSubline] = useState("");
-
-  const [badgeText, setBadgeText] = useState("");
-  const [title, setTitle] = useState("");
-
-  const [body, _setBody] = useState("");
-  const [caption, _setCaption] = useState("");
-
-  const [titleMarks, setTitleMarks] = useState<TextMark[]>([]);
-  const [badgeMarks, setBadgeMarks] = useState<TextMark[]>([]);
-  const [companyMarks, setCompanyMarks] = useState<TextMark[]>([]);
-  const [bodyMarks, setBodyMarks] = useState<TextMark[]>([]);
-  const [captionMarks, setCaptionMarks] = useState<TextMark[]>([]);
-
-  const [link, setLink] = useState<string[]>([]);
-  const [linkInput, setLinkInput] = useState("");
-  const [company, setCompany] = useState("PROTOS-3D Metrology GmbH");
-
-  const [activeField, setActiveField] = useState<EditorTextField>("caption");
-  const [copied, setCopied] = useState(false);
-
-  const badgeRef = useRef<HTMLInputElement | null>(null);
-  const titleRef = useRef<HTMLInputElement | null>(null);
-  const companyRef = useRef<HTMLInputElement | null>(null);
-  const captionRef = useRef<HTMLTextAreaElement | null>(null);
-  const bodyRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const [titleStyle, setTitleStyle] = useState<BoxTextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 34,
-    color: "#111827",
-    textAlign: "left",
-  });
-
-  const [bodyBoxStyle, setBodyBoxStyle] = useState<BoxTextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 16,
-    color: "#111827",
-    textAlign: "left",
-  });
-
-  const [badgeStyle, setBadgeStyle] = useState<BoxTextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 20,
-    color: "#ffffff",
-    textAlign: "left",
-  });
-
-  const [companyStyle, setCompanyStyle] = useState<BoxTextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 18,
-    color: "#111827",
-    textAlign: "left",
-  });
-
-  const [headlineStyle, setHeadlineStyle] = useState<BoxTextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 28,
-    color: "#111827",
-    textAlign: "left",
-  });
-
-  const [sublineStyle, setSublineStyle] = useState<BoxTextStyle>({
-    fontFamily: "system-ui",
-    fontSize: 18,
-    color: "#374151",
-    textAlign: "left",
-  });
+  const {
+    headline,
+    setHeadline,
+    subline,
+    setSubline,
+    badgeText,
+    setBadgeText,
+    setBadgeTextValue,
+    title,
+    setTitle,
+    setTitleValue,
+    body,
+    _setBody,
+    setBody,
+    caption,
+    _setCaption,
+    setCaption,
+    titleMarks,
+    setTitleMarks,
+    badgeMarks,
+    setBadgeMarks,
+    companyMarks,
+    setCompanyMarks,
+    bodyMarks,
+    setBodyMarks,
+    captionMarks,
+    setCaptionMarks,
+    link,
+    setLink,
+    linkInput,
+    setLinkInput,
+    company,
+    setCompany,
+    setCompanyValue,
+    activeField,
+    setActiveField,
+    copied,
+    badgeRef,
+    titleRef,
+    companyRef,
+    captionRef,
+    bodyRef,
+    titleStyle,
+    setTitleStyle,
+    bodyBoxStyle,
+    setBodyBoxStyle,
+    badgeStyle,
+    setBadgeStyle,
+    companyStyle,
+    setCompanyStyle,
+    headlineStyle,
+    setHeadlineStyle,
+    sublineStyle,
+    setSublineStyle,
+    normalizedLink,
+    getRichEditText,
+    getRichEditMarks,
+    handleAddLink,
+    copyCaption: copyCaptionText,
+  } = useTemplateATextState();
 
   const [productImage, setProductImage] = useState<string>("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
@@ -253,40 +232,52 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   });
   const hasVideo = !!videoFile;
 
-  function setBadgeTextValue(v: string) {
-    setBadgeText(v);
-    setBadgeMarks([]);
-  }
-
-  function setTitleValue(v: string) {
-    setTitle(v);
-    setTitleMarks([]);
-  }
-
-  function setCompanyValue(v: string) {
-    setCompany(v);
-    setCompanyMarks([]);
-  }
-
-  function setBody(v: string) {
-    _setBody(v);
-    setBodyMarks([]);
-  }
-
-  function setCaption(v: string) {
-    _setCaption(v);
-    setCaptionMarks([]);
-  }
-
-  const normalizedLink: string | undefined = useMemo(() => {
-    const urls = link
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((l) => normalizeUrl(l))
-      .filter((v): v is string => Boolean(v));
-
-    return urls.length ? urls.join("\n") : undefined;
-  }, [link]);
+  const {
+    effective,
+    finalUrl,
+    finalLoading,
+    loadingPdf,
+    successMsg,
+    errorMsg,
+    downloadPDF,
+    generateFinal,
+  } = useTemplateAExport({
+    isPdf,
+    payload,
+    sessionUser,
+    productImage,
+    productImageFile,
+    productOrientation,
+    productAlign,
+    imageLayout,
+    framePresetId,
+    frameSlotsState,
+    mediaBox,
+    images,
+    badgeText,
+    badgeMarks,
+    badgeStyle,
+    title,
+    titleMarks,
+    company,
+    companyMarks,
+    body,
+    bodyMarks,
+    captionMarks,
+    link,
+    normalizedLink,
+    headline,
+    subline,
+    titleStyle,
+    bodyBoxStyle,
+    companyStyle,
+    headlineStyle,
+    sublineStyle,
+    canvasPreset,
+    videoFile,
+    videoBox,
+    setErrors,
+  });
 
   const currentCanvas = CANVAS_PRESETS[canvasPreset];
   const previewViewportW = 560;
@@ -1069,13 +1060,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       field === "company" ||
       field === "badge"
     );
-  }
-
-  function getRichEditText(field: RichEditField) {
-    if (field === "title") return title;
-    if (field === "company") return company;
-    if (field === "badge") return badgeText;
-    return body;
   }
 
   function startRichTextEdit(field: RichEditField, targetEl: HTMLElement) {
@@ -1941,14 +1925,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     link,
   ]);
 
-  function handleAddLink(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && linkInput.trim()) {
-      e.preventDefault();
-      setLink((prev) => [...prev, linkInput.trim()]);
-      setLinkInput("");
-    }
-  }
-
   function getRichEditEditor(field: RichEditField) {
     if (field === "title") return titleEditRef.current;
     if (field === "company") return companyEditRef.current;
@@ -1962,13 +1938,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
 
   function getRichEditRoot(field: RichEditField) {
     return getRichEditEditor(field)?.getRootElement() ?? null;
-  }
-
-  function getRichEditMarks(field: RichEditField) {
-    if (field === "title") return titleMarks;
-    if (field === "company") return companyMarks;
-    if (field === "badge") return badgeMarks;
-    return bodyMarks;
   }
 
   function getContentEditableOffset(
@@ -2497,10 +2466,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   async function copyCaption() {
     const { text, ref } = getEditorFieldControl();
     const el = ref.current as HTMLTextAreaElement | HTMLInputElement | null;
-    const ok = await copyTextToClipboard(text, el);
-    if (!ok) return;
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    await copyCaptionText(text, el);
   }
   const activeRichTextEditor: ActiveRichTextEditor | null = isRichEditField(
     editField,
@@ -2618,142 +2584,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     if (payload.sublineStyle) setSublineStyle(payload.sublineStyle);
   }, [isPdf, payload]);
 
-  const effective = useMemo(() => {
-    if (isPdf && payload) {
-      const raw = payload.link ?? "";
-      const payloadImages =
-        payload.images?.map((img) => ({
-          id: img.id,
-          src: img.base64 ?? img.src ?? "",
-          base64: img.base64,
-          orientation: img.orientation,
-          frameSlotId: img.frameSlotId,
-          x: img.x,
-          y: img.y,
-          w: img.w,
-          h: img.h,
-          rotation: img.rotation ?? 0,
-          cropX: img.cropX ?? 50,
-          cropY: img.cropY ?? 50,
-          cropScale: img.cropScale ?? 1,
-        })) ?? [];
-
-      return {
-        profileImage: payload.profileImage,
-        name: payload.name || "—",
-        role: payload.role || "—",
-        productImage:
-          payload.productImageBase64 ?? payload.productImage ?? undefined,
-        productImages: payloadImages,
-        productOrientation: payload.productOrientation ?? "landscape",
-        productAlign: payload.productAlign ?? "center",
-        imageLayout: payload.imageLayout ?? "manual",
-        framePresetId: payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
-        frameSlots: payload.frameSlots?.length
-          ? payload.frameSlots
-          : resolveFrameSlots(
-              payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
-              payload.canvasPreset ?? "linkedin",
-            ),
-        mediaBox: payload.mediaBox ?? mediaBox,
-        badgeText: payload.badgeText?.trim()
-          ? payload.badgeText.trim()
-          : undefined,
-        badgeMarks: payload.badgeMarks ?? [],
-        linkTitle: payload.linkTitle ?? "",
-        titleMarks: payload.titleMarks ?? [],
-        company: payload.company ?? "",
-        companyMarks: payload.companyMarks ?? [],
-        bodyText: payload.bodyText ?? "",
-        bodyMarks: payload.bodyMarks ?? [],
-        linkUrl: raw.trim() ? raw : undefined,
-        headline: payload.headline?.trim()
-          ? payload.headline.trim()
-          : undefined,
-        subline: payload.subline?.trim() ? payload.subline.trim() : undefined,
-
-        titleStyle: payload.titleStyle ?? titleStyle,
-        bodyStyle: payload.bodyStyle ?? bodyBoxStyle,
-        badgeStyle: payload.badgeStyle ?? badgeStyle,
-        companyStyle: payload.companyStyle ?? companyStyle,
-        headlineStyle: payload.headlineStyle ?? headlineStyle,
-        sublineStyle: payload.sublineStyle ?? sublineStyle,
-        canvasPreset: payload.canvasPreset ?? canvasPreset,
-      };
-    }
-
-    return {
-      profileImage: sessionProfileImage,
-      name: sessionName || "—",
-      role: sessionRole || "—",
-      productImage: productImage || undefined,
-      productImages: images,
-      productOrientation,
-      productAlign,
-      imageLayout,
-      framePresetId,
-      frameSlots: frameSlotsState,
-      mediaBox,
-      badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
-      badgeMarks,
-      linkTitle: title || "",
-      titleMarks,
-      company: company || "",
-      companyMarks,
-      bodyText: body || "",
-      bodyMarks,
-      linkUrl: normalizedLink,
-      headline: headline?.trim() ? headline.trim() : undefined,
-      subline: subline?.trim() ? subline.trim() : undefined,
-
-      titleStyle,
-      bodyStyle: bodyBoxStyle,
-      badgeStyle,
-      companyStyle,
-      headlineStyle,
-      sublineStyle,
-      canvasPreset,
-    };
-  }, [
-    isPdf,
-    payload,
-    sessionProfileImage,
-    sessionName,
-    sessionRole,
-    productImage,
-    images,
-    productOrientation,
-    productAlign,
-    imageLayout,
-    framePresetId,
-    frameSlotsState,
-    mediaBox,
-    badgeText,
-    badgeMarks,
-    title,
-    titleMarks,
-    company,
-    companyMarks,
-    body,
-    bodyMarks,
-    normalizedLink,
-    headline,
-    subline,
-    titleStyle,
-    bodyBoxStyle,
-    badgeStyle,
-    companyStyle,
-    headlineStyle,
-    sublineStyle,
-    canvasPreset,
-  ]);
-
-  useEffect(() => {
-    return () => {
-      if (finalUrl) URL.revokeObjectURL(finalUrl);
-    };
-  }, [finalUrl]);
-
   useEffect(() => {
     if (!videoFile) {
       setVideoPreviewUrl((prev) => {
@@ -2779,226 +2609,6 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
       URL.revokeObjectURL(url);
     };
   }, [videoFile]);
-
-  function resetMessages() {
-    setSuccessMsg("");
-    setErrorMsg("");
-  }
-
-  function validate(): boolean {
-    const next: FieldErrors = {};
-    if (!title.trim()) next.title = "*";
-    if (!body.trim()) next.body = "*";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  }
-
-  async function downloadPDF(e?: React.MouseEvent<HTMLButtonElement>) {
-    e?.preventDefault();
-    e?.stopPropagation();
-
-    resetMessages();
-
-    if (!validate()) {
-      setErrorMsg("please fill all of the Fields");
-      return;
-    }
-
-    setLoadingPdf(true);
-    try {
-      const legacyProductImageBase64 =
-        productImageFile != null
-          ? await fileToBase64(productImageFile)
-          : undefined;
-
-      const imagePayload: ImagePayloadItem[] = images.map((img) => ({
-        id: img.id,
-        src: img.src,
-        base64: img.base64,
-        orientation: img.orientation,
-        frameSlotId: img.frameSlotId,
-        x: img.x,
-        y: img.y,
-        w: img.w,
-        h: img.h,
-        rotation: img.rotation,
-        cropX: img.cropX ?? 50,
-        cropY: img.cropY ?? 50,
-        cropScale: img.cropScale ?? 1,
-      }));
-
-      const data: PdfPayload = {
-        profileImage: sessionProfileImage,
-        name: sessionName,
-        role: sessionRole,
-
-        productImage: productImage?.trim() ? productImage : undefined,
-        productOrientation,
-        productAlign,
-        imageLayout,
-        framePresetId,
-        frameSlots: frameSlotsState,
-        productImageBase64: legacyProductImageBase64,
-        mediaBox,
-
-        images: imagePayload,
-
-        badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
-        badgeMarks,
-        badgeStyle,
-        linkTitle: title?.trim() ? title.trim() : "",
-        titleMarks,
-        company: company?.trim() ? company.trim() : "",
-        companyMarks,
-        bodyText: body ?? "",
-        bodyMarks,
-        captionMarks,
-
-        titleStyle,
-        bodyStyle: bodyBoxStyle,
-        companyStyle,
-        headlineStyle,
-        sublineStyle,
-
-        headline: headline?.trim() ? headline.trim() : undefined,
-        subline: subline?.trim() ? subline.trim() : undefined,
-
-        link: link.length ? link.join("\n") : "",
-        canvasPreset,
-      };
-
-      const res = await fetch("/api/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t || "PDF API failed");
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "linkedin-template-a.pdf";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-
-      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
-      setSuccessMsg("PDF is created successfully.");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "PDF is not created";
-      setErrorMsg(message);
-    } finally {
-      setLoadingPdf(false);
-    }
-  }
-
-  async function generateFinal(e?: React.MouseEvent<HTMLButtonElement>) {
-    e?.preventDefault();
-    e?.stopPropagation();
-
-    resetMessages();
-
-    if (!validate()) {
-      setErrorMsg("Please fill in the form completely!");
-      return;
-    }
-    if (!videoFile) {
-      setErrorMsg("first choose a Video!");
-      return;
-    }
-
-    setFinalLoading(true);
-    try {
-      const imagePayload: ImagePayloadItem[] = images.map((img) => ({
-        id: img.id,
-        src: img.src,
-        base64: img.base64,
-        orientation: img.orientation,
-        frameSlotId: img.frameSlotId,
-        x: img.x,
-        y: img.y,
-        w: img.w,
-        h: img.h,
-        rotation: img.rotation,
-        cropX: img.cropX ?? 50,
-        cropY: img.cropY ?? 50,
-        cropScale: img.cropScale ?? 1,
-      }));
-
-      const form = new FormData();
-      form.append(
-        "data",
-        JSON.stringify({
-          profileImage: sessionProfileImage,
-          name: sessionName,
-          role: sessionRole,
-          linkTitle: title,
-          titleMarks,
-          bodyText: body,
-          bodyMarks,
-          headline,
-          subline,
-          badgeText,
-          badgeMarks,
-          badgeStyle,
-          company,
-          companyMarks,
-          link: link.length ? link.join("\n") : "",
-          mediaBox,
-          images: imagePayload,
-          titleStyle,
-          bodyStyle: bodyBoxStyle,
-          companyStyle,
-          headlineStyle,
-          sublineStyle,
-          canvasPreset,
-          productOrientation,
-          productAlign,
-          imageLayout,
-          framePresetId,
-          frameSlots: frameSlotsState,
-        }),
-      );
-      form.append(
-        "videoBox",
-        JSON.stringify({
-          x: videoBox.x,
-          y: videoBox.y,
-          w: videoBox.w,
-          h: videoBox.h,
-        }),
-      );
-      form.append("video", videoFile);
-
-      const res = await fetch("/api/video/final", {
-        method: "POST",
-        body: form,
-      });
-      if (!res.ok) throw new Error(await res.text());
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-
-      setFinalUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
-
-      setSuccessMsg("final.mp4 is created!");
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "the creation failed.";
-      setErrorMsg(message);
-    } finally {
-      setFinalLoading(false);
-    }
-  }
 
   const selectedImage = getSelectedImage();
 
@@ -3175,9 +2785,12 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             finalUrl={finalUrl}
             onDownloadPdf={(e) => {
               e.preventDefault();
-              downloadPDF(e);
+              void downloadPDF();
             }}
-            onGenerateFinal={generateFinal}
+            onGenerateFinal={(e) => {
+              e.preventDefault();
+              void generateFinal();
+            }}
           />
         }
       />
