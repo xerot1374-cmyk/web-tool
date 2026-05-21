@@ -69,6 +69,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const companyEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const badgeEditRef = useRef<LexicalInlineEditorHandle | null>(null);
   const captionEditRef = useRef<LexicalInlineEditorHandle | null>(null);
+  const captionSectionRef = useRef<HTMLDivElement | null>(null);
   const richEditSelectionRef = useRef<
     Record<RichEditField, { start: number; end: number }>
   >({
@@ -484,6 +485,28 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     if (!editField) return;
     syncFocusedEditor(editField);
   }, [editField]);
+
+  const blurCaptionOnOutsidePointer = useEffectEvent((event: PointerEvent) => {
+    if (activeField !== "caption") return;
+
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (captionSectionRef.current?.contains(target)) return;
+    if (target.closest(".editor-bottomToolbarWrap")) return;
+    if (target.closest(".tt--floating")) return;
+
+    captionEditRef.current?.getRootElement()?.blur();
+    if (!editField) {
+      setActiveField("body");
+    }
+  });
+
+  useEffect(() => {
+    document.addEventListener("pointerdown", blurCaptionOnOutsidePointer);
+    return () => {
+      document.removeEventListener("pointerdown", blurCaptionOnOutsidePointer);
+    };
+  }, []);
 
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
     const currentField = editField;
@@ -1064,6 +1087,32 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     await copyCaptionText(caption);
   }
 
+  function handleCaptionBlur() {
+    requestAnimationFrame(() => {
+      const activeElement = document.activeElement;
+      if (activeElement instanceof Node) {
+        if (captionSectionRef.current?.contains(activeElement)) {
+          return;
+        }
+
+        const toolbar = document.querySelector('[data-lexical-toolbar="true"]');
+        if (toolbar?.contains(activeElement)) {
+          return;
+        }
+
+        const stickyToolbar = document.querySelector(".editor-bottomToolbarWrap");
+        if (stickyToolbar?.contains(activeElement)) {
+          return;
+        }
+      }
+
+      window.getSelection()?.removeAllRanges();
+      if (!editField) {
+        setActiveField("body");
+      }
+    });
+  }
+
   function getToolbarTextAlign() {
     if (activeField === "caption") return captionStyle.textAlign;
     if (editField === "title") return titleStyle.textAlign;
@@ -1381,6 +1430,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             successMsg={successMsg}
             errorMsg={errorMsg}
             captionEditorRef={captionEditRef}
+            captionSectionRef={captionSectionRef}
+            onCaptionBlur={handleCaptionBlur}
             onCaptionChange={handleCaptionEditableInput}
             onCaptionFocus={() => setActiveField("caption")}
             onCopyCaption={copyCaption}

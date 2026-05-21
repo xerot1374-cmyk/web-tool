@@ -19,6 +19,8 @@ type TemplateAExportPanelProps = {
   successMsg?: string;
   errorMsg?: string;
   captionEditorRef: React.RefObject<LexicalInlineEditorHandle | null>;
+  captionSectionRef: React.RefObject<HTMLDivElement | null>;
+  onCaptionBlur: () => void;
   onCaptionFocus: () => void;
   onCaptionChange: (payload: {
     text: string;
@@ -44,6 +46,8 @@ export default function TemplateAExportPanel({
   successMsg,
   errorMsg,
   captionEditorRef,
+  captionSectionRef,
+  onCaptionBlur,
   onCaptionFocus,
   onCaptionChange,
   onCopyCaption,
@@ -91,11 +95,14 @@ export default function TemplateAExportPanel({
 
       <EditorStatusMessage successMsg={successMsg} errorMsg={errorMsg} />
 
-      <div className="tb__section" style={{ marginTop: 16 }}>
+      <div
+        ref={captionSectionRef}
+        className="tb__section"
+        style={{ marginTop: 16 }}
+      >
         <div className="tb__captionPreviewHeader">
           <div className="tb__sectionTitle" style={{ marginBottom: 0 }}>
             <span>Caption</span>
-            <span className="tb__sectionMeta">Social copy</span>
           </div>
           <button
             type="button"
@@ -125,7 +132,7 @@ export default function TemplateAExportPanel({
           }}
           onAlignChange={() => {}}
           onChange={onCaptionChange}
-          onBlur={() => {}}
+          onBlur={onCaptionBlur}
           onKeyDown={() => {}}
           onKeyUp={() => {}}
           onPointerDown={() => onCaptionFocus()}

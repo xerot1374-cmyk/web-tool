@@ -688,11 +688,14 @@ function NativeToolbarPlugin({
 
   useEffect(() => {
     const onViewportChange = () => updateToolbar();
+    const onSelectionChange = () => updateToolbar();
     window.addEventListener("resize", onViewportChange);
     window.addEventListener("scroll", onViewportChange, true);
+    document.addEventListener("selectionchange", onSelectionChange);
     return () => {
       window.removeEventListener("resize", onViewportChange);
       window.removeEventListener("scroll", onViewportChange, true);
+      document.removeEventListener("selectionchange", onSelectionChange);
     };
   }, [updateToolbar]);
 
