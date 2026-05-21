@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import {
   getFirstAvailableFrameSlotId,
   getHeaderHeightForPreset,
@@ -870,8 +877,7 @@ export default function useTemplateAMediaEditor({
     };
   }
 
-  useEffect(() => {
-    function onWindowMove(e: MouseEvent) {
+  const handleWindowMove = useEffectEvent((e: MouseEvent) => {
       const drag = dragStateRef.current;
       if (!drag || !drag.mode || (!drag.startImage && !drag.startVideoBox)) return;
       const dx = (e.clientX - drag.startClientX) / previewScale;
@@ -1000,133 +1006,146 @@ export default function useTemplateAMediaEditor({
         currentCanvas.h,
       );
       updateSelectedImage((prev) => ({ ...prev, ...fixed }));
-    }
+  });
 
-    function onWindowUp() {
-      const drag = dragStateRef.current;
-      if (drag?.mode === "frame-swap" && drag.startImage) {
-        const targetSlotId = drag.hoverFrameSlotId ?? drag.startImage.frameSlotId ?? null;
-        if (targetSlotId) swapImageIntoFrameSlot(drag.startImage.id, targetSlotId);
-        setHoverFrameSlotId(null);
-      }
-      dragStateRef.current = null;
+  const handleWindowUp = useEffectEvent(() => {
+    const drag = dragStateRef.current;
+    if (drag?.mode === "frame-swap" && drag.startImage) {
+      const targetSlotId = drag.hoverFrameSlotId ?? drag.startImage.frameSlotId ?? null;
+      if (targetSlotId) swapImageIntoFrameSlot(drag.startImage.id, targetSlotId);
+      setHoverFrameSlotId(null);
     }
-
-    window.addEventListener("mousemove", onWindowMove);
-    window.addEventListener("mouseup", onWindowUp);
-    return () => {
-      window.removeEventListener("mousemove", onWindowMove);
-      window.removeEventListener("mouseup", onWindowUp);
-    };
-  }, [previewScale, currentCanvas.w, currentCanvas.h, selectedImageId, images, imageLayout, framePresetId, canvasPreset]);
+    dragStateRef.current = null;
+  });
 
   useEffect(() => {
+    window.addEventListener("mousemove", handleWindowMove);
+    window.addEventListener("mouseup", handleWindowUp);
+    return () => {
+      window.removeEventListener("mousemove", handleWindowMove);
+      window.removeEventListener("mouseup", handleWindowUp);
+    };
+  }, []);
+
+  const syncSelectedImageRect = useEffectEvent(() => {
     if (selectedId !== "productImage" || !selectedImageId) return;
     const current = getSelectedImage();
     if (!current) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedRect(imageToViewportRect(current));
+  });
+
+  useEffect(() => {
+    syncSelectedImageRect();
   }, [images, selectedId, selectedImageId]);
 
-  useEffect(() => {
+  const syncSelectedFrameSlotRect = useEffectEvent(() => {
     if (selectedId !== "frameSlot" || !selectedFrameSlotId) return;
     const rect = getFrameSlotRect(selectedFrameSlotId);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (rect) setSelectedRect(rect);
-  }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
+  });
 
   useEffect(() => {
+    syncSelectedFrameSlotRect();
+  }, [selectedId, selectedFrameSlotId, canvasPreset, framePresetId]);
+
+  const syncSelectedVideoRect = useEffectEvent(() => {
     if (selectedId !== "video") return;
     const videoEl = stageRef.current?.querySelector('[data-select="video"]') as HTMLElement | null;
     if (!videoEl) return;
     const rect = computeRectRelativeToStage(videoEl);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (rect) setSelectedRect(rect);
-  }, [selectedId, videoPreviewUrl, videoBox, previewScale, stageRef]);
+  });
 
   useEffect(() => {
+    syncSelectedVideoRect();
+  }, [selectedId, videoPreviewUrl, videoBox, previewScale, stageRef]);
+
+  const syncAutoImageLayout = useEffectEvent(() => {
     if (imageLayout === "manual") return;
     const nextFrameSlots = imageLayout === "frame" ? resolveFrameSlots(framePresetId, canvasPreset) : frameSlotsState;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (imageLayout === "frame") setFrameSlotsState(nextFrameSlots);
     setImages((prev) => {
       const next = arrangeImagesForLayout(prev, imageLayout, canvasPreset, productAlign, framePresetId, nextFrameSlots);
       syncLegacyFromFirstImage(next);
       return next;
     });
-  }, [imageLayout, framePresetId, canvasPreset]);
+  });
 
   useEffect(() => {
-    function onWindowKeyDown(e: KeyboardEvent) {
-      const metaOrCtrl = e.ctrlKey || e.metaKey;
-      if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedId === "video" && !editField) {
-        if (isEditableTarget(e.target)) return;
+    syncAutoImageLayout();
+  }, [imageLayout, framePresetId, canvasPreset, productAlign]);
+
+  const handleWindowKeyDown = useEffectEvent((e: KeyboardEvent) => {
+    const metaOrCtrl = e.ctrlKey || e.metaKey;
+    if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedId === "video" && !editField) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      copySelectedVideo();
+      return;
+    }
+    if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedId === "video" && !editField) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      cutSelectedVideo();
+      return;
+    }
+    if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
+      if (isEditableTarget(e.target)) return;
+      if (videoClipboardRef.current?.type === "video") {
         e.preventDefault();
-        copySelectedVideo();
+        pasteVideoFromClipboard();
         return;
-      }
-      if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedId === "video" && !editField) {
-        if (isEditableTarget(e.target)) return;
-        e.preventDefault();
-        cutSelectedVideo();
-        return;
-      }
-      if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
-        if (isEditableTarget(e.target)) return;
-        if (videoClipboardRef.current?.type === "video") {
-          e.preventDefault();
-          pasteVideoFromClipboard();
-          return;
-        }
-      }
-      if (metaOrCtrl && e.key.toLowerCase() === "z" && !editField) {
-        if (isEditableTarget(e.target)) return;
-        if (videoUndoStackRef.current.length > 0) {
-          e.preventDefault();
-          undoVideoAction();
-          return;
-        }
-      }
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedId === "video" && !editField) {
-        if (isEditableTarget(e.target)) return;
-        e.preventDefault();
-        deleteSelectedVideo();
-        return;
-      }
-      if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedImageId && !editField) {
-        if (isEditableTarget(e.target)) return;
-        e.preventDefault();
-        videoClipboardRef.current = null;
-        copySelectedImageToClipboard();
-        return;
-      }
-      if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedImageId && !editField) {
-        if (isEditableTarget(e.target)) return;
-        e.preventDefault();
-        videoClipboardRef.current = null;
-        cutSelectedImageToClipboard();
-        return;
-      }
-      if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
-        if (isEditableTarget(e.target)) return;
-        if (!imageClipboardRef.current) return;
-        e.preventDefault();
-        pasteImageFromClipboard();
-        return;
-      }
-      if ((e.key === "Delete" || e.key === "Backspace") && selectedImageId && !editField) {
-        if (isEditableTarget(e.target)) return;
-        e.preventDefault();
-        removeSelectedImage();
       }
     }
-    window.addEventListener("keydown", onWindowKeyDown);
-    return () => window.removeEventListener("keydown", onWindowKeyDown);
-  }, [selectedId, selectedImageId, editField, images, canvasPreset, videoFile, videoPreviewUrl, videoBox, objectLayers.video, currentCanvas.w, currentCanvas.h]);
+    if (metaOrCtrl && e.key.toLowerCase() === "z" && !editField) {
+      if (isEditableTarget(e.target)) return;
+      if (videoUndoStackRef.current.length > 0) {
+        e.preventDefault();
+        undoVideoAction();
+        return;
+      }
+    }
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedId === "video" && !editField) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      deleteSelectedVideo();
+      return;
+    }
+    if (metaOrCtrl && e.key.toLowerCase() === "c" && selectedImageId && !editField) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      videoClipboardRef.current = null;
+      copySelectedImageToClipboard();
+      return;
+    }
+    if (metaOrCtrl && e.key.toLowerCase() === "x" && selectedImageId && !editField) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      videoClipboardRef.current = null;
+      cutSelectedImageToClipboard();
+      return;
+    }
+    if (metaOrCtrl && e.key.toLowerCase() === "v" && !editField) {
+      if (isEditableTarget(e.target)) return;
+      if (!imageClipboardRef.current) return;
+      e.preventDefault();
+      pasteImageFromClipboard();
+      return;
+    }
+    if ((e.key === "Delete" || e.key === "Backspace") && selectedImageId && !editField) {
+      if (isEditableTarget(e.target)) return;
+      e.preventDefault();
+      removeSelectedImage();
+    }
+  });
 
   useEffect(() => {
+    window.addEventListener("keydown", handleWindowKeyDown);
+    return () => window.removeEventListener("keydown", handleWindowKeyDown);
+  }, []);
+
+  const syncVideoPreviewState = useEffectEvent(() => {
     if (!videoFile) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setVideoPreviewUrl((prev) => {
         if (prev) URL.revokeObjectURL(prev);
         return null;
@@ -1145,6 +1164,10 @@ export default function useTemplateAMediaEditor({
     return () => {
       URL.revokeObjectURL(url);
     };
+  });
+
+  useEffect(() => {
+    return syncVideoPreviewState();
   }, [videoFile]);
 
   return {

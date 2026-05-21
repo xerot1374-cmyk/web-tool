@@ -6,6 +6,7 @@ import { LinkedInToolbox } from "@/app/components/templates/linkedin-shared/Tool
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
 import {
   useEffect,
+  useEffectEvent,
   useRef,
   useState,
   type CSSProperties,
@@ -418,24 +419,31 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const getRichEditRoot = (field: RichEditField) =>
     getRichEditEditor(field)?.getRootElement() ?? null;
 
-  useEffect(() => {
-    if (!editField) return;
+  const syncFocusedEditor = useEffectEvent((field: EditField) => {
+    if (!field) return;
+
     requestAnimationFrame(() => {
-      if (isRichEditField(editField)) {
-        const text = getRichEditText(editField);
+      if (isRichEditField(field)) {
+        const text = getRichEditText(field);
         const next = { start: text.length, end: text.length };
-        richEditSelectionRef.current[editField] = next;
-        const editor = getRichEditEditor(editField);
-        editor?.syncContent(text, getRichEditMarks(editField));
+        richEditSelectionRef.current[field] = next;
+        const editor = getRichEditEditor(field);
+        editor?.syncContent(text, getRichEditMarks(field));
         editor?.focus();
-        const root = getRichEditRoot(editField);
+        const root = getRichEditRoot(field);
         restoreContentEditableSelection(root, next);
         return;
       }
+
       editRef.current?.focus();
       const v = editRef.current?.value ?? "";
       editRef.current?.setSelectionRange(v.length, v.length);
     });
+  });
+
+  useEffect(() => {
+    if (!editField) return;
+    syncFocusedEditor(editField);
   }, [editField]);
 
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
