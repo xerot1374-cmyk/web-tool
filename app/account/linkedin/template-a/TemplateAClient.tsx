@@ -1750,16 +1750,47 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   }, [editField]);
 
   function onEditBlur(e: React.FocusEvent<HTMLElement>) {
+    const currentField = editField;
+    const currentTarget = e.currentTarget;
     const nextTarget = e.relatedTarget;
-    if (
-      nextTarget instanceof Node &&
-      document
-        .querySelector('[data-lexical-toolbar="true"]')
-        ?.contains(nextTarget)
-    ) {
-      return;
+    const toolbar = document.querySelector('[data-lexical-toolbar="true"]');
+
+    if (nextTarget instanceof Node) {
+      if (currentTarget.contains(nextTarget)) {
+        return;
+      }
+
+      if (toolbar?.contains(nextTarget)) {
+        return;
+      }
     }
-    setEditField(null);
+
+    requestAnimationFrame(() => {
+      if (!currentField) return;
+
+      const activeElement = document.activeElement;
+      const root = isRichEditField(currentField)
+        ? getRichEditRoot(currentField)
+        : currentTarget;
+
+      if (activeElement instanceof Node) {
+        if (root?.contains(activeElement)) {
+          return;
+        }
+
+        if (toolbar?.contains(activeElement)) {
+          return;
+        }
+      }
+
+      const selection = window.getSelection();
+      const anchorNode = selection?.anchorNode ?? null;
+      if (anchorNode && root?.contains(anchorNode)) {
+        return;
+      }
+
+      setEditField((prev) => (prev === currentField ? null : prev));
+    });
   }
 
   function handleBodyBulletEnter(e: React.KeyboardEvent<HTMLElement>) {
