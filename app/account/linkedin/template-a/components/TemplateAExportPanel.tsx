@@ -1,35 +1,14 @@
-import LexicalInlineEditor, {
-  type LexicalInlineEditorHandle,
-  type RichTextBlock,
-  type TextMark,
-} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import EditorStatusMessage from "@/app/components/templates/linkedin-shared/EditorStatusMessage";
-import type { BoxTextStyle } from "../lib/templateA.types";
 
 type TemplateAExportPanelProps = {
   loadingPdf: boolean;
   hasVideo: boolean;
   finalLoading: boolean;
   finalUrl: string | null;
-  caption: string;
-  captionMarks: TextMark[];
-  captionBlocks: RichTextBlock[];
-  linkedInReadyCaption: string;
-  captionStyle: BoxTextStyle;
-  copied: boolean;
+  draftStatus: "idle" | "saving" | "saved" | "error";
+  draftStatusMessage?: string;
   successMsg?: string;
   errorMsg?: string;
-  captionEditorRef: React.RefObject<LexicalInlineEditorHandle | null>;
-  captionSectionRef: React.RefObject<HTMLDivElement | null>;
-  onCaptionBlur: () => void;
-  onCaptionFocus: () => void;
-  onCaptionChange: (payload: {
-    text: string;
-    marks: TextMark[];
-    blocks: RichTextBlock[];
-    html: string;
-  }) => void;
-  onCopyCaption: () => void;
   onDownloadPdf: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onGenerateFinal: (e: React.MouseEvent<HTMLButtonElement>) => void;
 };
@@ -39,20 +18,10 @@ export default function TemplateAExportPanel({
   hasVideo,
   finalLoading,
   finalUrl,
-  caption,
-  captionMarks,
-  captionBlocks,
-  linkedInReadyCaption,
-  captionStyle,
-  copied,
+  draftStatus,
+  draftStatusMessage,
   successMsg,
   errorMsg,
-  captionEditorRef,
-  captionSectionRef,
-  onCaptionBlur,
-  onCaptionFocus,
-  onCaptionChange,
-  onCopyCaption,
   onDownloadPdf,
   onGenerateFinal,
 }: TemplateAExportPanelProps) {
@@ -61,6 +30,17 @@ export default function TemplateAExportPanel({
       <div className="export-actions-panel__header">
         <h3>Export</h3>
         <p>Generate or download the final content.</p>
+        {draftStatusMessage ? (
+          <p
+            className={
+              draftStatus === "error"
+                ? "export-actions-panel__draftStatus export-actions-panel__draftStatus--error"
+                : "export-actions-panel__draftStatus"
+            }
+          >
+            {draftStatusMessage}
+          </p>
+        ) : null}
       </div>
 
       <div className="export-actions-panel__actions">
@@ -96,70 +76,6 @@ export default function TemplateAExportPanel({
       </div>
 
       <EditorStatusMessage successMsg={successMsg} errorMsg={errorMsg} />
-
-      <div
-        ref={captionSectionRef}
-        className="tb__section"
-        style={{ marginTop: 16 }}
-      >
-        <div className="tb__captionPreviewHeader">
-          <div className="tb__sectionTitle" style={{ marginBottom: 0 }}>
-            <span>Caption</span>
-          </div>
-        </div>
-
-        <div className="tb__hint">{caption.length} characters</div>
-
-        <LexicalInlineEditor
-          ref={captionEditorRef}
-          text={caption}
-          marks={captionMarks}
-          blocks={captionBlocks}
-          multiline={true}
-          className="editor-textarea template-captionEditor"
-          style={{
-            fontFamily: captionStyle.fontFamily,
-            fontSize: captionStyle.fontSize,
-            color: captionStyle.color,
-            textAlign: captionStyle.textAlign,
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-          }}
-          onAlignChange={() => {}}
-          onChange={onCaptionChange}
-          onBlur={onCaptionBlur}
-          onKeyDown={() => {}}
-          onKeyUp={() => {}}
-          onPointerDown={() => onCaptionFocus()}
-          onMouseDown={() => onCaptionFocus()}
-          onMouseUp={() => {}}
-          onClick={() => onCaptionFocus()}
-          onDoubleClick={() => onCaptionFocus()}
-        />
-
-        <div className="tb__captionPreview" style={{ marginTop: 12 }}>
-          <div className="tb__captionPreviewHeader">
-            <div className="tb__captionPreviewTitle">
-              LinkedIn Caption Preview
-            </div>
-            <button
-              type="button"
-              onClick={onCopyCaption}
-              className="tb__copyBtn"
-            >
-              {copied ? "Copied" : "Copy Caption"}
-            </button>
-          </div>
-
-          <div className="tb__captionText" style={{ whiteSpace: "pre-wrap" }}>
-            {linkedInReadyCaption || "\u00a0"}
-          </div>
-          <div className="tb__hint">
-            Highlight is visual in the editor; LinkedIn caption copy keeps
-            text-safe formatting.
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

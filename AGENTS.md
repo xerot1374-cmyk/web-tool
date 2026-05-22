@@ -111,6 +111,7 @@ Use the minimal set of skills that fits the task. Announce the skill names brief
 ## Delivery rules
 - Keep changes aligned with the actual repo structure, not the generic monorepo template.
 - Validate changes against the user request, not only generic quality checks.
-- After finishing a related set of changes, create a git commit that groups those related changes together.
+- Do not create commits unless the user explicitly asks for a commit in the current conversation.
+- When the user does ask for a commit, group related changes together in a single commit.
 - Use a descriptive commit message that explains the intent of the grouped change.
 - Do not create extra README-like files inside skill folders unless the user explicitly asks for them.

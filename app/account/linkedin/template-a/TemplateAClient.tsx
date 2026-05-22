@@ -15,6 +15,7 @@ import {
 } from "react";
 import { type LexicalInlineEditorHandle } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { CANVAS_PRESETS, getCanvasFrame } from "@/app/lib/renderUtils";
+import TemplateADraftsPanel from "./components/TemplateADraftsPanel";
 import TemplateAExportPanel from "./components/TemplateAExportPanel";
 import TemplateAPreview from "./components/TemplateAPreview";
 import TemplateAStickyToolbar from "./components/TemplateAStickyToolbar";
@@ -32,7 +33,9 @@ import type {
   PdfPayload,
   RichEditField,
   SelectableId,
+  TemplateADraft,
   TemplateAClientProps,
+  TemplateDraftSummary,
   TextMark,
 } from "./lib/templateA.types";
 import {
@@ -60,7 +63,21 @@ const INITIAL_RICH_EDIT_SESSION_KEYS = {
   body: 0,
 } as const;
 
-export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
+const TEMPLATE_KEY = "linkedin-template-a";
+
+function getDraftSummary(draft: TemplateDraftSummary): TemplateDraftSummary {
+  return {
+    id: draft.id,
+    name: draft.name,
+    createdAt: draft.createdAt,
+    updatedAt: draft.updatedAt,
+  };
+}
+
+export default function TemplateAClient({
+  sessionUser,
+  initialDraft,
+}: TemplateAClientProps) {
   const [{ isPdf, payload }] = useState<{
     isPdf: boolean;
     payload: PdfPayload | null;
@@ -96,6 +113,29 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   const [previewContentHeight, setPreviewContentHeight] = useState<number>(
     getCanvasFrame("linkedin").h,
   );
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+  const [draftError, setDraftError] = useState("");
+  const [draftToHydrate, setDraftToHydrate] = useState(
+    initialDraft?.payload ?? null,
+  );
+  const [activeDraft, setActiveDraft] = useState<TemplateDraftSummary | null>(
+    () => (initialDraft ? getDraftSummary(initialDraft) : null),
+  );
+  const [drafts, setDrafts] = useState<TemplateDraftSummary[] | null>(null);
+  const [draftListLoading, setDraftListLoading] = useState(false);
+  const [draftListError, setDraftListError] = useState("");
+  const [creatingDraft, setCreatingDraft] = useState(false);
+  const [switchingDraftId, setSwitchingDraftId] = useState<string | null>(
+    null,
+  );
+  const initialDraftSerializedRef = useRef(
+    initialDraft ? JSON.stringify(initialDraft.payload) : null,
+  );
+  const lastSavedDraftRef = useRef<string | null>(null);
+  const activeDraftIdRef = useRef(initialDraft?.id ?? null);
 
   const [, setErrors] = useState<FieldErrors>({});
   const {
@@ -741,6 +781,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
   useTemplateAHydration({
     isPdf,
     payload,
+    initialDraft: draftToHydrate,
+    setDraftHydrated,
     setCanvasPreset,
     setHeadline,
     setSubline,
@@ -764,6 +806,7 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setCompanyBlocks,
     setCaptionMarks,
     setLink,
+    setHashtags,
     setCompany,
     setProductImage,
     setProductOrientation,
@@ -781,6 +824,339 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     setHeadlineStyle,
     setSublineStyle,
   });
+
+  const draftPayload = useMemo(
+    () => ({
+      productImage:
+        images[0]?.base64 ?? (productImage?.trim() ? productImage : undefined),
+      productOrientation,
+      productAlign,
+      imageLayout,
+      framePresetId,
+      frameSlots: frameSlotsState,
+      mediaBox,
+      images: images.map((img) => ({
+        id: img.id,
+        src: img.base64 ?? img.src,
+        base64: img.base64,
+        orientation: img.orientation,
+        frameSlotId: img.frameSlotId,
+        x: img.x,
+        y: img.y,
+        w: img.w,
+        h: img.h,
+        rotation: img.rotation,
+        radius: img.radius ?? 20,
+        cropX: img.cropX ?? 50,
+        cropY: img.cropY ?? 50,
+        cropScale: img.cropScale ?? 1,
+      })),
+      videoRadius: videos[0]?.radius ?? 20,
+      badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
+      badgeHtml,
+      badgeMarks,
+      badgeBlocks,
+      badgeStyle,
+      linkTitle: title,
+      titleHtml,
+      titleMarks,
+      titleBlocks,
+      company,
+      companyHtml,
+      companyMarks,
+      companyBlocks,
+      bodyText: body,
+      bodyHtml,
+      bodyMarks,
+      bodyBlocks,
+      captionText: caption,
+      captionHtml,
+      captionMarks,
+      captionBlocks,
+      captionStyle,
+      titleStyle,
+      bodyStyle: bodyBoxStyle,
+      companyStyle,
+      headlineStyle,
+      sublineStyle,
+      headline,
+      subline,
+      link: link.length ? link.join("\n") : "",
+      hashtags: hashtags.length ? hashtags.join("\n") : "",
+      canvasPreset,
+    }),
+    [
+      productImage,
+      productOrientation,
+      productAlign,
+      imageLayout,
+      framePresetId,
+      frameSlotsState,
+      mediaBox,
+      images,
+      videos,
+      badgeText,
+      badgeHtml,
+      badgeMarks,
+      badgeBlocks,
+      badgeStyle,
+      title,
+      titleHtml,
+      titleMarks,
+      titleBlocks,
+      company,
+      companyHtml,
+      companyMarks,
+      companyBlocks,
+      body,
+      bodyHtml,
+      bodyMarks,
+      bodyBlocks,
+      caption,
+      captionHtml,
+      captionMarks,
+      captionBlocks,
+      captionStyle,
+      titleStyle,
+      bodyBoxStyle,
+      companyStyle,
+      headlineStyle,
+      sublineStyle,
+      headline,
+      subline,
+      link,
+      hashtags,
+      canvasPreset,
+    ],
+  );
+  const serializedDraft = useMemo(
+    () => JSON.stringify(draftPayload),
+    [draftPayload],
+  );
+
+  useEffect(() => {
+    if (!draftHydrated || isPdf) return;
+    if (lastSavedDraftRef.current !== null) return;
+    lastSavedDraftRef.current =
+      initialDraftSerializedRef.current ?? serializedDraft;
+  }, [draftHydrated, isPdf, serializedDraft]);
+
+  function updateDraftSummary(nextDraft: TemplateDraftSummary) {
+    const summary = getDraftSummary(nextDraft);
+
+    setActiveDraft((current) =>
+      current?.id === summary.id ? summary : current,
+    );
+    setDrafts((current) => {
+      if (!current) return current;
+
+      return [
+        summary,
+        ...current.filter((draft) => draft.id !== summary.id),
+      ];
+    });
+  }
+
+  async function persistDraft(serialized: string) {
+    setDraftStatus("saving");
+    setDraftError("");
+
+    try {
+      const draftId = activeDraftIdRef.current;
+      const endpoint = draftId
+        ? `/api/account/template-drafts/${TEMPLATE_KEY}/${draftId}`
+        : `/api/account/template-drafts/${TEMPLATE_KEY}`;
+      const res = await fetch(endpoint, {
+        method: draftId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload: JSON.parse(serialized) }),
+      });
+
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { message?: string }
+          | null;
+        throw new Error(body?.message ?? "Draft save failed");
+      }
+
+      const body = (await res.json()) as { draft: TemplateADraft };
+      activeDraftIdRef.current = body.draft.id;
+      setActiveDraft(getDraftSummary(body.draft));
+      updateDraftSummary(body.draft);
+      lastSavedDraftRef.current = serialized;
+      setDraftStatus("saved");
+    } catch (err: unknown) {
+      setDraftStatus("error");
+      setDraftError(
+        err instanceof Error ? err.message : "Draft save failed",
+      );
+    }
+  }
+
+  const saveDraft = useEffectEvent(persistDraft);
+
+  async function loadDraftList() {
+    if (drafts !== null || draftListLoading) return;
+
+    setDraftListLoading(true);
+    setDraftListError("");
+
+    try {
+      const res = await fetch(`/api/account/template-drafts/${TEMPLATE_KEY}`);
+      const body = (await res.json().catch(() => null)) as
+        | { drafts?: TemplateDraftSummary[]; message?: string }
+        | null;
+
+      if (!res.ok) {
+        throw new Error(body?.message ?? "Draft list failed to load");
+      }
+
+      setDrafts(body?.drafts ?? []);
+    } catch (err: unknown) {
+      setDraftListError(
+        err instanceof Error ? err.message : "Draft list failed to load",
+      );
+    } finally {
+      setDraftListLoading(false);
+    }
+  }
+
+  async function createDraft() {
+    setCreatingDraft(true);
+    setDraftListError("");
+
+    try {
+      const res = await fetch(`/api/account/template-drafts/${TEMPLATE_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload: draftPayload }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | { draft?: TemplateADraft; message?: string }
+        | null;
+
+      if (!res.ok || !body?.draft) {
+        throw new Error(body?.message ?? "Draft could not be created");
+      }
+
+      activeDraftIdRef.current = body.draft.id;
+      lastSavedDraftRef.current = serializedDraft;
+      setActiveDraft(getDraftSummary(body.draft));
+      setDrafts((current) =>
+        current
+          ? [
+              getDraftSummary(body.draft as TemplateADraft),
+              ...current.filter((draft) => draft.id !== body.draft?.id),
+            ]
+          : current,
+      );
+      setDraftStatus("saved");
+    } catch (err: unknown) {
+      setDraftListError(
+        err instanceof Error ? err.message : "Draft could not be created",
+      );
+    } finally {
+      setCreatingDraft(false);
+    }
+  }
+
+  function changeDraftName(draftId: string, name: string) {
+    setDrafts((current) =>
+      current?.map((draft) =>
+        draft.id === draftId ? { ...draft, name } : draft,
+      ) ?? current,
+    );
+    setActiveDraft((current) =>
+      current?.id === draftId ? { ...current, name } : current,
+    );
+  }
+
+  async function renameDraft(draftId: string, name: string) {
+    setDraftListError("");
+    const nextName = name.trim() || "Untitled draft";
+    changeDraftName(draftId, nextName);
+
+    try {
+      const res = await fetch(
+        `/api/account/template-drafts/${TEMPLATE_KEY}/${draftId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: nextName }),
+        },
+      );
+      const body = (await res.json().catch(() => null)) as
+        | { draft?: TemplateADraft; message?: string }
+        | null;
+
+      if (!res.ok || !body?.draft) {
+        throw new Error(body?.message ?? "Draft name could not be saved");
+      }
+
+      updateDraftSummary(body.draft);
+    } catch (err: unknown) {
+      setDraftListError(
+        err instanceof Error ? err.message : "Draft name could not be saved",
+      );
+    }
+  }
+
+  async function selectDraft(draft: TemplateDraftSummary) {
+    if (draft.id === activeDraftIdRef.current) return;
+
+    setSwitchingDraftId(draft.id);
+    setDraftListError("");
+
+    try {
+      if (serializedDraft !== lastSavedDraftRef.current) {
+        await persistDraft(serializedDraft);
+
+        if (serializedDraft !== lastSavedDraftRef.current) {
+          throw new Error("Save the current draft before opening another one.");
+        }
+      }
+
+      setDraftHydrated(false);
+      const res = await fetch(
+        `/api/account/template-drafts/${TEMPLATE_KEY}/${draft.id}`,
+      );
+      const body = (await res.json().catch(() => null)) as
+        | { draft?: TemplateADraft; message?: string }
+        | null;
+
+      if (!res.ok || !body?.draft) {
+        throw new Error(body?.message ?? "Draft could not be opened");
+      }
+
+      activeDraftIdRef.current = body.draft.id;
+      lastSavedDraftRef.current = JSON.stringify(body.draft.payload);
+      setActiveDraft(getDraftSummary(body.draft));
+      setDraftToHydrate(body.draft.payload);
+      updateDraftSummary(body.draft);
+      setDraftStatus("idle");
+      setDraftError("");
+    } catch (err: unknown) {
+      setDraftHydrated(true);
+      setDraftListError(
+        err instanceof Error ? err.message : "Draft could not be opened",
+      );
+    } finally {
+      setSwitchingDraftId(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!draftHydrated || isPdf) return;
+    if (serializedDraft === lastSavedDraftRef.current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      void saveDraft(serializedDraft);
+    }, 800);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [draftHydrated, isPdf, serializedDraft]);
 
   function handleRichEditableInput(
     field: RichEditField,
@@ -1138,6 +1514,15 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
     await copyCaptionText(linkedInReadyCaption);
   }
 
+  const draftStatusMessage =
+    draftStatus === "saving"
+      ? "Saving draft..."
+      : draftStatus === "saved"
+        ? "Draft saved to your account."
+        : draftStatus === "error"
+          ? draftError || "Draft save failed."
+          : "";
+
   function handleCaptionBlur() {
     requestAnimationFrame(() => {
       const activeElement = document.activeElement;
@@ -1403,6 +1788,8 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             currentCanvas={currentCanvas}
             canvasWrapRef={canvasWrapRef}
             stageRef={stageRef}
+            captionSectionRef={captionSectionRef}
+            captionEditorRef={captionEditRef}
             editField={editField}
             selectedId={selectedId}
             selectedImageId={selectedImageId}
@@ -1413,8 +1800,18 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             editorMediaImages={editorMediaImages}
             editorVideos={editorVideos}
             selectedVideoId={selectedVideoId}
+            caption={caption}
+            captionMarks={captionMarks}
+            captionBlocks={captionBlocks}
+            captionStyle={captionStyle}
+            copied={copied}
+            linkedInReadyCaption={linkedInReadyCaption}
             finalUrl={finalUrl}
             suppressNextCanvasClickRef={suppressNextCanvasClickRef}
+            onCaptionBlur={handleCaptionBlur}
+            onCaptionFocus={() => setActiveField("caption")}
+            onCaptionChange={handleCaptionEditableInput}
+            onCopyCaption={copyCaption}
             onCanvasClick={onCanvasClick}
             onCanvasDoubleClick={onCanvasDoubleClick}
             onSelectableClick={(field, event) => {
@@ -1483,6 +1880,29 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             onPickVideos={addVideoFiles}
             videos={videos}
             clearVideo={clearVideo}
+            draftPanel={
+              <TemplateADraftsPanel
+                activeDraftId={activeDraft?.id ?? null}
+                drafts={drafts}
+                error={draftListError}
+                loading={draftListLoading}
+                creating={creatingDraft}
+                switchingDraftId={switchingDraftId}
+                onCreate={() => {
+                  void createDraft();
+                }}
+                onLoad={() => {
+                  void loadDraftList();
+                }}
+                onNameChange={changeDraftName}
+                onRename={(draftId, name) => {
+                  void renameDraft(draftId, name);
+                }}
+                onSelect={(draft) => {
+                  void selectDraft(draft);
+                }}
+              />
+            }
           />
         }
         properties={
@@ -1491,20 +1911,10 @@ export default function TemplateAClient({ sessionUser }: TemplateAClientProps) {
             hasVideo={hasVideo}
             finalLoading={finalLoading}
             finalUrl={finalUrl}
-            caption={caption}
-            captionMarks={captionMarks}
-            captionBlocks={captionBlocks}
-            linkedInReadyCaption={linkedInReadyCaption}
-            captionStyle={captionStyle}
-            copied={copied}
+            draftStatus={draftStatus}
+            draftStatusMessage={draftStatusMessage}
             successMsg={successMsg}
             errorMsg={errorMsg}
-            captionEditorRef={captionEditRef}
-            captionSectionRef={captionSectionRef}
-            onCaptionBlur={handleCaptionBlur}
-            onCaptionChange={handleCaptionEditableInput}
-            onCaptionFocus={() => setActiveField("caption")}
-            onCopyCaption={copyCaption}
             onDownloadPdf={(e) => {
               e.preventDefault();
               void downloadPDF();

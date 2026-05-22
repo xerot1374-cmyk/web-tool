@@ -1,7 +1,10 @@
 "use client";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
-import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import LexicalInlineEditor, {
+  type LexicalInlineEditorHandle,
+  type RichTextBlock,
+} from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { type CanvasPreset } from "@/app/lib/renderUtils";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
 import { CANVAS_LABELS, getCropScale, getCropX, getCropY, isPreviewTextSelectableId } from "../lib/templateA.utils";
@@ -69,6 +72,8 @@ type TemplateAPreviewProps = {
   currentCanvas: { w: number; h: number };
   canvasWrapRef: RefObject<HTMLDivElement | null>;
   stageRef: RefObject<HTMLDivElement | null>;
+  captionSectionRef: RefObject<HTMLDivElement | null>;
+  captionEditorRef: RefObject<LexicalInlineEditorHandle | null>;
   editField: string | null;
   selectedId: SelectableId | null;
   selectedImageId: string | null;
@@ -79,8 +84,23 @@ type TemplateAPreviewProps = {
   editorMediaImages: EditorMediaImage[];
   editorVideos: Array<VideoItem & { zIndex?: number }>;
   selectedVideoId: string | null;
+  caption: string;
+  captionMarks: TextMark[];
+  captionBlocks: RichTextBlock[];
+  captionStyle: BoxTextStyle;
+  copied: boolean;
+  linkedInReadyCaption: string;
   finalUrl: string | null;
   suppressNextCanvasClickRef: MutableRefObject<boolean>;
+  onCaptionBlur: () => void;
+  onCaptionFocus: () => void;
+  onCaptionChange: (payload: {
+    text: string;
+    marks: TextMark[];
+    blocks: RichTextBlock[];
+    html: string;
+  }) => void;
+  onCopyCaption: () => void;
   onCanvasClick: (e: MouseEvent<HTMLDivElement>) => void;
   onCanvasDoubleClick: (e: MouseEvent<HTMLDivElement>) => void;
   onSelectableClick: (
@@ -146,6 +166,8 @@ export default function TemplateAPreview({
   currentCanvas,
   canvasWrapRef,
   stageRef,
+  captionSectionRef,
+  captionEditorRef,
   editField,
   selectedId,
   selectedImageId,
@@ -156,8 +178,18 @@ export default function TemplateAPreview({
   editorMediaImages,
   editorVideos,
   selectedVideoId,
+  caption,
+  captionMarks,
+  captionBlocks,
+  captionStyle,
+  copied,
+  linkedInReadyCaption,
   finalUrl,
   suppressNextCanvasClickRef,
+  onCaptionBlur,
+  onCaptionFocus,
+  onCaptionChange,
+  onCopyCaption,
   onCanvasClick,
   onCanvasDoubleClick,
   onSelectableClick,
@@ -175,6 +207,7 @@ export default function TemplateAPreview({
     () => (selectedRect ? SELECTION_HANDLES : []),
     [selectedRect],
   );
+  const previewColumnWidth = Math.min(previewViewportW, currentCanvas.w);
 
   return (
     <>
@@ -637,13 +670,78 @@ export default function TemplateAPreview({
             </div>
           </div>
         </div>
-      </div>
 
-      {finalUrl ? (
-        <div className="preview-videoWrap">
-          <video className="preview-video" src={finalUrl} controls playsInline />
+        <div className="preview-secondaryStack" style={{ width: previewColumnWidth }}>
+          <div
+            ref={captionSectionRef}
+            className="preview-captionSection"
+          >
+            <div className="tb__captionPreviewHeader">
+              <div className="tb__sectionTitle" style={{ marginBottom: 0 }}>
+                <span>Caption</span>
+              </div>
+            </div>
+
+            <div className="tb__hint">{caption.length} characters</div>
+
+            <LexicalInlineEditor
+              ref={captionEditorRef}
+              text={caption}
+              marks={captionMarks}
+              blocks={captionBlocks}
+              multiline={true}
+              className="editor-textarea template-captionEditor"
+              style={{
+                fontFamily: captionStyle.fontFamily,
+                fontSize: captionStyle.fontSize,
+                color: captionStyle.color,
+                textAlign: captionStyle.textAlign,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+              onAlignChange={() => {}}
+              onChange={onCaptionChange}
+              onBlur={onCaptionBlur}
+              onKeyDown={() => {}}
+              onKeyUp={() => {}}
+              onPointerDown={() => onCaptionFocus()}
+              onMouseDown={() => onCaptionFocus()}
+              onMouseUp={() => {}}
+              onClick={() => onCaptionFocus()}
+              onDoubleClick={() => onCaptionFocus()}
+            />
+
+            <div className="tb__captionPreview" style={{ marginTop: 12 }}>
+              <div className="tb__captionPreviewHeader">
+                <div className="tb__captionPreviewTitle">
+                  LinkedIn Caption Preview
+                </div>
+                <button
+                  type="button"
+                  onClick={onCopyCaption}
+                  className="tb__copyBtn"
+                >
+                  {copied ? "Copied" : "Copy Caption"}
+                </button>
+              </div>
+
+              <div className="tb__captionText" style={{ whiteSpace: "pre-wrap" }}>
+                {linkedInReadyCaption || "\u00a0"}
+              </div>
+              <div className="tb__hint">
+                Highlight is visual in the editor; LinkedIn caption copy keeps
+                text-safe formatting.
+              </div>
+            </div>
+          </div>
+
+          {finalUrl ? (
+            <div className="preview-videoWrap">
+              <video className="preview-video" src={finalUrl} controls playsInline />
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
     </>
   );
 }
