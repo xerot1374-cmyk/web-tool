@@ -295,7 +295,9 @@ export default function TemplateAClient({
     getRichEditText,
     getRichEditMarks,
     getRichEditBlocks,
+    addLink,
     handleAddLink,
+    addHashtag,
     handleAddHashtag,
     copyCaption: copyCaptionText,
   } = useTemplateATextState();
@@ -2016,11 +2018,13 @@ export default function TemplateAClient({
             setLink={setLink}
             linkInput={linkInput}
             setLinkInput={setLinkInput}
+            addLink={addLink}
             handleAddLink={handleAddLink}
             hashtags={hashtags}
             setHashtags={setHashtags}
             hashtagInput={hashtagInput}
             setHashtagInput={setHashtagInput}
+            addHashtag={addHashtag}
             handleAddHashtag={handleAddHashtag}
             onTextChange={handleTextChange}
             onTextKeyDown={handleNumberedListEnter}

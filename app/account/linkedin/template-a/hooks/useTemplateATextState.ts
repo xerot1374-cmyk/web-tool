@@ -167,25 +167,37 @@ export default function useTemplateATextState() {
     return bodyHtml;
   }
 
+  function addLink() {
+    const value = linkInput.trim();
+    if (!value) return;
+
+    setLink((prev) => [...prev, value]);
+    setLinkInput("");
+  }
+
   function handleAddLink(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter" && linkInput.trim()) {
-      e.preventDefault();
-      setLink((prev) => [...prev, linkInput.trim()]);
-      setLinkInput("");
-    }
+    if (e.key !== "Enter") return;
+
+    e.preventDefault();
+    addLink();
+  }
+
+  function addHashtag() {
+    const value = hashtagInput.trim();
+    if (!value) return;
+
+    setHashtags((prev) => [
+      ...prev,
+      value.startsWith("#") ? value : `#${value}`,
+    ]);
+    setHashtagInput("");
   }
 
   function handleAddHashtag(e: React.KeyboardEvent<HTMLInputElement>) {
-    const value = hashtagInput.trim();
+    if (e.key !== "Enter") return;
 
-    if (e.key === "Enter" && value) {
-      e.preventDefault();
-      setHashtags((prev) => [
-        ...prev,
-        value.startsWith("#") ? value : `#${value}`,
-      ]);
-      setHashtagInput("");
-    }
+    e.preventDefault();
+    addHashtag();
   }
 
   async function copyCaption(text: string, fieldRef?: HTMLTextAreaElement | HTMLInputElement | null) {
@@ -280,7 +292,9 @@ export default function useTemplateATextState() {
     getRichEditMarks,
     getRichEditBlocks,
     getRichEditHtml,
+    addLink,
     handleAddLink,
+    addHashtag,
     handleAddHashtag,
     copyCaption,
   };

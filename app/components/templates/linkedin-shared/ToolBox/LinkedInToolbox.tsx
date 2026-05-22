@@ -107,11 +107,13 @@ type Props = {
   linkInput: string;
   setLinkInput: (v: string) => void;
 
+  addLink: () => void;
   handleAddLink: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   hashtags: string[];
   setHashtags: React.Dispatch<React.SetStateAction<string[]>>;
   hashtagInput: string;
   setHashtagInput: (v: string) => void;
+  addHashtag: () => void;
   handleAddHashtag: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onTextChange?: (
     field: EditorTextField,
@@ -163,11 +165,13 @@ export default function LinkedInToolbox({
   setLink,
   linkInput,
   setLinkInput,
+  addLink,
   handleAddLink,
   hashtags,
   setHashtags,
   hashtagInput,
   setHashtagInput,
+  addHashtag,
   handleAddHashtag,
   onTextChange,
   onTextKeyDown,
@@ -293,13 +297,26 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Add Link (press Enter)</label>
 
-            <input
-              className="editor-input"
-              value={linkInput}
-              onChange={(e) => setLinkInput(e.target.value)}
-              onKeyDown={handleAddLink}
-              placeholder="Paste link and press Enter"
-            />
+            <div className="tb__addInput">
+              <input
+                className="editor-input"
+                value={linkInput}
+                onChange={(e) => setLinkInput(e.target.value)}
+                onKeyDown={handleAddLink}
+                placeholder="Paste link and press Enter"
+              />
+              <button
+                type="button"
+                className="tb__addInputButton"
+                onClick={addLink}
+                disabled={!linkInput.trim()}
+                aria-label="Add link"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M9 3h2v6h6v2h-6v6H9v-6H3V9h6V3Z" />
+                </svg>
+              </button>
+            </div>
 
             {link.length > 0 ? (
               <div className="tb__links" style={{ marginTop: 10 }}>
@@ -332,13 +349,26 @@ export default function LinkedInToolbox({
           <div className="editor-field">
             <label className="editor-label">Add Hashtag (press Enter)</label>
 
-            <input
-              className="editor-input"
-              value={hashtagInput}
-              onChange={(e) => setHashtagInput(e.target.value)}
-              onKeyDown={handleAddHashtag}
-              placeholder="#hashtag and press Enter"
-            />
+            <div className="tb__addInput">
+              <input
+                className="editor-input"
+                value={hashtagInput}
+                onChange={(e) => setHashtagInput(e.target.value)}
+                onKeyDown={handleAddHashtag}
+                placeholder="#hashtag and press Enter"
+              />
+              <button
+                type="button"
+                className="tb__addInputButton"
+                onClick={addHashtag}
+                disabled={!hashtagInput.trim()}
+                aria-label="Add hashtag"
+              >
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M9 3h2v6h6v2h-6v6H9v-6H3V9h6V3Z" />
+                </svg>
+              </button>
+            </div>
 
             {hashtags.length > 0 ? (
               <div className="tb__links" style={{ marginTop: 10 }}>

@@ -638,6 +638,42 @@
   cursor: pointer;
 }
 
+.tb__addInput {
+  position: relative;
+}
+
+.tb__addInput .editor-input {
+  padding-right: 52px;
+}
+
+.tb__addInputButton {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(164, 7, 47, 0.18);
+  border-radius: 11px;
+  place-items: center;
+  background: rgba(252, 244, 246, 0.96);
+  color: var(--brand-red);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.tb__addInputButton:disabled {
+  color: var(--brand-gray-dark);
+  cursor: default;
+  opacity: 0.54;
+}
+
+.tb__addInputButton svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 .template-drafts {
   display: grid;
   gap: 10px;
