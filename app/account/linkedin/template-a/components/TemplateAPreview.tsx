@@ -63,6 +63,7 @@ type EffectivePreviewData = {
 
 type TemplateAPreviewProps = {
   canvasPreset: CanvasPreset;
+  draftName: string | null;
   onCanvasPresetChange: (preset: CanvasPreset) => void;
   clearSelection: () => void;
   previewViewportW: number;
@@ -157,6 +158,7 @@ const SELECTION_HANDLES = [
 
 export default function TemplateAPreview({
   canvasPreset,
+  draftName,
   onCanvasPresetChange,
   clearSelection,
   previewViewportW,
@@ -215,6 +217,9 @@ export default function TemplateAPreview({
         <div className="editor-previewHeader">
           <div>
             <div className="editor-previewEyebrow">Live canvas</div>
+            <div className="editor-previewDraftName">
+              {draftName ?? "Unsaved draft"}
+            </div>
             <h2 className="editor-previewTitle">Preview</h2>
             <p className="editor-previewText">
               Edit directly on canvas, then fine-tune details from the side

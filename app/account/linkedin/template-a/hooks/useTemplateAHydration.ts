@@ -11,6 +11,7 @@ import type {
   TemplateADraftPayload,
   TextMark,
   MediaBox,
+  VideoItem,
 } from "../lib/templateA.types";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
 import type { CanvasPreset } from "@/app/lib/renderUtils";
@@ -55,6 +56,7 @@ type UseTemplateAHydrationParams = {
   setFrameSlotsState: Setter<FrameSlot[]>;
   setMediaBox: Setter<MediaBox>;
   setImages: Setter<ImageItem[]>;
+  setVideos: Setter<VideoItem[]>;
   setVideoRadius?: Setter<number>;
   setTitleStyle: Setter<BoxTextStyle>;
   setBodyBoxStyle: Setter<BoxTextStyle>;
@@ -103,6 +105,7 @@ export default function useTemplateAHydration({
   setFrameSlotsState,
   setMediaBox,
   setImages,
+  setVideos,
   setVideoRadius,
   setTitleStyle,
   setBodyBoxStyle,
@@ -197,6 +200,10 @@ export default function useTemplateAHydration({
       setImages([]);
     }
 
+    if (!isPdf) {
+      setVideos([]);
+    }
+
     setVideoRadius?.(source.videoRadius ?? 20);
 
     if (source.titleStyle) setTitleStyle(source.titleStyle);
@@ -245,6 +252,7 @@ export default function useTemplateAHydration({
     setFrameSlotsState,
     setMediaBox,
     setImages,
+    setVideos,
     setVideoRadius,
     setTitleStyle,
     setBodyBoxStyle,

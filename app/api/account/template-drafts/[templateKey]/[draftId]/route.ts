@@ -118,3 +118,17 @@ export async function PATCH(req: Request, context: RouteContext) {
     draft: toDraftResponse(updated),
   });
 }
+
+export async function DELETE(_req: Request, context: RouteContext) {
+  const { draft } = await findUserDraft(context);
+
+  if (!draft) {
+    return draftNotFound();
+  }
+
+  await prisma.templateDraft.delete({
+    where: { id: draft.id },
+  });
+
+  return NextResponse.json({ ok: true });
+}

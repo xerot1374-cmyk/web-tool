@@ -1298,6 +1298,7 @@ export default function useTemplateAMediaEditor({
     editorMediaImages,
     frameSlots,
     videos,
+    setVideos,
     editorVideos,
     selectedVideoId,
     addVideoFiles,

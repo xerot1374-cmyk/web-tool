@@ -34,6 +34,7 @@ import type {
   RichEditField,
   SelectableId,
   TemplateADraft,
+  TemplateADraftPayload,
   TemplateAClientProps,
   TemplateDraftSummary,
   TextMark,
@@ -64,6 +65,66 @@ const INITIAL_RICH_EDIT_SESSION_KEYS = {
 } as const;
 
 const TEMPLATE_KEY = "linkedin-template-a";
+
+const DEFAULT_TEMPLATE_A_DRAFT: TemplateADraftPayload = {
+  productOrientation: "landscape",
+  productAlign: "center",
+  imageLayout: "manual",
+  mediaBox: { x: 420, y: 240, w: 240, h: 240 },
+  images: [],
+  badgeText: "Your Eye Catching Text",
+  linkTitle: "Your Tile Goes Here",
+  company: "PROTOS-3D Metrology GmbH",
+  bodyText: "The main content. You can edit using the rich text editor.",
+  captionText: "",
+  titleStyle: {
+    fontFamily: "system-ui",
+    fontSize: 34,
+    color: "#111827",
+    textAlign: "left",
+  },
+  bodyStyle: {
+    fontFamily: "system-ui",
+    fontSize: 16,
+    color: "#111827",
+    textAlign: "left",
+  },
+  captionStyle: {
+    fontFamily: "system-ui",
+    fontSize: 16,
+    color: "#111827",
+    textAlign: "left",
+  },
+  badgeStyle: {
+    fontFamily: "system-ui",
+    fontSize: 20,
+    color: "#ffffff",
+    textAlign: "left",
+  },
+  companyStyle: {
+    fontFamily: "system-ui",
+    fontSize: 18,
+    color: "#111827",
+    textAlign: "left",
+  },
+  headlineStyle: {
+    fontFamily: "system-ui",
+    fontSize: 28,
+    color: "#111827",
+    textAlign: "left",
+  },
+  sublineStyle: {
+    fontFamily: "system-ui",
+    fontSize: 18,
+    color: "#374151",
+    textAlign: "left",
+  },
+  headline: "",
+  subline: "",
+  link: "",
+  hashtags: "",
+  canvasPreset: "linkedin",
+};
 
 function getDraftSummary(draft: TemplateDraftSummary): TemplateDraftSummary {
   return {
@@ -128,6 +189,7 @@ export default function TemplateAClient({
   const [draftListLoading, setDraftListLoading] = useState(false);
   const [draftListError, setDraftListError] = useState("");
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null);
   const [switchingDraftId, setSwitchingDraftId] = useState<string | null>(
     null,
   );
@@ -253,6 +315,7 @@ export default function TemplateAClient({
     editorMediaImages,
     frameSlots,
     videos,
+    setVideos,
     editorVideos,
     selectedVideoId,
     addVideoFiles,
@@ -816,6 +879,7 @@ export default function TemplateAClient({
     setFrameSlotsState,
     setMediaBox,
     setImages,
+    setVideos,
     setTitleStyle,
     setBodyBoxStyle,
     setCaptionStyle,
@@ -1021,7 +1085,7 @@ export default function TemplateAClient({
     }
   }
 
-  async function createDraft() {
+  async function createDraft(payloadToCreate: TemplateADraftPayload) {
     setCreatingDraft(true);
     setDraftListError("");
 
@@ -1029,7 +1093,7 @@ export default function TemplateAClient({
       const res = await fetch(`/api/account/template-drafts/${TEMPLATE_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ payload: draftPayload }),
+        body: JSON.stringify({ payload: payloadToCreate }),
       });
       const body = (await res.json().catch(() => null)) as
         | { draft?: TemplateADraft; message?: string }
@@ -1040,8 +1104,11 @@ export default function TemplateAClient({
       }
 
       activeDraftIdRef.current = body.draft.id;
-      lastSavedDraftRef.current = serializedDraft;
+      const serializedCreatedDraft = JSON.stringify(body.draft.payload);
+      lastSavedDraftRef.current = serializedCreatedDraft;
       setActiveDraft(getDraftSummary(body.draft));
+      setDraftHydrated(false);
+      setDraftToHydrate(body.draft.payload);
       setDrafts((current) =>
         current
           ? [
@@ -1057,6 +1124,44 @@ export default function TemplateAClient({
       );
     } finally {
       setCreatingDraft(false);
+    }
+  }
+
+  async function deleteDraft(draft: TemplateDraftSummary) {
+    setDeletingDraftId(draft.id);
+    setDraftListError("");
+
+    try {
+      const res = await fetch(
+        `/api/account/template-drafts/${TEMPLATE_KEY}/${draft.id}`,
+        { method: "DELETE" },
+      );
+      const body = (await res.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+
+      if (!res.ok) {
+        throw new Error(body?.message ?? "Draft could not be deleted");
+      }
+
+      setDrafts((current) =>
+        current?.filter((currentDraft) => currentDraft.id !== draft.id) ??
+        current,
+      );
+
+      if (draft.id === activeDraftIdRef.current) {
+        activeDraftIdRef.current = null;
+        setActiveDraft(null);
+        lastSavedDraftRef.current = serializedDraft;
+        setDraftStatus("idle");
+        setDraftError("");
+      }
+    } catch (err: unknown) {
+      setDraftListError(
+        err instanceof Error ? err.message : "Draft could not be deleted",
+      );
+    } finally {
+      setDeletingDraftId(null);
     }
   }
 
@@ -1779,6 +1884,7 @@ export default function TemplateAClient({
         preview={
           <TemplateAPreview
             canvasPreset={canvasPreset}
+            draftName={activeDraft?.name ?? null}
             onCanvasPresetChange={setCanvasPreset}
             clearSelection={clearSelection}
             previewViewportW={previewViewportW}
@@ -1887,9 +1993,16 @@ export default function TemplateAClient({
                 error={draftListError}
                 loading={draftListLoading}
                 creating={creatingDraft}
+                deletingDraftId={deletingDraftId}
                 switchingDraftId={switchingDraftId}
-                onCreate={() => {
-                  void createDraft();
+                onNew={() => {
+                  void createDraft(DEFAULT_TEMPLATE_A_DRAFT);
+                }}
+                onDuplicate={() => {
+                  void createDraft(draftPayload);
+                }}
+                onDelete={(draft) => {
+                  void deleteDraft(draft);
                 }}
                 onLoad={() => {
                   void loadDraftList();

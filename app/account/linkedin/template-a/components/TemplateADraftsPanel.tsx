@@ -9,8 +9,11 @@ type TemplateADraftsPanelProps = {
   error: string;
   loading: boolean;
   creating: boolean;
+  deletingDraftId: string | null;
   switchingDraftId: string | null;
-  onCreate: () => void;
+  onDuplicate: () => void;
+  onNew: () => void;
+  onDelete: (draft: TemplateDraftSummary) => void;
   onLoad: () => void;
   onNameChange: (draftId: string, name: string) => void;
   onRename: (draftId: string, name: string) => void;
@@ -23,8 +26,11 @@ export default function TemplateADraftsPanel({
   error,
   loading,
   creating,
+  deletingDraftId,
   switchingDraftId,
-  onCreate,
+  onDuplicate,
+  onNew,
+  onDelete,
   onLoad,
   onNameChange,
   onRename,
@@ -38,14 +44,24 @@ export default function TemplateADraftsPanel({
       onOpen={onLoad}
     >
       <div className="template-drafts">
-        <button
-          type="button"
-          className="tb__action template-drafts__new"
-          disabled={creating}
-          onClick={onCreate}
-        >
-          {creating ? "Creating..." : "New draft"}
-        </button>
+        <div className="template-drafts__actions">
+          <button
+            type="button"
+            className="tb__action template-drafts__new"
+            disabled={creating}
+            onClick={onNew}
+          >
+            {creating ? "Creating..." : "New"}
+          </button>
+          <button
+            type="button"
+            className="tb__action template-drafts__new"
+            disabled={creating}
+            onClick={onDuplicate}
+          >
+            Duplicate
+          </button>
+        </div>
 
         {loading ? (
           <div className="template-drafts__notice">Loading drafts...</div>
@@ -66,6 +82,7 @@ export default function TemplateADraftsPanel({
             {drafts.map((draft) => {
               const active = draft.id === activeDraftId;
               const switching = draft.id === switchingDraftId;
+              const deleting = draft.id === deletingDraftId;
 
               return (
                 <div
@@ -100,6 +117,18 @@ export default function TemplateADraftsPanel({
                       }
                     }}
                   />
+                  <button
+                    type="button"
+                    className="template-drafts__delete"
+                    disabled={deleting}
+                    onClick={() => onDelete(draft)}
+                    aria-label={`Delete ${draft.name}`}
+                    title={`Delete ${draft.name}`}
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M7 3h6l.6 1.5H17v2H3v-2h3.4L7 3Zm-1.5 5h9l-.6 8.2c-.1 1-1 1.8-2 1.8H8.1c-1 0-1.9-.8-2-1.8L5.5 8Zm3 2v5h1.5v-5H8.5Zm3 0v5H13v-5h-1.5Z" />
+                    </svg>
+                  </button>
                 </div>
               );
             })}
