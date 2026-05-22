@@ -463,11 +463,15 @@ export default function TemplateAPreview({
                   </div>
                 ))}
 
-                {selectedRect && !(editField && isPreviewTextSelectableId(selectedId)) ? (
+                {selectedRect ? (
                   <div
                     className={`editor-canvasSelection ${
                       isPreviewTextSelectableId(selectedId)
-                        ? "editor-canvasSelection--text"
+                        ? `editor-canvasSelection--text ${
+                            editField === selectedId
+                              ? "editor-canvasSelection--textEditing"
+                              : ""
+                          }`
                         : "editor-canvasSelection--media"
                     }`}
                     data-selection-overlay="true"
