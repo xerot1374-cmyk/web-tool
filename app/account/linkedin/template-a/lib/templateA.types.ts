@@ -14,6 +14,7 @@ export type SessionUser = {
 
 export type TemplateAClientProps = {
   sessionUser: SessionUser | null;
+  initialDraft: TemplateADraft | null;
 };
 
 export type FieldErrors = {
@@ -163,6 +164,19 @@ export type PdfPayload = {
   linkLabel?: string;
   hashtags?: string;
   canvasPreset?: CanvasPreset;
+};
+
+export type TemplateADraftPayload = Omit<PdfPayload, "profileImage" | "name" | "role">;
+
+export type TemplateDraftSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TemplateADraft = TemplateDraftSummary & {
+  payload: TemplateADraftPayload;
 };
 
 export type CanvasPresetKey = CanvasPreset;

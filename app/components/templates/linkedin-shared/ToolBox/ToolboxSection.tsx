@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 type ToolboxSectionProps = {
   title: string;
@@ -6,6 +6,7 @@ type ToolboxSectionProps = {
   children: ReactNode;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  onOpen?: () => void;
 };
 
 export default function ToolboxSection({
@@ -14,9 +15,19 @@ export default function ToolboxSection({
   children,
   collapsible = false,
   defaultOpen = false,
+  onOpen,
 }: ToolboxSectionProps) {
   void _meta;
   const [open, setOpen] = useState(defaultOpen);
+  const wasOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      onOpen?.();
+    }
+
+    wasOpenRef.current = open;
+  }, [onOpen, open]);
 
   return (
     <section

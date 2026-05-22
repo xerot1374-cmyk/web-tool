@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { TemplateADraft } from "./lib/templateA.types";
 
 type SessionUser = {
   name: string;
@@ -10,6 +11,7 @@ type SessionUser = {
 
 type Props = {
   sessionUser: SessionUser | null;
+  initialDraft: TemplateADraft | null;
 };
 
 const TemplateAClient = dynamic(() => import("./TemplateAClient"), {

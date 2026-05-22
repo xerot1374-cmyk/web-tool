@@ -145,6 +145,7 @@ type Props = {
   onPickVideos: (files: FileList | File[] | null) => void;
   videos: VideoListItem[];
   clearVideo: (videoId: string) => void;
+  draftPanel?: React.ReactNode;
 };
 
 export default function LinkedInToolbox({
@@ -190,6 +191,7 @@ export default function LinkedInToolbox({
   onPickVideos,
   videos,
   clearVideo,
+  draftPanel,
 }: Props) {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
@@ -284,6 +286,8 @@ export default function LinkedInToolbox({
             />
           </div>
         </ToolboxSection>
+
+        {draftPanel}
 
         <ToolboxSection title="Link" meta="CTA" collapsible>
           <div className="editor-field">

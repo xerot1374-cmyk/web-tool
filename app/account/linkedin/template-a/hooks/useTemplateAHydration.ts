@@ -8,6 +8,7 @@ import type {
   BoxTextStyle,
   ImageItem,
   PdfPayload,
+  TemplateADraftPayload,
   TextMark,
   MediaBox,
 } from "../lib/templateA.types";
@@ -19,6 +20,8 @@ type Setter<T> = Dispatch<SetStateAction<T>>;
 type UseTemplateAHydrationParams = {
   isPdf: boolean;
   payload: PdfPayload | null;
+  initialDraft: TemplateADraftPayload | null;
+  setDraftHydrated: Setter<boolean>;
   setCanvasPreset: Setter<CanvasPreset>;
   setHeadline: Setter<string>;
   setSubline: Setter<string>;
@@ -42,6 +45,7 @@ type UseTemplateAHydrationParams = {
   setCompanyBlocks: Setter<RichTextBlock[]>;
   setCaptionMarks: Setter<TextMark[]>;
   setLink: Setter<string[]>;
+  setHashtags: Setter<string[]>;
   setCompany: Setter<string>;
   setProductImage: Setter<string>;
   setProductOrientation: Setter<"landscape" | "portrait">;
@@ -64,6 +68,8 @@ type UseTemplateAHydrationParams = {
 export default function useTemplateAHydration({
   isPdf,
   payload,
+  initialDraft,
+  setDraftHydrated,
   setCanvasPreset,
   setHeadline,
   setSubline,
@@ -87,6 +93,7 @@ export default function useTemplateAHydration({
   setCompanyBlocks,
   setCaptionMarks,
   setLink,
+  setHashtags,
   setCompany,
   setProductImage,
   setProductOrientation,
@@ -106,58 +113,70 @@ export default function useTemplateAHydration({
   setSublineStyle,
 }: UseTemplateAHydrationParams) {
   useEffect(() => {
-    if (!isPdf || !payload) return;
+    const source = isPdf ? payload : initialDraft;
+    if (!source) {
+      setDraftHydrated(true);
+      return;
+    }
 
-    setCanvasPreset(payload.canvasPreset ?? "linkedin");
-    setHeadline(payload.headline ?? "");
-    setSubline(payload.subline ?? "");
-    setBadgeText(payload.badgeText ?? "");
-    setTitle(payload.linkTitle ?? "");
-    setBodyRaw(payload.bodyText ?? "");
-    setCaptionRaw(payload.captionText ?? "");
-    setBadgeHtml(payload.badgeHtml ?? "");
-    setBadgeMarks(payload.badgeMarks ?? []);
-    setBadgeBlocks(payload.badgeBlocks ?? []);
-    setTitleHtml(payload.titleHtml ?? "");
-    setTitleMarks(payload.titleMarks ?? []);
-    setTitleBlocks(payload.titleBlocks ?? []);
-    setBodyHtml(payload.bodyHtml ?? "");
-    setBodyMarks(payload.bodyMarks ?? []);
-    setBodyBlocks(payload.bodyBlocks ?? []);
-    setCaptionHtml(payload.captionHtml ?? "");
-    setCaptionBlocks(payload.captionBlocks ?? []);
-    setCompanyHtml(payload.companyHtml ?? "");
-    setCompanyMarks(payload.companyMarks ?? []);
-    setCompanyBlocks(payload.companyBlocks ?? []);
-    setCaptionMarks(payload.captionMarks ?? []);
+    setCanvasPreset(source.canvasPreset ?? "linkedin");
+    setHeadline(source.headline ?? "");
+    setSubline(source.subline ?? "");
+    setBadgeText(source.badgeText ?? "");
+    setTitle(source.linkTitle ?? "");
+    setBodyRaw(source.bodyText ?? "");
+    setCaptionRaw(source.captionText ?? "");
+    setBadgeHtml(source.badgeHtml ?? "");
+    setBadgeMarks(source.badgeMarks ?? []);
+    setBadgeBlocks(source.badgeBlocks ?? []);
+    setTitleHtml(source.titleHtml ?? "");
+    setTitleMarks(source.titleMarks ?? []);
+    setTitleBlocks(source.titleBlocks ?? []);
+    setBodyHtml(source.bodyHtml ?? "");
+    setBodyMarks(source.bodyMarks ?? []);
+    setBodyBlocks(source.bodyBlocks ?? []);
+    setCaptionHtml(source.captionHtml ?? "");
+    setCaptionBlocks(source.captionBlocks ?? []);
+    setCompanyHtml(source.companyHtml ?? "");
+    setCompanyMarks(source.companyMarks ?? []);
+    setCompanyBlocks(source.companyBlocks ?? []);
+    setCaptionMarks(source.captionMarks ?? []);
     setLink(
-      payload.link
-        ? payload.link
+      source.link
+        ? source.link
             .split("\n")
             .map((s) => s.trim())
             .filter(Boolean)
         : [],
     );
-    setCompany(payload.company ?? "PROTOS-3D Metrology GmbH");
+    setHashtags(
+      source.hashtags
+        ? source.hashtags
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [],
+    );
+    setCompany(source.company ?? "PROTOS-3D Metrology GmbH");
 
-    setProductImage(payload.productImageBase64 ?? payload.productImage ?? "");
-    setProductOrientation(payload.productOrientation ?? "landscape");
-    setProductAlign(payload.productAlign ?? "center");
-    setImageLayout(payload.imageLayout ?? "manual");
-    setFramePresetId(payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID);
+    setProductImage(source.productImageBase64 ?? source.productImage ?? "");
+    setProductOrientation(source.productOrientation ?? "landscape");
+    setProductAlign(source.productAlign ?? "center");
+    setImageLayout(source.imageLayout ?? "manual");
+    setFramePresetId(source.framePresetId ?? DEFAULT_FRAME_PRESET_ID);
     setFrameSlotsState(
-      payload.frameSlots?.length
-        ? payload.frameSlots
+      source.frameSlots?.length
+        ? source.frameSlots
         : resolveFrameSlots(
-            payload.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
-            payload.canvasPreset ?? "linkedin",
+            source.framePresetId ?? DEFAULT_FRAME_PRESET_ID,
+            source.canvasPreset ?? "linkedin",
           ),
     );
-    if (payload.mediaBox) setMediaBox(payload.mediaBox);
+    if (source.mediaBox) setMediaBox(source.mediaBox);
 
-    if (payload.images?.length) {
+    if (source.images?.length) {
       setImages(
-        payload.images.map((img) => ({
+        source.images.map((img) => ({
           id: img.id,
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
@@ -174,20 +193,25 @@ export default function useTemplateAHydration({
           cropScale: img.cropScale ?? 1,
         })),
       );
+    } else {
+      setImages([]);
     }
 
-    setVideoRadius?.(payload.videoRadius ?? 20);
+    setVideoRadius?.(source.videoRadius ?? 20);
 
-    if (payload.titleStyle) setTitleStyle(payload.titleStyle);
-    if (payload.bodyStyle) setBodyBoxStyle(payload.bodyStyle);
-    if (payload.captionStyle) setCaptionStyle(payload.captionStyle);
-    if (payload.badgeStyle) setBadgeStyle(payload.badgeStyle);
-    if (payload.companyStyle) setCompanyStyle(payload.companyStyle);
-    if (payload.headlineStyle) setHeadlineStyle(payload.headlineStyle);
-    if (payload.sublineStyle) setSublineStyle(payload.sublineStyle);
+    if (source.titleStyle) setTitleStyle(source.titleStyle);
+    if (source.bodyStyle) setBodyBoxStyle(source.bodyStyle);
+    if (source.captionStyle) setCaptionStyle(source.captionStyle);
+    if (source.badgeStyle) setBadgeStyle(source.badgeStyle);
+    if (source.companyStyle) setCompanyStyle(source.companyStyle);
+    if (source.headlineStyle) setHeadlineStyle(source.headlineStyle);
+    if (source.sublineStyle) setSublineStyle(source.sublineStyle);
+    setDraftHydrated(true);
   }, [
     isPdf,
     payload,
+    initialDraft,
+    setDraftHydrated,
     setCanvasPreset,
     setHeadline,
     setSubline,
@@ -211,6 +235,7 @@ export default function useTemplateAHydration({
     setCompanyBlocks,
     setCaptionMarks,
     setLink,
+    setHashtags,
     setCompany,
     setProductImage,
     setProductOrientation,
