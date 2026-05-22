@@ -4,12 +4,21 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
+const DEFAULT_PAGE_SIZE = 5;
+const MAX_SEARCH_LENGTH = 100;
+
 function normalizeTemplateKey(value: string) {
   return value.trim();
 }
 
+function getPositiveInteger(value: string | null, fallback: number) {
+  const parsed = Number.parseInt(value ?? "", 10);
+
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ templateKey: string }> },
 ) {
   const user = await requireCurrentUser();
@@ -23,19 +32,41 @@ export async function GET(
     );
   }
 
-  const drafts = await prisma.templateDraft.findMany({
-    where: {
-      userId: user.id,
-      templateKey,
-    },
-    select: {
-      id: true,
-      name: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-    orderBy: { updatedAt: "desc" },
-  });
+  const url = new URL(req.url);
+  const page = getPositiveInteger(url.searchParams.get("page"), 1);
+  const pageSize = DEFAULT_PAGE_SIZE;
+  const search = url.searchParams
+    .get("search")
+    ?.trim()
+    .slice(0, MAX_SEARCH_LENGTH);
+  const where = {
+    userId: user.id,
+    templateKey,
+    ...(search
+      ? {
+          name: {
+            contains: search,
+            mode: "insensitive" as const,
+          },
+        }
+      : {}),
+  };
+
+  const [drafts, total] = await prisma.$transaction([
+    prisma.templateDraft.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.templateDraft.count({ where }),
+  ]);
 
   return NextResponse.json({
     ok: true,
@@ -44,6 +75,12 @@ export async function GET(
       createdAt: draft.createdAt.toISOString(),
       updatedAt: draft.updatedAt.toISOString(),
     })),
+    pagination: {
+      page,
+      pageSize,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    },
   });
 }
 

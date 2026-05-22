@@ -1,7 +1,10 @@
 "use client";
 
 import ToolboxSection from "@/app/components/templates/linkedin-shared/ToolBox/ToolboxSection";
-import type { TemplateDraftSummary } from "../lib/templateA.types";
+import type {
+  TemplateDraftPagination,
+  TemplateDraftSummary,
+} from "../lib/templateA.types";
 
 type TemplateADraftsPanelProps = {
   activeDraftId: string | null;
@@ -9,12 +12,16 @@ type TemplateADraftsPanelProps = {
   error: string;
   loading: boolean;
   creating: boolean;
+  pagination: TemplateDraftPagination;
+  search: string;
   deletingDraftId: string | null;
   switchingDraftId: string | null;
   onDuplicate: () => void;
   onNew: () => void;
   onDelete: (draft: TemplateDraftSummary) => void;
   onLoad: () => void;
+  onPageChange: (page: number) => void;
+  onSearchChange: (search: string) => void;
   onNameChange: (draftId: string, name: string) => void;
   onRename: (draftId: string, name: string) => void;
   onSelect: (draft: TemplateDraftSummary) => void;
@@ -26,12 +33,16 @@ export default function TemplateADraftsPanel({
   error,
   loading,
   creating,
+  pagination,
+  search,
   deletingDraftId,
   switchingDraftId,
   onDuplicate,
   onNew,
   onDelete,
   onLoad,
+  onPageChange,
+  onSearchChange,
   onNameChange,
   onRename,
   onSelect,
@@ -63,6 +74,17 @@ export default function TemplateADraftsPanel({
           </button>
         </div>
 
+        <label className="template-drafts__search">
+          <span className="editor-label">Search drafts</span>
+          <input
+            type="search"
+            className="editor-input"
+            value={search}
+            placeholder="Filter by draft name"
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+        </label>
+
         {loading ? (
           <div className="template-drafts__notice">Loading drafts...</div>
         ) : null}
@@ -78,61 +100,86 @@ export default function TemplateADraftsPanel({
         ) : null}
 
         {drafts?.length ? (
-          <div className="template-drafts__list">
-            {drafts.map((draft) => {
-              const active = draft.id === activeDraftId;
-              const switching = draft.id === switchingDraftId;
-              const deleting = draft.id === deletingDraftId;
+          <>
+            <div className="template-drafts__list">
+              {drafts.map((draft) => {
+                const active = draft.id === activeDraftId;
+                const switching = draft.id === switchingDraftId;
+                const deleting = draft.id === deletingDraftId;
 
-              return (
-                <div
-                  key={draft.id}
-                  className={
-                    active
-                      ? "template-drafts__item template-drafts__item--active"
-                      : "template-drafts__item"
-                  }
-                >
-                  <button
-                    type="button"
-                    className="template-drafts__pick"
-                    disabled={active || switching}
-                    onClick={() => onSelect(draft)}
-                    aria-label={`Open ${draft.name}`}
-                  >
-                    {switching ? "Opening..." : active ? "Current" : "Open"}
-                  </button>
-                  <input
-                    className="editor-input template-drafts__name"
-                    value={draft.name}
-                    maxLength={100}
-                    aria-label={`Rename ${draft.name}`}
-                    onChange={(event) =>
-                      onNameChange(draft.id, event.target.value)
+                return (
+                  <div
+                    key={draft.id}
+                    className={
+                      active
+                        ? "template-drafts__item template-drafts__item--active"
+                        : "template-drafts__item"
                     }
-                    onBlur={(event) => onRename(draft.id, event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.currentTarget.blur();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="template-drafts__delete"
-                    disabled={deleting}
-                    onClick={() => onDelete(draft)}
-                    aria-label={`Delete ${draft.name}`}
-                    title={`Delete ${draft.name}`}
                   >
-                    <svg viewBox="0 0 20 20" aria-hidden="true">
-                      <path d="M7 3h6l.6 1.5H17v2H3v-2h3.4L7 3Zm-1.5 5h9l-.6 8.2c-.1 1-1 1.8-2 1.8H8.1c-1 0-1.9-.8-2-1.8L5.5 8Zm3 2v5h1.5v-5H8.5Zm3 0v5H13v-5h-1.5Z" />
-                    </svg>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                    <button
+                      type="button"
+                      className="template-drafts__pick"
+                      disabled={active || switching}
+                      onClick={() => onSelect(draft)}
+                      aria-label={`Open ${draft.name}`}
+                    >
+                      {switching ? "Opening..." : "Open"}
+                    </button>
+                    <input
+                      className="editor-input template-drafts__name"
+                      value={draft.name}
+                      maxLength={100}
+                      aria-label={`Rename ${draft.name}`}
+                      onChange={(event) =>
+                        onNameChange(draft.id, event.target.value)
+                      }
+                      onBlur={(event) =>
+                        onRename(draft.id, event.target.value)
+                      }
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.currentTarget.blur();
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="template-drafts__delete"
+                      disabled={deleting}
+                      onClick={() => onDelete(draft)}
+                      aria-label={`Delete ${draft.name}`}
+                      title={`Delete ${draft.name}`}
+                    >
+                      <svg viewBox="0 0 20 20" aria-hidden="true">
+                        <path d="M7 3h6l.6 1.5H17v2H3v-2h3.4L7 3Zm-1.5 5h9l-.6 8.2c-.1 1-1 1.8-2 1.8H8.1c-1 0-1.9-.8-2-1.8L5.5 8Zm3 2v5h1.5v-5H8.5Zm3 0v5H13v-5h-1.5Z" />
+                      </svg>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="template-drafts__pagination">
+              <button
+                type="button"
+                className="template-drafts__page"
+                disabled={loading || pagination.page <= 1}
+                onClick={() => onPageChange(pagination.page - 1)}
+              >
+                Previous
+              </button>
+              <span>
+                Page {pagination.page} of {pagination.totalPages}
+              </span>
+              <button
+                type="button"
+                className="template-drafts__page"
+                disabled={loading || pagination.page >= pagination.totalPages}
+                onClick={() => onPageChange(pagination.page + 1)}
+              >
+                Next
+              </button>
+            </div>
+          </>
         ) : null}
       </div>
     </ToolboxSection>

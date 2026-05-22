@@ -18,6 +18,48 @@ import type { CanvasPreset } from "@/app/lib/renderUtils";
 
 type Setter<T> = Dispatch<SetStateAction<T>>;
 
+const DEFAULT_TITLE_STYLE: BoxTextStyle = {
+  fontFamily: "system-ui",
+  fontSize: 34,
+  color: "#111827",
+  textAlign: "left",
+};
+
+const DEFAULT_BODY_STYLE: BoxTextStyle = {
+  fontFamily: "system-ui",
+  fontSize: 16,
+  color: "#111827",
+  textAlign: "left",
+};
+
+const DEFAULT_BADGE_STYLE: BoxTextStyle = {
+  fontFamily: "system-ui",
+  fontSize: 20,
+  color: "#ffffff",
+  textAlign: "left",
+};
+
+const DEFAULT_COMPANY_STYLE: BoxTextStyle = {
+  fontFamily: "system-ui",
+  fontSize: 18,
+  color: "#111827",
+  textAlign: "left",
+};
+
+const DEFAULT_HEADLINE_STYLE: BoxTextStyle = {
+  fontFamily: "system-ui",
+  fontSize: 28,
+  color: "#111827",
+  textAlign: "left",
+};
+
+const DEFAULT_SUBLINE_STYLE: BoxTextStyle = {
+  fontFamily: "system-ui",
+  fontSize: 18,
+  color: "#374151",
+  textAlign: "left",
+};
+
 type UseTemplateAHydrationParams = {
   isPdf: boolean;
   payload: PdfPayload | null;
@@ -206,13 +248,13 @@ export default function useTemplateAHydration({
 
     setVideoRadius?.(source.videoRadius ?? 20);
 
-    if (source.titleStyle) setTitleStyle(source.titleStyle);
-    if (source.bodyStyle) setBodyBoxStyle(source.bodyStyle);
-    if (source.captionStyle) setCaptionStyle(source.captionStyle);
-    if (source.badgeStyle) setBadgeStyle(source.badgeStyle);
-    if (source.companyStyle) setCompanyStyle(source.companyStyle);
-    if (source.headlineStyle) setHeadlineStyle(source.headlineStyle);
-    if (source.sublineStyle) setSublineStyle(source.sublineStyle);
+    setTitleStyle(source.titleStyle ?? DEFAULT_TITLE_STYLE);
+    setBodyBoxStyle(source.bodyStyle ?? DEFAULT_BODY_STYLE);
+    setCaptionStyle(source.captionStyle ?? DEFAULT_BODY_STYLE);
+    setBadgeStyle(source.badgeStyle ?? DEFAULT_BADGE_STYLE);
+    setCompanyStyle(source.companyStyle ?? DEFAULT_COMPANY_STYLE);
+    setHeadlineStyle(source.headlineStyle ?? DEFAULT_HEADLINE_STYLE);
+    setSublineStyle(source.sublineStyle ?? DEFAULT_SUBLINE_STYLE);
     setDraftHydrated(true);
   }, [
     isPdf,

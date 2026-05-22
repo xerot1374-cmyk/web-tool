@@ -175,6 +175,13 @@ export type TemplateDraftSummary = {
   updatedAt: string;
 };
 
+export type TemplateDraftPagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
 export type TemplateADraft = TemplateDraftSummary & {
   payload: TemplateADraftPayload;
 };

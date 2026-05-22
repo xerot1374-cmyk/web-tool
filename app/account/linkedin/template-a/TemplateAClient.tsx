@@ -36,6 +36,7 @@ import type {
   TemplateADraft,
   TemplateADraftPayload,
   TemplateAClientProps,
+  TemplateDraftPagination,
   TemplateDraftSummary,
   TextMark,
 } from "./lib/templateA.types";
@@ -65,6 +66,12 @@ const INITIAL_RICH_EDIT_SESSION_KEYS = {
 } as const;
 
 const TEMPLATE_KEY = "linkedin-template-a";
+const DEFAULT_DRAFT_PAGINATION: TemplateDraftPagination = {
+  page: 1,
+  pageSize: 5,
+  total: 0,
+  totalPages: 1,
+};
 
 const DEFAULT_TEMPLATE_A_DRAFT: TemplateADraftPayload = {
   productOrientation: "landscape",
@@ -186,6 +193,10 @@ export default function TemplateAClient({
     () => (initialDraft ? getDraftSummary(initialDraft) : null),
   );
   const [drafts, setDrafts] = useState<TemplateDraftSummary[] | null>(null);
+  const [draftSearch, setDraftSearch] = useState("");
+  const [draftPagination, setDraftPagination] = useState(
+    DEFAULT_DRAFT_PAGINATION,
+  );
   const [draftListLoading, setDraftListLoading] = useState(false);
   const [draftListError, setDraftListError] = useState("");
   const [creatingDraft, setCreatingDraft] = useState(false);
@@ -198,6 +209,7 @@ export default function TemplateAClient({
   );
   const lastSavedDraftRef = useRef<string | null>(null);
   const activeDraftIdRef = useRef(initialDraft?.id ?? null);
+  const draftListRequestRef = useRef(0);
 
   const [, setErrors] = useState<FieldErrors>({});
   const {
@@ -1013,11 +1025,15 @@ export default function TemplateAClient({
     );
     setDrafts((current) => {
       if (!current) return current;
+      const hasSummary = current.some((draft) => draft.id === summary.id);
 
-      return [
-        summary,
-        ...current.filter((draft) => draft.id !== summary.id),
-      ];
+      if (!hasSummary) {
+        return [summary, ...current];
+      }
+
+      return current.map((draft) =>
+        draft.id === summary.id ? summary : draft,
+      );
     });
   }
 
@@ -1059,29 +1075,59 @@ export default function TemplateAClient({
 
   const saveDraft = useEffectEvent(persistDraft);
 
-  async function loadDraftList() {
-    if (drafts !== null || draftListLoading) return;
+  async function loadDraftList({
+    page = draftPagination.page,
+    search = draftSearch,
+    force = false,
+  }: {
+    page?: number;
+    search?: string;
+    force?: boolean;
+  } = {}) {
+    if (!force && (drafts !== null || draftListLoading)) return;
 
+    const requestId = draftListRequestRef.current + 1;
+    draftListRequestRef.current = requestId;
     setDraftListLoading(true);
     setDraftListError("");
 
     try {
-      const res = await fetch(`/api/account/template-drafts/${TEMPLATE_KEY}`);
+      const params = new URLSearchParams({ page: String(page) });
+      const trimmedSearch = search.trim();
+
+      if (trimmedSearch) {
+        params.set("search", trimmedSearch);
+      }
+
+      const res = await fetch(
+        `/api/account/template-drafts/${TEMPLATE_KEY}?${params}`,
+      );
       const body = (await res.json().catch(() => null)) as
-        | { drafts?: TemplateDraftSummary[]; message?: string }
+        | {
+            drafts?: TemplateDraftSummary[];
+            pagination?: TemplateDraftPagination;
+            message?: string;
+          }
         | null;
 
       if (!res.ok) {
         throw new Error(body?.message ?? "Draft list failed to load");
       }
 
+      if (requestId !== draftListRequestRef.current) return;
+
       setDrafts(body?.drafts ?? []);
+      setDraftPagination(body?.pagination ?? DEFAULT_DRAFT_PAGINATION);
     } catch (err: unknown) {
+      if (requestId !== draftListRequestRef.current) return;
+
       setDraftListError(
         err instanceof Error ? err.message : "Draft list failed to load",
       );
     } finally {
-      setDraftListLoading(false);
+      if (requestId === draftListRequestRef.current) {
+        setDraftListLoading(false);
+      }
     }
   }
 
@@ -1114,9 +1160,13 @@ export default function TemplateAClient({
           ? [
               getDraftSummary(body.draft as TemplateADraft),
               ...current.filter((draft) => draft.id !== body.draft?.id),
-            ]
+            ].slice(0, draftPagination.pageSize)
           : current,
       );
+      if (drafts !== null) {
+        setDraftSearch("");
+        void loadDraftList({ page: 1, search: "", force: true });
+      }
       setDraftStatus("saved");
     } catch (err: unknown) {
       setDraftListError(
@@ -1148,6 +1198,14 @@ export default function TemplateAClient({
         current?.filter((currentDraft) => currentDraft.id !== draft.id) ??
         current,
       );
+      if (drafts !== null) {
+        const nextPage =
+          drafts.length <= 1 && draftPagination.page > 1
+            ? draftPagination.page - 1
+            : draftPagination.page;
+
+        void loadDraftList({ page: nextPage, force: true });
+      }
 
       if (draft.id === activeDraftIdRef.current) {
         activeDraftIdRef.current = null;
@@ -1993,6 +2051,8 @@ export default function TemplateAClient({
                 error={draftListError}
                 loading={draftListLoading}
                 creating={creatingDraft}
+                pagination={draftPagination}
+                search={draftSearch}
                 deletingDraftId={deletingDraftId}
                 switchingDraftId={switchingDraftId}
                 onNew={() => {
@@ -2006,6 +2066,13 @@ export default function TemplateAClient({
                 }}
                 onLoad={() => {
                   void loadDraftList();
+                }}
+                onPageChange={(page) => {
+                  void loadDraftList({ page, force: true });
+                }}
+                onSearchChange={(search) => {
+                  setDraftSearch(search);
+                  void loadDraftList({ page: 1, search, force: true });
                 }}
                 onNameChange={changeDraftName}
                 onRename={(draftId, name) => {

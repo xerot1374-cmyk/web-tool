@@ -97,7 +97,7 @@ Use the minimal set of skills that fits the task. Announce the skill names brief
 - Use `stack-orchestrator` for repo-wide planning or work that spans app routes, data, infra, and tests.
 - Use `test-automation-builder` when adding or improving automated checks for this app.
 - Use `e2e-flow-tester` when the user wants end-to-end coverage or route-flow discovery for the web app.
-- Use `web-visual-tester` when UI changes need browser validation or screenshot evidence.
+- Use `web-visual-tester` only when the user explicitly asks for browser validation, visual validation, or screenshot evidence.
 - Use `change-validator` when the user wants explicit proof that a change satisfies the request.
 - Use `internal-docs-builder` for updates to repo guidance, engineering docs, and agent-facing instructions.
 
@@ -106,6 +106,7 @@ Use the minimal set of skills that fits the task. Announce the skill names brief
 - Default web implementation style: Next.js App Router with server-first behavior where it simplifies data and auth flows.
 - Default database style: Prisma schema changes paired with explicit checked-in migrations.
 - Default validation posture: run the smallest meaningful proof set and state what remains unverified.
+- Do not run visual validation unless the user explicitly asks for it.
 - Prefer explicit environment variables, file paths, and route ownership over implicit conventions.
 
 ## Delivery rules
