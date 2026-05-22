@@ -251,6 +251,46 @@ export default function PdfRenderClient() {
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ${PDF_EMOJI_FONT_FALLBACK};
           }
 
+          .pdf-emoji-font-scope .template-inline-editor {
+            color: inherit;
+            box-sizing: border-box;
+            max-width: 100%;
+          }
+
+          .pdf-emoji-font-scope .template-inline-editor > * {
+            box-sizing: border-box;
+            max-width: 100%;
+          }
+
+          .pdf-emoji-font-scope .template-inline-editor p,
+          .pdf-emoji-font-scope .template-inline-editor ul,
+          .pdf-emoji-font-scope .template-inline-editor ol,
+          .pdf-emoji-font-scope .template-inline-editor li {
+            margin: 0;
+            max-width: 100%;
+            line-height: inherit;
+            white-space: pre-wrap;
+          }
+
+          .pdf-emoji-font-scope .template-inline-editor ul,
+          .pdf-emoji-font-scope .template-inline-editor ol {
+            padding-inline-start: 0;
+            list-style-position: inside;
+          }
+
+          .pdf-emoji-font-scope .template-inline-editor li {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
+
+          .pdf-emoji-font-scope .template-inline-editor li::marker {
+            font-family: var(--listitem-marker-font-family, inherit);
+            font-size: var(--listitem-marker-font-size, inherit);
+            font-style: var(--listitem-marker-font-style, inherit);
+            font-weight: var(--listitem-marker-font-weight, inherit);
+            color: var(--listitem-marker-color, inherit);
+          }
+
           nextjs-portal,
           [data-nextjs-dialog-overlay],
           [data-nextjs-toast],
