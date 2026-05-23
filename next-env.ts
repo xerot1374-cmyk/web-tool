@@ -9,6 +9,6 @@ function parseCsvEnv(value: string | undefined): string[] {
     .filter(Boolean);
 }
 
-export const nextServerActionsAllowedOrigins = parseCsvEnv(
-  process.env.NEXT_SERVER_ACTIONS_ALLOWED_ORIGINS,
+export const nextAllowedDevOrigins = parseCsvEnv(
+  process.env.NEXT_ALLOWED_DEV_ORIGINS,
 );

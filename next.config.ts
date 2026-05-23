@@ -1,17 +1,13 @@
 import type { NextConfig } from "next";
 
-import { nextServerActionsAllowedOrigins } from "./next-env";
+import { nextAllowedDevOrigins } from "./next-env";
 
 const nextConfig: NextConfig = {
   output: "standalone",
   typescript: {
     ignoreBuildErrors: true,
   },
-  experimental: {
-    serverActions: {
-      allowedOrigins: nextServerActionsAllowedOrigins,
-    },
-  },
+  allowedDevOrigins: nextAllowedDevOrigins,
   async rewrites() {
     return [
       {
