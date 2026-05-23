@@ -1,4 +1,6 @@
-FROM node:20-bookworm-slim AS deps
+ARG NODE_IMAGE=node:24-bookworm-slim
+
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -24,7 +26,7 @@ RUN apt-get update \
     ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
-FROM node:20-bookworm-slim AS builder
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -40,7 +42,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:20-bookworm-slim AS runner
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
