@@ -32,6 +32,7 @@ type Payload = {
   bodyMarks?: TextMark[];
 
   link?: string;
+  hashtags?: string;
 
   mediaBox?: {
     x: number;
@@ -120,15 +121,24 @@ type BoxTextStyle = {
   textAlign?: "left" | "center" | "right";
 };
 
-const LI2_DETERMINISTIC_FONT = '"Inter", Arial, Helvetica, sans-serif';
+const LI2_EMOJI_FONT_FALLBACK =
+  '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
+const LI2_DETERMINISTIC_FONT =
+  `"Inter", ${LI2_EMOJI_FONT_FALLBACK}`;
 
 function normalizeTemplateFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
-  return !value ||
+  if (
+    !value ||
     /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
     /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
-    ? LI2_DETERMINISTIC_FONT
-    : value;
+  ) {
+    return LI2_DETERMINISTIC_FONT;
+  }
+
+  return /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji/i.test(value)
+    ? value
+    : `${value}, ${LI2_EMOJI_FONT_FALLBACK}`;
 }
 
 export const runtime = "nodejs";
@@ -189,6 +199,12 @@ function linkLabel(linkUrl: string) {
   } catch {
     return linkUrl;
   }
+}
+
+function normalizeHashtag(raw: string) {
+  const value = raw.trim();
+  if (!value) return "";
+  return value.startsWith("#") ? value : `#${value}`;
 }
 
 function renderMarkedHtml(text: string, marks?: TextMark[]) {
@@ -572,6 +588,10 @@ function renderVideoTemplateHtml(
     .split("\n")
     .map((item) => normalizeHttpUrl(item))
     .filter((item): item is string => Boolean(item));
+  const hashtags = (data.hashtags ?? "")
+    .split("\n")
+    .map((item) => normalizeHashtag(item))
+    .filter(Boolean);
 
   return `<!doctype html>
 <html lang="en">
@@ -686,6 +706,20 @@ function renderVideoTemplateHtml(
           ${
             data.bodyText?.trim()
               ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">${renderMarkedHtml(data.bodyText, data.bodyMarks)}</div>`
+              : ""
+          }
+          ${
+            hashtags.length
+              ? `<div class="li2-linkRow">
+                  <div class="li2-linksList">
+                    ${hashtags
+                      .map(
+                        (hashtag) =>
+                          `<span class="li2-link" style="color:#64748b;display:inline-block;margin-right:12px;">${escapeHtml(hashtag)}</span>`,
+                      )
+                      .join("")}
+                  </div>
+                </div>`
               : ""
           }
           ${

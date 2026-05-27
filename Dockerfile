@@ -24,6 +24,7 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     chromium \
     ffmpeg \
+    fonts-noto-color-emoji \
   && rm -rf /var/lib/apt/lists/*
 
 FROM ${NODE_IMAGE} AS builder
@@ -60,6 +61,7 @@ RUN apt-get update \
     dumb-init \
     ffmpeg \
     fonts-liberation \
+    fonts-noto-color-emoji \
     libasound2 \
     libatk-bridge2.0-0 \
     libatk1.0-0 \

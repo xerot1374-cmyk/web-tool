@@ -484,6 +484,7 @@ export default function useTemplateAExport({
           companyMarks,
           companyBlocks,
           link: link.length ? link.join("\n") : "",
+          hashtags: hashtags.length ? hashtags.join("\n") : "",
           mediaBox,
           images: imagePayload,
           videos: videoPayload,

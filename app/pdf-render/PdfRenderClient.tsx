@@ -102,8 +102,9 @@ type Payload = {
 };
 
 const PDF_EMOJI_FONT_FALLBACK =
-  '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
-const PDF_DETERMINISTIC_FONT = '"Inter", Arial, Helvetica, sans-serif';
+  '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
+const PDF_DETERMINISTIC_FONT =
+  '"Inter", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
 
 function normalizePdfFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
@@ -117,9 +118,7 @@ function normalizePdfFontFamily(fontFamily?: string) {
 function withPdfEmojiFallback(fontFamily?: string) {
   const value = normalizePdfFontFamily(fontFamily);
   if (
-    /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji|Segoe UI Symbol/i.test(
-      value,
-    )
+    /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji/i.test(value)
   ) {
     return value;
   }
@@ -257,7 +256,7 @@ export default function PdfRenderClient() {
       <style>
         {`
           .pdf-emoji-font-scope .li2-root {
-            font-family: ${PDF_DETERMINISTIC_FONT}, ${PDF_EMOJI_FONT_FALLBACK};
+            font-family: ${PDF_DETERMINISTIC_FONT};
           }
 
           .pdf-emoji-font-scope .template-inline-editor {
