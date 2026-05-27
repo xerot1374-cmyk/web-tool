@@ -120,6 +120,17 @@ type BoxTextStyle = {
   textAlign?: "left" | "center" | "right";
 };
 
+const LI2_DETERMINISTIC_FONT = '"Inter", Arial, Helvetica, sans-serif';
+
+function normalizeTemplateFontFamily(fontFamily?: string) {
+  const value = fontFamily?.trim();
+  return !value ||
+    /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
+    /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
+    ? LI2_DETERMINISTIC_FONT
+    : value;
+}
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -220,7 +231,9 @@ function renderMarkedHtml(text: string, marks?: TextMark[]) {
 
     const styles: string[] = [];
     if (activeStyle.fontFamily) {
-      styles.push(`font-family:${escapeHtml(String(activeStyle.fontFamily))}`);
+      styles.push(
+        `font-family:${escapeHtml(normalizeTemplateFontFamily(String(activeStyle.fontFamily)))}`,
+      );
     }
     if (activeStyle.fontSize !== undefined && activeStyle.fontSize !== null) {
       const rawSize = String(activeStyle.fontSize);
@@ -261,7 +274,7 @@ function getCropValue(value: unknown, fallback: number) {
 function styleToInline(style?: BoxTextStyle) {
   if (!style) return "";
   return [
-    style.fontFamily ? `font-family:${style.fontFamily};` : "",
+    `font-family:${normalizeTemplateFontFamily(style.fontFamily)};`,
     style.fontSize ? `font-size:${style.fontSize}px;` : "",
     style.color ? `color:${style.color};` : "",
     style.textAlign ? `text-align:${style.textAlign};` : "",

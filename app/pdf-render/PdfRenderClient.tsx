@@ -103,10 +103,19 @@ type Payload = {
 
 const PDF_EMOJI_FONT_FALLBACK =
   '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Segoe UI Symbol", sans-serif';
+const PDF_DETERMINISTIC_FONT = '"Inter", Arial, Helvetica, sans-serif';
+
+function normalizePdfFontFamily(fontFamily?: string) {
+  const value = fontFamily?.trim();
+  return !value ||
+    /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
+    /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
+    ? PDF_DETERMINISTIC_FONT
+    : value;
+}
 
 function withPdfEmojiFallback(fontFamily?: string) {
-  const value = fontFamily?.trim();
-  if (!value) return PDF_EMOJI_FONT_FALLBACK;
+  const value = normalizePdfFontFamily(fontFamily);
   if (
     /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji|Segoe UI Symbol/i.test(
       value,
@@ -248,7 +257,7 @@ export default function PdfRenderClient() {
       <style>
         {`
           .pdf-emoji-font-scope .li2-root {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ${PDF_EMOJI_FONT_FALLBACK};
+            font-family: ${PDF_DETERMINISTIC_FONT}, ${PDF_EMOJI_FONT_FALLBACK};
           }
 
           .pdf-emoji-font-scope .template-inline-editor {

@@ -213,6 +213,37 @@ function cx(...parts: Array<string | false | null | undefined>) {
 }
 
 const clean = (v?: string) => (v?.trim() ? v.trim() : "");
+const LI2_DETERMINISTIC_FONT = '"Inter", Arial, Helvetica, sans-serif';
+
+function isLegacySystemFont(fontFamily?: string) {
+  const value = fontFamily?.trim();
+  return (
+    !value ||
+    /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
+    /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
+  );
+}
+
+function normalizeTemplateFontFamily(fontFamily?: string) {
+  if (!isLegacySystemFont(fontFamily)) return fontFamily;
+  const emojiSuffix =
+    fontFamily?.match(
+      /,\s*(?:"Apple Color Emoji"|"Segoe UI Emoji"|"Noto Color Emoji"|"Segoe UI Symbol").*$/i,
+    )?.[0] ?? "";
+  return `${LI2_DETERMINISTIC_FONT}${emojiSuffix}`;
+}
+
+function normalizeTemplateMarks(marks?: TextMark[]) {
+  return marks?.map((mark) => ({
+    ...mark,
+    style: {
+      ...mark.style,
+      ...(mark.style.fontFamily
+        ? { fontFamily: normalizeTemplateFontFamily(mark.style.fontFamily) }
+        : {}),
+    },
+  }));
+}
 
 function EditableInput({
   value,
@@ -281,7 +312,9 @@ function renderMarkedText(
       }
 
       const style: React.CSSProperties = {
-        fontFamily: m.style.fontFamily,
+        fontFamily: m.style.fontFamily
+          ? normalizeTemplateFontFamily(m.style.fontFamily)
+          : undefined,
         fontSize: m.style.fontSize,
         color: m.style.color,
         fontWeight: m.style.fontWeight,
@@ -318,7 +351,9 @@ function renderMarkedText(
     if (!leadingMark) return undefined;
 
     return {
-      fontFamily: leadingMark.style.fontFamily ?? baseStyle?.fontFamily,
+      fontFamily: leadingMark.style.fontFamily
+        ? normalizeTemplateFontFamily(leadingMark.style.fontFamily)
+        : baseStyle?.fontFamily,
       fontSize: leadingMark.style.fontSize ?? baseStyle?.fontSize,
       color: leadingMark.style.color ?? baseStyle?.color,
       fontWeight: leadingMark.style.fontWeight ?? baseStyle?.fontWeight,
@@ -525,7 +560,7 @@ export default function LinkedInTemplate2Renderer({
       <LexicalInlineEditor
         key={`readonly-${field}-${text}-${JSON.stringify(marks ?? [])}-${JSON.stringify(blocks ?? [])}`}
         text={text}
-        marks={marks ?? []}
+        marks={normalizeTemplateMarks(marks) ?? []}
         blocks={blocks ?? []}
         multiline={multiline}
         editable={false}
@@ -918,7 +953,7 @@ export default function LinkedInTemplate2Renderer({
             className="li2-badge"
             style={{
               minWidth: 120,
-              fontFamily: data.badgeStyle?.fontFamily,
+              fontFamily: normalizeTemplateFontFamily(data.badgeStyle?.fontFamily),
               fontSize: data.badgeStyle?.fontSize,
               color: data.badgeStyle?.color,
               textAlign: data.badgeStyle?.textAlign,
@@ -986,7 +1021,7 @@ export default function LinkedInTemplate2Renderer({
                 onSelectableDoubleClick?.("title", event)
               }
               style={{
-                fontFamily: data.titleStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(data.titleStyle?.fontFamily),
                 fontSize: data.titleStyle?.fontSize,
                 color: data.titleStyle?.color,
                 textAlign: data.titleStyle?.textAlign,
@@ -1019,7 +1054,7 @@ export default function LinkedInTemplate2Renderer({
                 onSelectableDoubleClick?.("company", event)
               }
               style={{
-                fontFamily: data.companyStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(data.companyStyle?.fontFamily),
                 fontSize: data.companyStyle?.fontSize,
                 color: data.companyStyle?.color,
                 textAlign: data.companyStyle?.textAlign,
@@ -1048,7 +1083,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-headline"
               data-select="headline"
               style={{
-                fontFamily: data.headlineStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(
+                  data.headlineStyle?.fontFamily,
+                ),
                 fontSize: data.headlineStyle?.fontSize,
                 color: data.headlineStyle?.color,
                 textAlign: data.headlineStyle?.textAlign,
@@ -1066,7 +1103,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-headline"
               data-select="headline"
               style={{
-                fontFamily: data.headlineStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(
+                  data.headlineStyle?.fontFamily,
+                ),
                 fontSize: data.headlineStyle?.fontSize,
                 color: data.headlineStyle?.color,
                 textAlign: data.headlineStyle?.textAlign,
@@ -1081,7 +1120,7 @@ export default function LinkedInTemplate2Renderer({
               className="li2-subline"
               data-select="subline"
               style={{
-                fontFamily: data.sublineStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(data.sublineStyle?.fontFamily),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
                 textAlign: data.sublineStyle?.textAlign,
@@ -1099,7 +1138,7 @@ export default function LinkedInTemplate2Renderer({
               className="li2-subline"
               data-select="subline"
               style={{
-                fontFamily: data.sublineStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(data.sublineStyle?.fontFamily),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
                 textAlign: data.sublineStyle?.textAlign,
@@ -1118,7 +1157,7 @@ export default function LinkedInTemplate2Renderer({
                 onSelectableDoubleClick?.("body", event)
               }
               style={{
-                fontFamily: data.bodyStyle?.fontFamily,
+                fontFamily: normalizeTemplateFontFamily(data.bodyStyle?.fontFamily),
                 fontSize: data.bodyStyle?.fontSize,
                 color: data.bodyStyle?.color,
                 textAlign: data.bodyStyle?.textAlign,
