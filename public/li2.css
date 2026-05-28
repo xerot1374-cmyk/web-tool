@@ -584,6 +584,9 @@
   font-size: var(--li2-body-font);
   color: rgba(15, 23, 42, 0.88);
   line-height: 1.65;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align-last: auto;
   white-space: pre-wrap;
   overflow: visible;
   padding-right: 6px;
@@ -598,6 +601,10 @@
   margin-top: 12px;
   font-size: 18px;
   color: var(--li2-muted);
+}
+
+.li2-body + .li2-linkRow {
+  margin-top: 22px;
 }
 
 .li2-link {

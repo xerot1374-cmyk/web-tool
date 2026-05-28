@@ -106,6 +106,10 @@ const PDF_EMOJI_FONT_FALLBACK =
 const PDF_DETERMINISTIC_FONT =
   '"Inter", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
 
+function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
+  return value === "center" || value === "right" ? value : "left";
+}
+
 function normalizePdfFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
   return !value ||
@@ -125,12 +129,20 @@ function withPdfEmojiFallback(fontFamily?: string) {
   return `${value}, ${PDF_EMOJI_FONT_FALLBACK}`;
 }
 
-function withPdfEmojiStyle<T extends { fontFamily?: string }>(style?: T) {
+function withPdfEmojiStyle<T extends { fontFamily?: string; textAlign?: unknown }>(
+  style?: T,
+) {
   if (!style) return undefined;
-  if (!style.fontFamily?.trim()) return style;
+  if (!style.fontFamily?.trim()) {
+    return {
+      ...style,
+      textAlign: sanitizeTextAlign(style.textAlign),
+    };
+  }
   return {
     ...style,
     fontFamily: withPdfEmojiFallback(style.fontFamily),
+    textAlign: sanitizeTextAlign(style.textAlign),
   };
 }
 
@@ -297,6 +309,10 @@ export default function PdfRenderClient() {
             font-style: var(--listitem-marker-font-style, inherit);
             font-weight: var(--listitem-marker-font-weight, inherit);
             color: var(--listitem-marker-color, inherit);
+          }
+
+          .pdf-emoji-font-scope .li2-body + .li2-linkRow {
+            margin-top: 38px;
           }
 
           nextjs-portal,

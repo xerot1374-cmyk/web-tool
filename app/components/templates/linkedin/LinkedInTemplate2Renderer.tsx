@@ -233,6 +233,10 @@ function normalizeTemplateFontFamily(fontFamily?: string) {
   return `${LI2_DETERMINISTIC_FONT}${emojiSuffix}`;
 }
 
+function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
+  return value === "center" || value === "right" ? value : "left";
+}
+
 function normalizeTemplateMarks(marks?: TextMark[]) {
   return marks?.map((mark) => ({
     ...mark,
@@ -956,7 +960,7 @@ export default function LinkedInTemplate2Renderer({
               fontFamily: normalizeTemplateFontFamily(data.badgeStyle?.fontFamily),
               fontSize: data.badgeStyle?.fontSize,
               color: data.badgeStyle?.color,
-              textAlign: data.badgeStyle?.textAlign,
+              textAlign: sanitizeTextAlign(data.badgeStyle?.textAlign),
               pointerEvents: "auto",
             }}
           >
@@ -1024,7 +1028,7 @@ export default function LinkedInTemplate2Renderer({
                 fontFamily: normalizeTemplateFontFamily(data.titleStyle?.fontFamily),
                 fontSize: data.titleStyle?.fontSize,
                 color: data.titleStyle?.color,
-                textAlign: data.titleStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.titleStyle?.textAlign),
               }}
             >
               {renderRichTextContent({
@@ -1057,7 +1061,7 @@ export default function LinkedInTemplate2Renderer({
                 fontFamily: normalizeTemplateFontFamily(data.companyStyle?.fontFamily),
                 fontSize: data.companyStyle?.fontSize,
                 color: data.companyStyle?.color,
-                textAlign: data.companyStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.companyStyle?.textAlign),
               }}
             >
               {renderRichTextContent({
@@ -1088,7 +1092,7 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.headlineStyle?.fontSize,
                 color: data.headlineStyle?.color,
-                textAlign: data.headlineStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.headlineStyle?.textAlign),
               }}
             >
               <EditableInput
@@ -1108,7 +1112,7 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.headlineStyle?.fontSize,
                 color: data.headlineStyle?.color,
-                textAlign: data.headlineStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.headlineStyle?.textAlign),
               }}
             >
               {vHeadline}
@@ -1123,7 +1127,7 @@ export default function LinkedInTemplate2Renderer({
                 fontFamily: normalizeTemplateFontFamily(data.sublineStyle?.fontFamily),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
-                textAlign: data.sublineStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.sublineStyle?.textAlign),
               }}
             >
               <EditableInput
@@ -1141,7 +1145,7 @@ export default function LinkedInTemplate2Renderer({
                 fontFamily: normalizeTemplateFontFamily(data.sublineStyle?.fontFamily),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
-                textAlign: data.sublineStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.sublineStyle?.textAlign),
               }}
             >
               {vSubline}
@@ -1160,7 +1164,7 @@ export default function LinkedInTemplate2Renderer({
                 fontFamily: normalizeTemplateFontFamily(data.bodyStyle?.fontFamily),
                 fontSize: data.bodyStyle?.fontSize,
                 color: data.bodyStyle?.color,
-                textAlign: data.bodyStyle?.textAlign,
+                textAlign: sanitizeTextAlign(data.bodyStyle?.textAlign),
               }}
             >
               {renderRichTextContent({

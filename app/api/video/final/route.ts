@@ -126,6 +126,10 @@ const LI2_EMOJI_FONT_FALLBACK =
 const LI2_DETERMINISTIC_FONT =
   `"Inter", ${LI2_EMOJI_FONT_FALLBACK}`;
 
+function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
+  return value === "center" || value === "right" ? value : "left";
+}
+
 function normalizeTemplateFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
   if (
@@ -293,7 +297,7 @@ function styleToInline(style?: BoxTextStyle) {
     `font-family:${normalizeTemplateFontFamily(style.fontFamily)};`,
     style.fontSize ? `font-size:${style.fontSize}px;` : "",
     style.color ? `color:${style.color};` : "",
-    style.textAlign ? `text-align:${style.textAlign};` : "",
+    style.textAlign ? `text-align:${sanitizeTextAlign(style.textAlign)};` : "",
   ].join("");
 }
 
