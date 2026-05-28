@@ -375,6 +375,15 @@ export default function TemplateAClient({
   });
 
   const hasVideo = videos.length > 0;
+  const toolboxVideos = useMemo(
+    () =>
+      videos.map((video) => ({
+        id: video.id,
+        file: video.file ?? ({ name: video.fileName ?? "Stored video" } as File),
+        radius: video.radius,
+      })),
+    [videos],
+  );
 
   const {
     effective,
@@ -431,7 +440,7 @@ export default function TemplateAClient({
     headlineStyle,
     sublineStyle,
     canvasPreset,
-    videos,
+    videos: editorVideos,
     setErrors,
   });
 
@@ -929,7 +938,21 @@ export default function TemplateAClient({
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
       })),
-      videoRadius: videos[0]?.radius ?? 20,
+      videos: editorVideos
+        .filter((video) => Boolean(video.src))
+        .map((video) => ({
+          id: video.id,
+          src: video.src,
+          fileName: video.fileName,
+          mimeType: video.mimeType,
+          x: video.x,
+          y: video.y,
+          w: video.w,
+          h: video.h,
+          radius: video.radius,
+          zIndex: video.zIndex,
+        })),
+      videoRadius: editorVideos[0]?.radius ?? 20,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
       badgeHtml,
       badgeMarks,
@@ -972,7 +995,7 @@ export default function TemplateAClient({
       frameSlotsState,
       mediaBox,
       images,
-      videos,
+      editorVideos,
       badgeText,
       badgeHtml,
       badgeMarks,
@@ -2046,7 +2069,7 @@ export default function TemplateAClient({
             setSelectedVideoRadius={setSelectedVideoRadius}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
             onPickVideos={addVideoFiles}
-            videos={videos}
+            videos={toolboxVideos}
             clearVideo={clearVideo}
             draftPanel={
               <TemplateADraftsPanel

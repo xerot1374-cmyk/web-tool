@@ -49,7 +49,10 @@ type Payload = {
   videoRadius?: number;
   videos?: Array<{
     id: string;
-    fileKey: string;
+    fileKey?: string;
+    src?: string;
+    fileName?: string;
+    mimeType?: string;
     x: number;
     y: number;
     w: number;
@@ -100,6 +103,12 @@ type PayloadImage = {
 };
 
 type PayloadFrameSlot = NonNullable<Payload["frameSlots"]>[number];
+type PayloadVideo = NonNullable<Payload["videos"]>[number];
+type VideoEntry = {
+  meta: PayloadVideo;
+  file?: File;
+  src?: string;
+};
 type TextMark = {
   start: number;
   end: number;
@@ -152,6 +161,13 @@ const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn7n6QAAAAASUVORK5CYII=";
 const LINKEDIN_VIDEO_TARGET_ASPECT = 4 / 5;
 const MAX_FINAL_VIDEO_DIMENSION = 4096;
+const TEMPLATE_VIDEO_UPLOAD_PREFIX = "/uploads/template-videos/";
+const TEMPLATE_VIDEO_UPLOAD_ROOT = path.resolve(
+  process.cwd(),
+  "public",
+  "uploads",
+  "template-videos",
+);
 
 type FinalVideoFrame = {
   w: number;
@@ -318,10 +334,19 @@ function normalizePayload(data: Payload): Payload {
         : 20,
     videos:
       data.videos?.flatMap((video) => {
+        const fileKey =
+          typeof video?.fileKey === "string" && video.fileKey.trim()
+            ? video.fileKey
+            : undefined;
+        const src =
+          typeof video?.src === "string" && video.src.trim()
+            ? video.src
+            : undefined;
+
         if (
           !video ||
           typeof video.id !== "string" ||
-          typeof video.fileKey !== "string" ||
+          (!fileKey && !src) ||
           typeof video.x !== "number" ||
           typeof video.y !== "number" ||
           typeof video.w !== "number" ||
@@ -333,6 +358,8 @@ function normalizePayload(data: Payload): Payload {
         return [
           {
             ...video,
+            fileKey,
+            src,
             radius:
               typeof video.radius === "number" && Number.isFinite(video.radius)
                 ? Math.max(0, Math.round(video.radius))
@@ -828,6 +855,26 @@ async function persistUploadedFile(file: File, outputPath: string) {
   await fs.writeFile(outputPath, buffer);
 }
 
+function resolvePersistedVideoPath(src?: string) {
+  const cleanSrc = src?.split(/[?#]/)[0]?.trim();
+  if (!cleanSrc?.startsWith(TEMPLATE_VIDEO_UPLOAD_PREFIX)) return null;
+
+  const target = path.resolve(
+    process.cwd(),
+    "public",
+    cleanSrc.replace(/^\/+/, ""),
+  );
+
+  if (
+    target !== TEMPLATE_VIDEO_UPLOAD_ROOT &&
+    !target.startsWith(`${TEMPLATE_VIDEO_UPLOAD_ROOT}${path.sep}`)
+  ) {
+    return null;
+  }
+
+  return target;
+}
+
 async function screenshotCoverPng(
   req: Request,
   data: Payload,
@@ -1031,14 +1078,26 @@ export async function POST(req: Request) {
       videoBox: parseVideoBox(formData.get("videoBox")),
     };
 
-    const videoEntries =
-      data.videos?.flatMap((video) => {
-        const fileField = formData.get(video.fileKey);
-        if (!(fileField instanceof File) || fileField.size === 0) return [];
+    const videoEntries: VideoEntry[] =
+      data.videos?.flatMap<VideoEntry>((video) => {
+        const fileField = video.fileKey ? formData.get(video.fileKey) : null;
+        if (fileField instanceof File && fileField.size > 0) {
+          return [
+            {
+              meta: video,
+              file: fileField,
+              src: undefined,
+            },
+          ];
+        }
+
+        if (!video.src) return [];
+
         return [
           {
             meta: video,
-            file: fileField,
+            file: undefined,
+            src: video.src,
           },
         ];
       }) ?? [];
@@ -1084,9 +1143,21 @@ export async function POST(req: Request) {
     }
 
     const persistedVideos = await Promise.all(
-      videoEntries.map(async ({ meta, file }, index) => {
-        const videoPath = path.join(tmpDir, `upload-${index}.mp4`);
-        await persistUploadedFile(file, videoPath);
+      videoEntries.map(async ({ meta, file, src }, index) => {
+        const videoPath = file
+          ? path.join(tmpDir, `upload-${index}.mp4`)
+          : resolvePersistedVideoPath(src);
+
+        if (!videoPath) {
+          throw new Error("Stored video reference is invalid");
+        }
+
+        if (file) {
+          await persistUploadedFile(file, videoPath);
+        } else {
+          await fs.access(videoPath);
+        }
+
         return {
           path: videoPath,
           x: Math.round(meta.x),

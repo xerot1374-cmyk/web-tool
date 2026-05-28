@@ -243,7 +243,28 @@ export default function useTemplateAHydration({
     }
 
     if (!isPdf) {
-      setVideos([]);
+      const restoredVideos =
+        source.videos?.flatMap((video) => {
+          if (!video?.src?.trim()) return [];
+
+          return [
+            {
+              id: video.id,
+              previewUrl: video.src,
+              src: video.src,
+              fileName: video.fileName,
+              mimeType: video.mimeType,
+              x: video.x,
+              y: video.y,
+              w: video.w,
+              h: video.h,
+              radius: video.radius ?? source.videoRadius ?? 20,
+              zIndex: video.zIndex,
+            },
+          ];
+        }) ?? [];
+
+      setVideos(restoredVideos);
     }
 
     setVideoRadius?.(source.videoRadius ?? 20);

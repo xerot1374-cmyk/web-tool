@@ -145,10 +145,39 @@ export default function useTemplateAMediaEditor({
     () =>
       videos.map((video, index) => ({
         ...video,
-        zIndex: objectLayers.videos[video.id] ?? 2 + index,
+        zIndex: objectLayers.videos[video.id] ?? video.zIndex ?? 2 + index,
       })),
     [objectLayers.videos, videos],
   );
+
+  async function uploadTemplateVideo(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/account/template-video-assets", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      throw new Error(message || "Video upload failed");
+    }
+
+    const body = (await res.json()) as {
+      video?: {
+        src?: string;
+        fileName?: string;
+        mimeType?: string;
+      };
+    };
+
+    if (!body.video?.src) {
+      throw new Error("Video upload response is missing a source URL");
+    }
+
+    return body.video;
+  }
 
   function bringImageObjectToFront(imageId: string) {
     setObjectLayers((prev) => ({
@@ -765,6 +794,8 @@ export default function useTemplateAMediaEditor({
         id: uid(),
         file,
         previewUrl: URL.createObjectURL(file),
+        fileName: file.name,
+        mimeType: file.type,
         x: box.x,
         y: box.y,
         w: box.w,
@@ -797,12 +828,37 @@ export default function useTemplateAMediaEditor({
       setSelectedVideoId(lastVideo.id);
       setSelectedRect(new DOMRect(lastVideo.x, lastVideo.y, lastVideo.w, lastVideo.h));
     }
+
+    nextVideos.forEach((video) => {
+      if (!video.file) return;
+
+      void uploadTemplateVideo(video.file)
+        .then((uploaded) => {
+          setVideos((prev) =>
+            prev.map((item) =>
+              item.id === video.id
+                ? {
+                    ...item,
+                    src: uploaded.src,
+                    fileName: uploaded.fileName ?? item.fileName,
+                    mimeType: uploaded.mimeType ?? item.mimeType,
+                  }
+                : item,
+            ),
+          );
+        })
+        .catch((error) => {
+          console.error("Video upload failed", error);
+        });
+    });
   }
 
   function removeVideoById(videoId: string) {
     const current = getVideoById(videoId);
     if (!current) return;
-    URL.revokeObjectURL(current.previewUrl);
+    if (current.previewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(current.previewUrl);
+    }
     setVideos((prev) => prev.filter((video) => video.id !== videoId));
     setObjectLayers((prev) => {
       const nextVideos = { ...prev.videos };
@@ -867,7 +923,9 @@ export default function useTemplateAMediaEditor({
     const nextVideo: VideoItem = {
       ...snapshot,
       id: uid(),
-      previewUrl: URL.createObjectURL(snapshot.file),
+      previewUrl: snapshot.file
+        ? URL.createObjectURL(snapshot.file)
+        : snapshot.previewUrl,
       x: nextBox.x,
       y: nextBox.y,
       w: nextBox.w,

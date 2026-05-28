@@ -444,11 +444,17 @@ export default function useTemplateAExport({
 
       const form = new FormData();
       const videoPayload: VideoPayloadItem[] = videos.map((video) => {
-        const fileKey = `video:${video.id}`;
-        form.append(fileKey, video.file);
+        const fileKey = video.file ? `video:${video.id}` : undefined;
+        if (fileKey && video.file) {
+          form.append(fileKey, video.file);
+        }
+
         return {
           id: video.id,
           fileKey,
+          src: video.src,
+          fileName: video.fileName,
+          mimeType: video.mimeType,
           x: video.x,
           y: video.y,
           w: video.w,

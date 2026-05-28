@@ -88,8 +88,11 @@ export type ImagePayloadItem = {
 
 export type VideoItem = {
   id: string;
-  file: File;
+  file?: File;
   previewUrl: string;
+  src?: string;
+  fileName?: string;
+  mimeType?: string;
   x: number;
   y: number;
   w: number;
@@ -100,7 +103,10 @@ export type VideoItem = {
 
 export type VideoPayloadItem = {
   id: string;
-  fileKey: string;
+  fileKey?: string;
+  src?: string;
+  fileName?: string;
+  mimeType?: string;
   x: number;
   y: number;
   w: number;
