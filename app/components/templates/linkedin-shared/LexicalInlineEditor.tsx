@@ -253,10 +253,10 @@ function applyTextWithBreaks(
     const css = buildCssStyle(style);
     if (css) node.setStyle(css);
     if (style.fontWeight === 800 || style.fontWeight === "800") {
-      node.setFormat("bold");
+      node.toggleFormat("bold");
     }
     if (style.fontStyle === "italic") {
-      node.setFormat("italic");
+      node.toggleFormat("italic");
     }
     parent.append(node);
     if (index < chunks.length - 1) {
