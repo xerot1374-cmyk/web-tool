@@ -714,11 +714,13 @@ function NativeToolbarPlugin({
 
   const patchSelectionStyle = useCallback(
     (patch: Record<string, string>) => {
-      editor.update(() => {
-        const selection = $getSelection();
-        if ($isRangeSelection(selection)) {
-          $patchStyleText(selection, patch);
-        }
+      editor.focus(() => {
+        editor.update(() => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) {
+            $patchStyleText(selection, patch);
+          }
+        });
       });
       requestAnimationFrame(updateToolbar);
     },
@@ -727,10 +729,12 @@ function NativeToolbarPlugin({
 
   const setTextAlign = useCallback(
     (nextAlign: "left" | "center" | "right") => {
-      editor.dispatchCommand(
-        FORMAT_ELEMENT_COMMAND,
-        nextAlign as ElementFormatType,
-      );
+      editor.focus(() => {
+        editor.dispatchCommand(
+          FORMAT_ELEMENT_COMMAND,
+          nextAlign as ElementFormatType,
+        );
+      });
       onAlignChange?.(nextAlign);
       requestAnimationFrame(updateToolbar);
     },
@@ -739,13 +743,15 @@ function NativeToolbarPlugin({
 
   const toggleList = useCallback(
     (nextType: "bullet" | "number") => {
-      if (toolbar.listType === nextType) {
-        editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-      } else if (nextType === "bullet") {
-        editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-      } else {
-        editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-      }
+      editor.focus(() => {
+        if (toolbar.listType === nextType) {
+          editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+        } else if (nextType === "bullet") {
+          editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+        } else {
+          editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+        }
+      });
       requestAnimationFrame(updateToolbar);
     },
     [editor, toolbar.listType, updateToolbar],
@@ -784,11 +790,13 @@ function NativeToolbarPlugin({
       onMouseDown={(event) => {
         const target = event.target;
         if (
-          !(target instanceof HTMLElement) ||
-          !target.closest("select,input,button,option")
+          target instanceof HTMLElement &&
+          target.closest("select,input,option")
         ) {
-          event.preventDefault();
+          event.stopPropagation();
+          return;
         }
+        event.preventDefault();
         event.stopPropagation();
       }}
     >
@@ -1002,94 +1010,110 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         setFontFamily(value) {
           const editor = editorRef.current;
           if (!editor) return;
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              $patchStyleText(selection, { "font-family": value });
-            }
+          editor.focus(() => {
+            editor.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                $patchStyleText(selection, { "font-family": value });
+              }
+            });
           });
         },
         setFontSize(value) {
           const editor = editorRef.current;
           if (!editor) return;
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              $patchStyleText(selection, { "font-size": `${value}px` });
-            }
+          editor.focus(() => {
+            editor.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                $patchStyleText(selection, { "font-size": `${value}px` });
+              }
+            });
           });
         },
         setColor(value) {
           const editor = editorRef.current;
           if (!editor) return;
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              $patchStyleText(selection, { color: value });
-            }
+          editor.focus(() => {
+            editor.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                $patchStyleText(selection, { color: value });
+              }
+            });
           });
         },
         setHighlightColor(value) {
           const editor = editorRef.current;
           if (!editor) return;
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              $patchStyleText(selection, {
-                "background-color": hexToRgba(value, 0.28),
-              });
-            }
+          editor.focus(() => {
+            editor.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                $patchStyleText(selection, {
+                  "background-color": hexToRgba(value, 0.28),
+                });
+              }
+            });
           });
         },
         setTextAlign(value) {
-          editorRef.current?.dispatchCommand(
-            FORMAT_ELEMENT_COMMAND,
-            value as ElementFormatType,
-          );
+          const editor = editorRef.current;
+          if (!editor) return;
+          editor.focus(() => {
+            editor.dispatchCommand(
+              FORMAT_ELEMENT_COMMAND,
+              value as ElementFormatType,
+            );
+          });
         },
         toggleList(value) {
           const editor = editorRef.current;
           if (!editor) return;
-          editor.update(() => {
-            const selection = $getSelection();
-            if (!$isRangeSelection(selection)) return;
+          editor.focus(() => {
+            editor.update(() => {
+              const selection = $getSelection();
+              if (!$isRangeSelection(selection)) return;
 
-            const anchorNode = selection.anchor.getNode();
-            let currentNode = anchorNode;
-            let listType: "bullet" | "number" | null = null;
-            while (currentNode) {
-              if ($isListNode(currentNode)) {
-                const type = currentNode.getListType();
-                listType =
-                  type === "bullet"
-                    ? "bullet"
-                    : type === "number"
-                      ? "number"
-                      : null;
-                break;
+              const anchorNode = selection.anchor.getNode();
+              let currentNode = anchorNode;
+              let listType: "bullet" | "number" | null = null;
+              while (currentNode) {
+                if ($isListNode(currentNode)) {
+                  const type = currentNode.getListType();
+                  listType =
+                    type === "bullet"
+                      ? "bullet"
+                      : type === "number"
+                        ? "number"
+                        : null;
+                  break;
+                }
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-expect-error
+                currentNode = currentNode.getParent();
               }
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-expect-error
-              currentNode = currentNode.getParent();
-            }
 
-            if (listType === value) {
-              editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
-            } else if (value === "bullet") {
-              editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
-            } else {
-              editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
-            }
+              if (listType === value) {
+                editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
+              } else if (value === "bullet") {
+                editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+              } else {
+                editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+              }
+            });
           });
         },
         insertText(value) {
           const editor = editorRef.current;
           if (!editor) return;
-          editor.update(() => {
-            const selection = $getSelection();
-            if ($isRangeSelection(selection)) {
-              selection.insertText(value);
-            }
+          editor.focus(() => {
+            editor.update(() => {
+              const selection = $getSelection();
+              if ($isRangeSelection(selection)) {
+                selection.insertText(value);
+              }
+            });
           });
         },
       }),

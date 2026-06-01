@@ -1745,6 +1745,9 @@ export default function TemplateAClient({
     return bodyBoxStyle.textAlign;
   }
 
+  const bottomToolbarHasActiveEditor =
+    isRichEditField(editField) || activeField === "caption";
+
   const activeRichTextEditor: ActiveRichTextEditor | null = isRichEditField(
     editField,
   )
@@ -1870,6 +1873,8 @@ export default function TemplateAClient({
             editField={isRichEditField(editField) ? editField : null}
             currentMarks={getActiveMarksState().marks}
             currentTextAlign={getToolbarTextAlign()}
+            canUndo={bottomToolbarHasActiveEditor}
+            canRedo={bottomToolbarHasActiveEditor}
             onInsertEmoji={insertEmojiIntoActiveField}
             onUndo={() => {
               if (isRichEditField(editField)) {
@@ -1955,6 +1960,7 @@ export default function TemplateAClient({
             onSetTextAlign={(value) => {
               if (isRichEditField(editField)) {
                 getRichEditEditor(editField)?.setTextAlign(value);
+                setFieldTextAlign(editField, value);
                 return;
               }
               if (activeField === "caption") {

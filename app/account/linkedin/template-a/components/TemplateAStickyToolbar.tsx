@@ -21,6 +21,8 @@ type Props = {
   visible: boolean;
   currentMarks: TextMark[];
   currentTextAlign: "left" | "center" | "right";
+  canUndo: boolean;
+  canRedo: boolean;
   onInsertEmoji: (emoji: string) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -55,6 +57,8 @@ export default function TemplateAStickyToolbar({
   visible,
   currentMarks,
   currentTextAlign,
+  canUndo,
+  canRedo,
   onInsertEmoji,
   onUndo,
   onRedo,
@@ -76,6 +80,14 @@ export default function TemplateAStickyToolbar({
     <div
       className="editor-bottomToolbar editor-shell-card"
       onMouseDown={(event) => {
+        const target = event.target;
+        if (
+          target instanceof HTMLElement &&
+          target.closest("select,input,option")
+        ) {
+          return;
+        }
+
         event.preventDefault();
       }}
     >
@@ -89,6 +101,7 @@ export default function TemplateAStickyToolbar({
           <button
             type="button"
             className="lexical-toolbar__button"
+            disabled={!canUndo}
             onClick={onUndo}
           >
             Undo
@@ -96,6 +109,7 @@ export default function TemplateAStickyToolbar({
           <button
             type="button"
             className="lexical-toolbar__button"
+            disabled={!canRedo}
             onClick={onRedo}
           >
             Redo
