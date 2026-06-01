@@ -202,6 +202,7 @@ export default function LinkedInToolbox({
   const selectedFramePreset =
     FRAME_PRESETS.find((preset) => preset.id === framePresetId) ??
     FRAME_PRESETS[0];
+  const showContentPanel = false;
 
   return (
     <aside className="tb">
@@ -215,81 +216,87 @@ export default function LinkedInToolbox({
       </div>
 
       <div className="tb__scroll">
-        <ToolboxSection
-          title="Content"
-          meta="Core message"
-          collapsible
-        >
-          <ToolboxTextField
-            label="Eye-Catcher"
-            value={badgeText}
-            inputRef={badgeRef}
-            onFocus={() => setActiveField("badge")}
-            onSelect={() => setActiveField("badge")}
-            onDoubleClick={() => setActiveField("badge")}
-            onChange={(value, selectionStart) => {
-              if (onTextChange) {
-                onTextChange("badge", value, selectionStart);
-              } else {
-                setBadgeText(value);
-              }
-            }}
-          />
-
-          <ToolboxTextField
-            label="Title"
-            value={title}
-            inputRef={titleRef}
-            onFocus={() => setActiveField("title")}
-            onSelect={() => setActiveField("title")}
-            onDoubleClick={() => setActiveField("title")}
-            onChange={(value, selectionStart) => {
-              if (onTextChange) {
-                onTextChange("title", value, selectionStart);
-              } else {
-                setTitle(value);
-              }
-            }}
-          />
-
-          <ToolboxTextField
-            label="Company"
-            value={company}
-            inputRef={companyRef}
-            onFocus={() => setActiveField("company")}
-            onSelect={() => setActiveField("company")}
-            onDoubleClick={() => setActiveField("company")}
-            onChange={(value, selectionStart) => {
-              if (onTextChange) {
-                onTextChange("company", value, selectionStart);
-              } else {
-                setCompany(value);
-              }
-            }}
-          />
-
-          <div className="editor-field">
-            <label className="editor-label">Body</label>
-            <textarea
-              className="editor-textarea"
-              value={body}
-              ref={bodyRef}
-              onFocus={() => setActiveField("body")}
-              onSelect={() => setActiveField("body")}
-              onDoubleClick={() => setActiveField("body")}
-              onKeyDown={(e) => onTextKeyDown?.("body", e)}
-              onChange={(e) => {
+        {showContentPanel ? (
+          <ToolboxSection
+            title="Content"
+            meta="Core message"
+            collapsible
+          >
+            <ToolboxTextField
+              label="Eye-Catcher"
+              value={badgeText}
+              inputRef={badgeRef}
+              onFocus={() => setActiveField("badge")}
+              onSelect={() => setActiveField("badge")}
+              onDoubleClick={() => setActiveField("badge")}
+              onChange={(value, selectionStart) => {
                 if (onTextChange) {
-                  onTextChange("body", e.target.value, e.target.selectionStart);
+                  onTextChange("badge", value, selectionStart);
                 } else {
-                  setBody(e.target.value);
+                  setBadgeText(value);
                 }
               }}
-              placeholder="Write the main body copy here"
-              rows={6}
             />
-          </div>
-        </ToolboxSection>
+
+            <ToolboxTextField
+              label="Title"
+              value={title}
+              inputRef={titleRef}
+              onFocus={() => setActiveField("title")}
+              onSelect={() => setActiveField("title")}
+              onDoubleClick={() => setActiveField("title")}
+              onChange={(value, selectionStart) => {
+                if (onTextChange) {
+                  onTextChange("title", value, selectionStart);
+                } else {
+                  setTitle(value);
+                }
+              }}
+            />
+
+            <ToolboxTextField
+              label="Company"
+              value={company}
+              inputRef={companyRef}
+              onFocus={() => setActiveField("company")}
+              onSelect={() => setActiveField("company")}
+              onDoubleClick={() => setActiveField("company")}
+              onChange={(value, selectionStart) => {
+                if (onTextChange) {
+                  onTextChange("company", value, selectionStart);
+                } else {
+                  setCompany(value);
+                }
+              }}
+            />
+
+            <div className="editor-field">
+              <label className="editor-label">Body</label>
+              <textarea
+                className="editor-textarea"
+                value={body}
+                ref={bodyRef}
+                onFocus={() => setActiveField("body")}
+                onSelect={() => setActiveField("body")}
+                onDoubleClick={() => setActiveField("body")}
+                onKeyDown={(e) => onTextKeyDown?.("body", e)}
+                onChange={(e) => {
+                  if (onTextChange) {
+                    onTextChange(
+                      "body",
+                      e.target.value,
+                      e.target.selectionStart,
+                    );
+                  } else {
+                    setBody(e.target.value);
+                  }
+                }}
+                placeholder="Write the main body copy here"
+                rows={6}
+              />
+            </div>
+          </ToolboxSection>
+        ) : null}
 
         {draftPanel}
 
