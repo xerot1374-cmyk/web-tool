@@ -208,6 +208,13 @@ function normalizeHashtag(raw: string) {
   return value.startsWith("#") ? value : `#${value}`;
 }
 
+function buildHashtagHref(raw: string) {
+  const value = normalizeHashtag(raw);
+  const target = value.replace(/^#+/, "").replace(/\s+/g, "");
+  if (!target) return "";
+  return `https://www.linkedin.com/feed/hashtag/?keywords=${encodeURIComponent(target)}`;
+}
+
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
@@ -1190,9 +1197,12 @@ export default function LinkedInTemplate2Renderer({
             <div className="li2-linkRow" data-select="hashtags">
               <div className="li2-linksList">
                 {hashtags.map((hashtag, index) => (
-                  <span
+                  <a
                     key={`${hashtag}-${index}`}
                     className="li2-link"
+                    href={buildHashtagHref(hashtag)}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     style={{
                       color: "#64748b",
                       display: "inline-block",
@@ -1200,7 +1210,7 @@ export default function LinkedInTemplate2Renderer({
                     }}
                   >
                     {hashtag}
-                  </span>
+                  </a>
                 ))}
               </div>
             </div>
