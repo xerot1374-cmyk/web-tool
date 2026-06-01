@@ -650,6 +650,8 @@ export default function TemplateAClient({
     if (!(target instanceof HTMLElement)) return;
     if (captionSectionRef.current?.contains(target)) return;
     if (target.closest(".editor-bottomToolbarWrap")) return;
+    if (target.closest('[data-lexical-toolbar="true"]')) return;
+    if (target.closest(".lexical-toolbar")) return;
     if (target.closest(".tt--floating")) return;
 
     captionEditRef.current?.getRootElement()?.blur();
