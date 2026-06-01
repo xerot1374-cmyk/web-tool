@@ -1766,7 +1766,7 @@ export default function TemplateAClient({
         marks: getRichEditMarks(editField),
         blocks: getRichEditBlocks(editField),
         multiline: editField !== "badge",
-        className: "template-inline-editor",
+        className: `template-inline-editor template-inline-editor--field-${editField}`,
         style: {
           display: "block",
           width: "100%",

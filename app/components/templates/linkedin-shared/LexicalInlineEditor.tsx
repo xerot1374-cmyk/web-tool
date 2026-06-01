@@ -762,6 +762,10 @@ function NativeToolbarPlugin({
   }
 
   const showLinkedInCaptionSupportedToolsOnly = mode === "caption";
+  const rootClassList = editor.getRootElement()?.classList;
+  const hideBoldForAlwaysBoldField =
+    rootClassList?.contains("template-inline-editor--field-title") ||
+    rootClassList?.contains("template-inline-editor--field-badge");
 
   return createPortal(
     <div
@@ -830,15 +834,17 @@ function NativeToolbarPlugin({
           </select>
         </>
       )}
-      <button
-        className={`lexical-toolbar__button${
-          toolbar.bold ? " lexical-toolbar__button--active" : ""
-        }`}
-        type="button"
-        onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
-      >
-        B
-      </button>
+      {hideBoldForAlwaysBoldField ? null : (
+        <button
+          className={`lexical-toolbar__button${
+            toolbar.bold ? " lexical-toolbar__button--active" : ""
+          }`}
+          type="button"
+          onClick={() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, "bold")}
+        >
+          B
+        </button>
+      )}
       <button
         className={`lexical-toolbar__button${
           toolbar.italic ? " lexical-toolbar__button--active" : ""
