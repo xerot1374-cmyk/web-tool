@@ -2132,6 +2132,7 @@ export default function TemplateAClient({
             errorMsg={errorMsg}
             onDownloadPdf={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               void downloadPDF();
             }}
             onGenerateFinal={(e) => {

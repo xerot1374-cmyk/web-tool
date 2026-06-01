@@ -46,7 +46,11 @@ export default function TemplateAExportPanel({
       <div className="export-actions-panel__actions">
         <button
           type="button"
-          onClick={onDownloadPdf}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onDownloadPdf(event);
+          }}
           disabled={loadingPdf || hasVideo}
           className="tb__action tb__action--primary"
         >
