@@ -1,7 +1,14 @@
-const ALLOWED_TEAM_EMAIL_DOMAIN = "@protos-3d.de";
+const ALLOWED_TEAM_EMAIL_DOMAINS = [
+  "@protos-3d.de",
+  // Temporary testing domain; do not show in UI.
+  "@yahoo.com",
+];
 
 export function isAllowedTeamEmail(email: string) {
-  return email.trim().toLowerCase().endsWith(ALLOWED_TEAM_EMAIL_DOMAIN);
+  const normalizedEmail = email.trim().toLowerCase();
+  return ALLOWED_TEAM_EMAIL_DOMAINS.some((domain) =>
+    normalizedEmail.endsWith(domain),
+  );
 }
 
 export function getTeamEmailRejectedMessage() {

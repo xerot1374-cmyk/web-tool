@@ -6,6 +6,8 @@ import { useState } from "react";
 
 export default function RegisterPage() {
   const router = useRouter();
+  // Temporary testing domain is accepted by validation but not shown in UI.
+  const registerEmailPattern = ".+@(protos-3d\\.de|yahoo\\.com)";
   const [name, setName] = useState("");
   const [role, setRole] = useState("");
   const [email, setEmail] = useState("");
@@ -82,7 +84,7 @@ export default function RegisterPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            pattern=".+@protos-3d\.de"
+            pattern={registerEmailPattern}
             title="Please use your @protos-3d.de team email address."
             style={{ width: "100%", padding: 10 }}
           />
