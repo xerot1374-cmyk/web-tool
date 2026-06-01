@@ -1865,7 +1865,7 @@ export default function TemplateAClient({
       <LinkedInEditorLayout
         toolbar={
           <TemplateAStickyToolbar
-            visible={Boolean(editField) || activeField === "caption"}
+            visible={true}
             activeField={activeField}
             editField={isRichEditField(editField) ? editField : null}
             currentMarks={getActiveMarksState().marks}

@@ -699,6 +699,7 @@ export default function TemplateAPreview({
               marks={captionMarks}
               blocks={captionBlocks}
               multiline={true}
+              toolbarMode="caption"
               className="editor-textarea template-captionEditor"
               style={{
                 fontFamily: captionStyle.fontFamily,

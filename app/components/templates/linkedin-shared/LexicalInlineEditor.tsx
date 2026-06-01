@@ -107,6 +107,7 @@ type Props = {
   multiline?: boolean;
   editable?: boolean;
   showToolbar?: boolean;
+  toolbarMode?: "full" | "caption";
   onAlignChange?: (align: "left" | "center" | "right") => void;
   onBlur: (event: FocusEvent<HTMLElement>) => void;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
@@ -526,10 +527,12 @@ function EnterBehaviorPlugin({ multiline }: { multiline: boolean }) {
 function NativeToolbarPlugin({
   multiline,
   enabled,
+  mode,
   onAlignChange,
 }: {
   multiline: boolean;
   enabled: boolean;
+  mode: "full" | "caption";
   onAlignChange?: (align: "left" | "center" | "right") => void;
 }) {
   const [editor] = useLexicalComposerContext();
@@ -752,6 +755,8 @@ function NativeToolbarPlugin({
     return null;
   }
 
+  const showLinkedInCaptionSupportedToolsOnly = mode === "caption";
+
   return createPortal(
     <div
       ref={toolbarRef}
@@ -787,32 +792,36 @@ function NativeToolbarPlugin({
         event.stopPropagation();
       }}
     >
-      <select
-        className="lexical-toolbar__select lexical-toolbar__select--font"
-        value={toolbar.fontFamily}
-        onChange={(event) =>
-          patchSelectionStyle({ "font-family": event.target.value })
-        }
-      >
-        {FONT_OPTIONS.map((font) => (
-          <option key={font.value} value={font.value}>
-            {font.label}
-          </option>
-        ))}
-      </select>
-      <select
-        className="lexical-toolbar__select lexical-toolbar__select--size"
-        value={String(toolbar.fontSize)}
-        onChange={(event) =>
-          patchSelectionStyle({ "font-size": `${event.target.value}px` })
-        }
-      >
-        {SIZE_OPTIONS.map((size) => (
-          <option key={size} value={size}>
-            {size}
-          </option>
-        ))}
-      </select>
+      {showLinkedInCaptionSupportedToolsOnly ? null : (
+        <>
+          <select
+            className="lexical-toolbar__select lexical-toolbar__select--font"
+            value={toolbar.fontFamily}
+            onChange={(event) =>
+              patchSelectionStyle({ "font-family": event.target.value })
+            }
+          >
+            {FONT_OPTIONS.map((font) => (
+              <option key={font.value} value={font.value}>
+                {font.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="lexical-toolbar__select lexical-toolbar__select--size"
+            value={String(toolbar.fontSize)}
+            onChange={(event) =>
+              patchSelectionStyle({ "font-size": `${event.target.value}px` })
+            }
+          >
+            {SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
       <button
         className={`lexical-toolbar__button${
           toolbar.bold ? " lexical-toolbar__button--active" : ""
@@ -831,22 +840,26 @@ function NativeToolbarPlugin({
       >
         I
       </button>
-      <input
-        className="lexical-toolbar__color"
-        type="color"
-        value={toolbar.color}
-        onChange={(event) => patchSelectionStyle({ color: event.target.value })}
-      />
-      <input
-        className="lexical-toolbar__color"
-        type="color"
-        value={rgbaToHex(toolbar.highlightColor)}
-        onChange={(event) =>
-          patchSelectionStyle({
-            "background-color": hexToRgba(event.target.value, 0.28),
-          })
-        }
-      />
+      {showLinkedInCaptionSupportedToolsOnly ? null : (
+        <>
+          <input
+            className="lexical-toolbar__color"
+            type="color"
+            value={toolbar.color}
+            onChange={(event) => patchSelectionStyle({ color: event.target.value })}
+          />
+          <input
+            className="lexical-toolbar__color"
+            type="color"
+            value={rgbaToHex(toolbar.highlightColor)}
+            onChange={(event) =>
+              patchSelectionStyle({
+                "background-color": hexToRgba(event.target.value, 0.28),
+              })
+            }
+          />
+        </>
+      )}
       {multiline ? (
         <button
           className={`lexical-toolbar__button${
@@ -873,17 +886,19 @@ function NativeToolbarPlugin({
           1. List
         </button>
       ) : null}
-      <select
-        className="lexical-toolbar__select lexical-toolbar__select--align"
-        value={toolbar.textAlign}
-        onChange={(event) =>
-          setTextAlign(event.target.value as "left" | "center" | "right")
-        }
-      >
-        <option value="left">Left</option>
-        <option value="center">Center</option>
-        <option value="right">Right</option>
-      </select>
+      {showLinkedInCaptionSupportedToolsOnly ? null : (
+        <select
+          className="lexical-toolbar__select lexical-toolbar__select--align"
+          value={toolbar.textAlign}
+          onChange={(event) =>
+            setTextAlign(event.target.value as "left" | "center" | "right")
+          }
+        >
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+      )}
     </div>,
     document.body,
   );
@@ -923,6 +938,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
       multiline = true,
       editable = true,
       showToolbar = true,
+      toolbarMode = "full",
       onAlignChange,
       onBlur,
       onKeyDown,
@@ -1109,6 +1125,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
         <NativeToolbarPlugin
           multiline={multiline}
           enabled={editable && showToolbar}
+          mode={toolbarMode}
           onAlignChange={onAlignChange}
         />
         <ListPlugin />
