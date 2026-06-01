@@ -1,15 +1,16 @@
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import type { TextMark } from "./templateA.types";
 
-type UnicodeStyle = "bold" | "italic" | "boldItalic";
+type UnicodeStyle = "regular" | "bold" | "italic" | "boldItalic";
 
 const UNICODE_MAPS: Record<
   UnicodeStyle,
   { upper: number; lower: number; digits: number }
 > = {
-  bold: { upper: 0x1d400, lower: 0x1d41a, digits: 0x1d7ce },
-  italic: { upper: 0x1d434, lower: 0x1d44e, digits: -1 },
-  boldItalic: { upper: 0x1d468, lower: 0x1d482, digits: 0x1d7ce },
+  regular: { upper: 0x1d5a0, lower: 0x1d5ba, digits: 0x1d7e2 },
+  bold: { upper: 0x1d5d4, lower: 0x1d5ee, digits: 0x1d7ec },
+  italic: { upper: 0x1d608, lower: 0x1d622, digits: 0x1d7e2 },
+  boldItalic: { upper: 0x1d63c, lower: 0x1d656, digits: 0x1d7ec },
 };
 
 function isBoldWeight(fontWeight: TextMark["style"]["fontWeight"]) {
@@ -28,7 +29,7 @@ function getUnicodeStyle(marks: TextMark[]) {
   if (bold && italic) return "boldItalic";
   if (bold) return "bold";
   if (italic) return "italic";
-  return null;
+  return "regular";
 }
 
 export function toUnicodeStyledChar(ch: string, style: UnicodeStyle) {
@@ -63,6 +64,37 @@ export function styleUnicodeText(input: string, style: UnicodeStyle) {
   return out;
 }
 
+function getProtectedPlainTextRanges(input: string) {
+  const ranges: Array<{ start: number; end: number }> = [];
+
+  // LinkedIn link and hashtag detection can break when ASCII characters are
+  // converted to mathematical Unicode, so keep these substrings plain.
+  const patterns = [
+    /https?:\/\/[^\s]+|www\.[^\s]+/gi,
+    /#[\p{L}\p{N}_-]+/gu,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of input.matchAll(pattern)) {
+      if (match.index == null) continue;
+      ranges.push({
+        start: match.index,
+        end: match.index + match[0].length,
+      });
+    }
+  }
+
+  return ranges.sort((a, b) => a.start - b.start);
+}
+
+function isProtectedOffset(
+  ranges: Array<{ start: number; end: number }>,
+  start: number,
+  end: number,
+) {
+  return ranges.some((range) => range.start < end && range.end > start);
+}
+
 export function buildLinkedInReadyCaption(
   caption: string,
   captionMarks: TextMark[],
@@ -72,7 +104,7 @@ export function buildLinkedInReadyCaption(
   // signature stays aligned with the caption editor state.
   void captionBlocks;
 
-  if (!caption || !captionMarks.length) return caption;
+  if (!caption) return caption;
 
   const safeMarks = captionMarks
     .map((mark) => ({
@@ -84,16 +116,23 @@ export function buildLinkedInReadyCaption(
 
   let out = "";
   let offset = 0;
+  const protectedRanges = getProtectedPlainTextRanges(caption);
 
   for (const ch of caption) {
     const nextOffset = offset + ch.length;
+    if (isProtectedOffset(protectedRanges, offset, nextOffset)) {
+      out += ch;
+      offset = nextOffset;
+      continue;
+    }
+
     const unicodeStyle = getUnicodeStyle(
       safeMarks.filter(
         (mark) => mark.start < nextOffset && mark.end > offset,
       ),
     );
 
-    out += unicodeStyle ? styleUnicodeText(ch, unicodeStyle) : ch;
+    out += styleUnicodeText(ch, unicodeStyle);
     offset = nextOffset;
   }
 
