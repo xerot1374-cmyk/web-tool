@@ -924,6 +924,14 @@
   color: inherit;
 }
 
+.template-inline-editor__textBold {
+  font-weight: 800;
+}
+
+.template-inline-editor__textItalic {
+  font-style: italic;
+}
+
 .template-inline-editor:focus-visible {
   outline: none;
 }

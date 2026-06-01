@@ -1133,7 +1133,12 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
       () => ({
         namespace: "template-inline-editor",
         editable,
-        theme: {},
+        theme: {
+          text: {
+            bold: "template-inline-editor__textBold",
+            italic: "template-inline-editor__textItalic",
+          },
+        },
         nodes: [ParagraphNode, TextNode, LineBreakNode, ListNode, ListItemNode],
         onError(error: Error) {
           throw error;
