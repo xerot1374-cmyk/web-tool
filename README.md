@@ -8,9 +8,9 @@ This is a [Next.js](https://nextjs.org) project for the social media tool.
 docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) once the app container is running.
+Open [http://localhost:3100](http://localhost:3100) once the app container is running.
 
-The compose stack starts Postgres, runs Prisma migrations, and then launches the app.
+The compose stack starts Postgres, runs Prisma migrations, and then launches the app. Runtime uploads are stored in the `UPLOADS_VOLUME` Docker volume so uploaded profile images and media survive app container recreation.
 
 To stop it:
 

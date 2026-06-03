@@ -50,6 +50,8 @@ services:
       PORT: ${APP_PORT:-3100}
     ports:
       - "${APP_PORT:-3100}:${APP_PORT:-3100}"
+    volumes:
+      - uploads-data:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -59,3 +61,5 @@ services:
 volumes:
   postgres-data:
     name: ${POSTGRES_VOLUME:-web-tool_postgres-data}
+  uploads-data:
+    name: ${UPLOADS_VOLUME:-web-tool_uploads-data}
