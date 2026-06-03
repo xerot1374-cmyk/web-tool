@@ -1,6 +1,7 @@
 "use client";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
 import { useMemo, useSyncExternalStore } from "react";
 
@@ -76,17 +77,25 @@ type Payload = {
   images?: ImagePayloadItem[];
   videoRadius?: number;
   badgeText?: string;
+  badgeHtml?: string;
   badgeMarks?: TextMark[];
+  badgeBlocks?: RichTextBlock[];
   badgeStyle?: BoxTextStyle;
   linkTitle?: string;
+  titleHtml?: string;
   titleMarks?: TextMark[];
+  titleBlocks?: RichTextBlock[];
   company?: string;
+  companyHtml?: string;
   companyMarks?: TextMark[];
+  companyBlocks?: RichTextBlock[];
   headline?: string;
   subline?: string;
   body?: string;
   bodyText?: string;
+  bodyHtml?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
   titleStyle?: BoxTextStyle;
   bodyStyle?: BoxTextStyle;
   companyStyle?: BoxTextStyle;
@@ -121,17 +130,15 @@ function normalizePdfFontFamily(fontFamily?: string) {
 
 function withPdfEmojiFallback(fontFamily?: string) {
   const value = normalizePdfFontFamily(fontFamily);
-  if (
-    /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji/i.test(value)
-  ) {
+  if (/Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji/i.test(value)) {
     return value;
   }
   return `${value}, ${PDF_EMOJI_FONT_FALLBACK}`;
 }
 
-function withPdfEmojiStyle<T extends { fontFamily?: string; textAlign?: unknown }>(
-  style?: T,
-) {
+function withPdfEmojiStyle<
+  T extends { fontFamily?: string; textAlign?: unknown },
+>(style?: T) {
   if (!style) return undefined;
   if (!style.fontFamily?.trim()) {
     return {
@@ -222,16 +229,22 @@ export default function PdfRenderClient() {
       frameSlots: payload.frameSlots,
       mediaBox: payload.mediaBox,
       videoRadius: payload.videoRadius ?? 20,
-      badgeText: payload.badgeText?.trim()
-        ? payload.badgeText.trim()
-        : undefined,
+      badgeText: payload.badgeText?.trim() ? payload.badgeText : undefined,
+      badgeHtml: payload.badgeHtml ?? "",
       badgeMarks: withPdfEmojiMarks(payload.badgeMarks),
+      badgeBlocks: payload.badgeBlocks ?? [],
       linkTitle: payload.linkTitle ?? payload.title ?? "",
+      titleHtml: payload.titleHtml ?? "",
       titleMarks: withPdfEmojiMarks(payload.titleMarks),
+      titleBlocks: payload.titleBlocks ?? [],
       company: payload.company ?? "",
+      companyHtml: payload.companyHtml ?? "",
       companyMarks: withPdfEmojiMarks(payload.companyMarks),
+      companyBlocks: payload.companyBlocks ?? [],
       bodyText: payload.bodyText ?? payload.body ?? "",
+      bodyHtml: payload.bodyHtml ?? "",
       bodyMarks: withPdfEmojiMarks(payload.bodyMarks),
+      bodyBlocks: payload.bodyBlocks ?? [],
       linkUrl:
         payload.linkUrl ?? (payload.link?.trim() ? payload.link : undefined),
       linkUrls: payload.linkUrls,

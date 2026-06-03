@@ -6,6 +6,7 @@ import LexicalInlineEditor, {
   type LexicalInlineEditorHandle,
   type RichTextBlock,
 } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import { renderLinkedInRichText } from "@/app/components/templates/linkedin-shared/richTextRender";
 
 export type MediaBox = {
   x: number;
@@ -285,187 +286,6 @@ function EditableInput({
   );
 }
 
-function renderMarkedText(
-  text: string,
-  marks?: TextMark[],
-  blocks?: RichTextBlock[],
-  baseStyle?: React.CSSProperties,
-) {
-  const t = String(text ?? "");
-  const safeMarks =
-    marks
-      ?.map((m) => ({
-        start: Math.max(0, Math.min(m.start, t.length)),
-        end: Math.max(0, Math.min(m.end, t.length)),
-        style: m.style ?? {},
-      }))
-      .filter((m) => m.end > m.start)
-      .sort((a, b) => a.start - b.start) ?? [];
-
-  const renderSegment = (rangeStart: number, rangeEnd: number) => {
-    if (rangeEnd <= rangeStart) return null;
-    if (!safeMarks.length) return t.slice(rangeStart, rangeEnd);
-
-    const out: React.ReactNode[] = [];
-    let pos = rangeStart;
-
-    for (let i = 0; i < safeMarks.length; i++) {
-      const m = safeMarks[i];
-      if (m.end <= rangeStart || m.start >= rangeEnd) continue;
-
-      const start = Math.max(m.start, rangeStart);
-      const end = Math.min(m.end, rangeEnd);
-
-      if (start > pos) {
-        out.push(
-          <React.Fragment key={`t-${pos}`}>{t.slice(pos, start)}</React.Fragment>,
-        );
-      }
-
-      const style: React.CSSProperties = {
-        fontFamily: m.style.fontFamily
-          ? normalizeTemplateFontFamily(m.style.fontFamily)
-          : undefined,
-        fontSize: m.style.fontSize,
-        color: m.style.color,
-        fontWeight: m.style.fontWeight,
-        fontStyle: m.style.fontStyle,
-        background: m.style.highlight
-          ? (m.style.highlightColor ?? "rgba(250,204,21,0.18)")
-          : undefined,
-      };
-
-      out.push(
-        <span key={`m-${start}-${end}-${i}`} style={style}>
-          {t.slice(start, end)}
-        </span>,
-      );
-      pos = end;
-    }
-
-    if (pos < rangeEnd) {
-      out.push(
-        <React.Fragment key={`t-${pos}-end`}>{t.slice(pos, rangeEnd)}</React.Fragment>,
-      );
-    }
-
-    return out;
-  };
-
-  const getLeadingListItemStyle = (
-    rangeStart: number,
-    rangeEnd: number,
-  ): React.CSSProperties | undefined => {
-    const leadingMark = safeMarks.find(
-      (mark) => mark.end > rangeStart && mark.start < rangeEnd,
-    );
-    if (!leadingMark) return undefined;
-
-    return {
-      fontFamily: leadingMark.style.fontFamily
-        ? normalizeTemplateFontFamily(leadingMark.style.fontFamily)
-        : baseStyle?.fontFamily,
-      fontSize: leadingMark.style.fontSize ?? baseStyle?.fontSize,
-      color: leadingMark.style.color ?? baseStyle?.color,
-      fontWeight: leadingMark.style.fontWeight ?? baseStyle?.fontWeight,
-      fontStyle: leadingMark.style.fontStyle ?? baseStyle?.fontStyle,
-    };
-  };
-
-  const safeBlocks =
-    blocks
-      ?.map((block) => ({
-        ...block,
-        start: Math.max(0, Math.min(block.start, t.length)),
-        end: Math.max(0, Math.min(block.end, t.length)),
-        contentStart: Math.max(0, Math.min(block.contentStart, t.length)),
-        contentEnd: Math.max(0, Math.min(block.contentEnd, t.length)),
-      }))
-      .filter(
-        (block) =>
-          block.end >= block.start && block.contentEnd >= block.contentStart,
-      ) ?? [];
-
-  if (!safeBlocks.length) {
-    if (!safeMarks.length) return t;
-    return renderSegment(0, t.length);
-  }
-
-  const nodes: React.ReactNode[] = [];
-  let listItems: React.ReactNode[] = [];
-  let listType: "bullet" | "number" | null = null;
-
-  const flushList = () => {
-    if (!listType || !listItems.length) return;
-    nodes.push(
-      <div
-        key={`list-${nodes.length}`}
-        style={{ display: "grid", gap: "0.2em", margin: 0 }}
-      >
-        {listItems}
-      </div>,
-    );
-    listItems = [];
-    listType = null;
-  };
-
-  safeBlocks.forEach((block, index) => {
-    const content = renderSegment(block.contentStart, block.contentEnd);
-
-    if (block.type === "bullet" || block.type === "number") {
-      if (listType && listType !== block.type) {
-        flushList();
-      }
-      listType = block.type;
-      const itemStyle = getLeadingListItemStyle(
-        block.contentStart,
-        block.contentEnd,
-      );
-      listItems.push(
-        <div
-          key={`li-${index}`}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "max-content minmax(0, 1fr)",
-            columnGap: "0.65em",
-            alignItems: "start",
-            overflow: "visible",
-            ...baseStyle,
-            ...itemStyle,
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              minWidth: listType === "number" ? "1.8em" : "1.1em",
-              font: "inherit",
-              lineHeight: "inherit",
-              display: "inline-block",
-              textAlign: "right",
-              flexShrink: 0,
-            }}
-          >
-            {block.type === "number" ? `${listItems.length + 1}.` : "•"}
-          </span>
-          <div style={{ minWidth: 0, overflow: "visible" }}>{content}</div>
-        </div>,
-      );
-      return;
-    }
-
-    flushList();
-    nodes.push(
-      <React.Fragment key={`p-${index}`}>
-        {content}
-        {index < safeBlocks.length - 1 ? "\n" : null}
-      </React.Fragment>,
-    );
-  });
-
-  flushList();
-  return nodes;
-}
-
 function renderRichHtml(html?: string) {
   if (!html?.trim()) return null;
   return (
@@ -508,8 +328,12 @@ function renderRichTextContent(params: {
   return (
     active ??
     readOnly ??
-    (renderRichHtml(html) ??
-      (text ? renderMarkedText(text, marks, blocks, baseStyle) : emptyFallback))
+    (text
+      ? renderLinkedInRichText(text, marks, blocks, {
+          baseStyle,
+          normalizeFontFamily: normalizeTemplateFontFamily,
+        })
+      : (renderRichHtml(html) ?? emptyFallback))
   );
 }
 
@@ -565,7 +389,7 @@ export default function LinkedInTemplate2Renderer({
     multiline: boolean,
   ) => {
     if (activeRichTextEditor?.field === field) return null;
-    if (mode === "export") return null;
+    if (mode !== "edit") return null;
 
     return (
       <LexicalInlineEditor
@@ -679,7 +503,9 @@ export default function LinkedInTemplate2Renderer({
 
   const hashtags = useMemo((): string[] => {
     if (Array.isArray(data.hashtags)) {
-      return data.hashtags.map((value) => normalizeHashtag(value)).filter(Boolean);
+      return data.hashtags
+        .map((value) => normalizeHashtag(value))
+        .filter(Boolean);
     }
 
     return String(data.hashtags ?? "")
@@ -964,7 +790,9 @@ export default function LinkedInTemplate2Renderer({
             className="li2-badge"
             style={{
               minWidth: 120,
-              fontFamily: normalizeTemplateFontFamily(data.badgeStyle?.fontFamily),
+              fontFamily: normalizeTemplateFontFamily(
+                data.badgeStyle?.fontFamily,
+              ),
               fontSize: data.badgeStyle?.fontSize,
               color: data.badgeStyle?.color,
               textAlign: sanitizeTextAlign(data.badgeStyle?.textAlign),
@@ -1032,7 +860,9 @@ export default function LinkedInTemplate2Renderer({
                 onSelectableDoubleClick?.("title", event)
               }
               style={{
-                fontFamily: normalizeTemplateFontFamily(data.titleStyle?.fontFamily),
+                fontFamily: normalizeTemplateFontFamily(
+                  data.titleStyle?.fontFamily,
+                ),
                 fontSize: data.titleStyle?.fontSize,
                 color: data.titleStyle?.color,
                 textAlign: sanitizeTextAlign(data.titleStyle?.textAlign),
@@ -1065,7 +895,9 @@ export default function LinkedInTemplate2Renderer({
                 onSelectableDoubleClick?.("company", event)
               }
               style={{
-                fontFamily: normalizeTemplateFontFamily(data.companyStyle?.fontFamily),
+                fontFamily: normalizeTemplateFontFamily(
+                  data.companyStyle?.fontFamily,
+                ),
                 fontSize: data.companyStyle?.fontSize,
                 color: data.companyStyle?.color,
                 textAlign: sanitizeTextAlign(data.companyStyle?.textAlign),
@@ -1131,7 +963,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-subline"
               data-select="subline"
               style={{
-                fontFamily: normalizeTemplateFontFamily(data.sublineStyle?.fontFamily),
+                fontFamily: normalizeTemplateFontFamily(
+                  data.sublineStyle?.fontFamily,
+                ),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
                 textAlign: sanitizeTextAlign(data.sublineStyle?.textAlign),
@@ -1149,7 +983,9 @@ export default function LinkedInTemplate2Renderer({
               className="li2-subline"
               data-select="subline"
               style={{
-                fontFamily: normalizeTemplateFontFamily(data.sublineStyle?.fontFamily),
+                fontFamily: normalizeTemplateFontFamily(
+                  data.sublineStyle?.fontFamily,
+                ),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
                 textAlign: sanitizeTextAlign(data.sublineStyle?.textAlign),
@@ -1168,7 +1004,9 @@ export default function LinkedInTemplate2Renderer({
                 onSelectableDoubleClick?.("body", event)
               }
               style={{
-                fontFamily: normalizeTemplateFontFamily(data.bodyStyle?.fontFamily),
+                fontFamily: normalizeTemplateFontFamily(
+                  data.bodyStyle?.fontFamily,
+                ),
                 fontSize: data.bodyStyle?.fontSize,
                 color: data.bodyStyle?.color,
                 textAlign: sanitizeTextAlign(data.bodyStyle?.textAlign),

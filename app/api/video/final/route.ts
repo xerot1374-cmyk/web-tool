@@ -11,6 +11,11 @@ import {
   getCanvasFrame,
   type CanvasPreset,
 } from "@/app/lib/renderUtils";
+import {
+  renderLinkedInRichTextHtml,
+  type LinkedInRichTextMark as TextMark,
+} from "@/app/components/templates/linkedin-shared/richTextRender";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 
 type Payload = {
   profileImage: string;
@@ -20,16 +25,20 @@ type Payload = {
   title?: string;
   badgeText?: string;
   badgeMarks?: TextMark[];
+  badgeBlocks?: RichTextBlock[];
   linkTitle?: string;
   titleMarks?: TextMark[];
+  titleBlocks?: RichTextBlock[];
   company?: string;
   companyMarks?: TextMark[];
+  companyBlocks?: RichTextBlock[];
 
   headline?: string;
   subline?: string;
   body?: string;
   bodyText?: string;
   bodyMarks?: TextMark[];
+  bodyBlocks?: RichTextBlock[];
 
   link?: string;
   hashtags?: string;
@@ -109,20 +118,6 @@ type VideoEntry = {
   file?: File;
   src?: string;
 };
-type TextMark = {
-  start: number;
-  end: number;
-  style?: {
-    fontFamily?: string;
-    fontSize?: number | string;
-    color?: string;
-    highlight?: boolean;
-    highlightColor?: string;
-    fontWeight?: string | number;
-    fontStyle?: string;
-  };
-};
-
 type BoxTextStyle = {
   fontFamily?: string;
   fontSize?: number;
@@ -132,8 +127,7 @@ type BoxTextStyle = {
 
 const LI2_EMOJI_FONT_FALLBACK =
   '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
-const LI2_DETERMINISTIC_FONT =
-  `"Inter", ${LI2_EMOJI_FONT_FALLBACK}`;
+const LI2_DETERMINISTIC_FONT = `"Inter", ${LI2_EMOJI_FONT_FALLBACK}`;
 
 function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
   return value === "center" || value === "right" ? value : "left";
@@ -227,80 +221,14 @@ function normalizeHashtag(raw: string) {
   return value.startsWith("#") ? value : `#${value}`;
 }
 
-function renderMarkedHtml(text: string, marks?: TextMark[]) {
-  const value = String(text ?? "");
-  if (!marks?.length) return escapeHtml(value).replace(/\n/g, "<br/>");
-
-  const safeMarks = marks
-    .map((mark) => ({
-      start: Math.max(0, Math.min(mark.start, value.length)),
-      end: Math.max(0, Math.min(mark.end, value.length)),
-      style: mark.style ?? {},
-    }))
-    .filter((mark) => mark.end > mark.start)
-    .sort((a, b) => a.start - b.start);
-
-  const boundaries = Array.from(
-    new Set([
-      0,
-      value.length,
-      ...safeMarks.flatMap((mark) => [mark.start, mark.end]),
-    ]),
-  ).sort((a, b) => a - b);
-
-  let out = "";
-
-  for (let i = 0; i < boundaries.length - 1; i++) {
-    const start = boundaries[i];
-    const end = boundaries[i + 1];
-    if (end <= start) continue;
-
-    const activeStyle = safeMarks
-      .filter((mark) => mark.start <= start && mark.end >= end)
-      .reduce<NonNullable<TextMark["style"]>>(
-        (acc, mark) => ({
-          ...acc,
-          ...mark.style,
-        }),
-        {},
-      );
-
-    const styles: string[] = [];
-    if (activeStyle.fontFamily) {
-      styles.push(
-        `font-family:${escapeHtml(normalizeTemplateFontFamily(String(activeStyle.fontFamily)))}`,
-      );
-    }
-    if (activeStyle.fontSize !== undefined && activeStyle.fontSize !== null) {
-      const rawSize = String(activeStyle.fontSize);
-      const size =
-        typeof activeStyle.fontSize === "number" || !rawSize.endsWith("px")
-          ? `${rawSize}px`
-          : rawSize;
-      styles.push(`font-size:${escapeHtml(size)}`);
-    }
-    if (activeStyle.color) {
-      styles.push(`color:${escapeHtml(String(activeStyle.color))}`);
-    }
-    const highlightColor =
-      activeStyle.highlightColor || (activeStyle.highlight ? "#fff3a3" : "");
-    if (highlightColor) {
-      styles.push(`background-color:${escapeHtml(String(highlightColor))}`);
-    }
-    if (activeStyle.fontWeight) {
-      styles.push(`font-weight:${escapeHtml(String(activeStyle.fontWeight))}`);
-    }
-    if (activeStyle.fontStyle) {
-      styles.push(`font-style:${escapeHtml(String(activeStyle.fontStyle))}`);
-    }
-
-    const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
-    const chunk = escapeHtml(value.slice(start, end)).replace(/\n/g, "<br/>");
-
-    out += `<span${styleAttr}>${chunk}</span>`;
-  }
-
-  return out;
+function renderRichTextHtml(
+  text: string | undefined,
+  marks?: TextMark[],
+  blocks?: RichTextBlock[],
+) {
+  return renderLinkedInRichTextHtml(text, marks, blocks, {
+    normalizeFontFamily: normalizeTemplateFontFamily,
+  });
 }
 
 function getCropValue(value: unknown, fallback: number) {
@@ -697,7 +625,7 @@ function renderVideoTemplateHtml(
               : ""
           }
           <div class="li2-badge" style="min-width:120px;${styleToInline(data.badgeStyle)}">
-            ${data.badgeText?.trim() ? renderMarkedHtml(data.badgeText, data.badgeMarks) : "&nbsp;"}
+            ${data.badgeText?.trim() ? renderRichTextHtml(data.badgeText, data.badgeMarks, data.badgeBlocks) : "&nbsp;"}
           </div>
           <div class="li2-userTop">
             <div class="li2-userTopMeta">
@@ -716,12 +644,12 @@ function renderVideoTemplateHtml(
         <div class="li2-content li2-content--autoHeight">
           ${
             data.linkTitle?.trim()
-              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${renderMarkedHtml(data.linkTitle.trim(), data.titleMarks)}</div>`
+              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${renderRichTextHtml(data.linkTitle, data.titleMarks, data.titleBlocks)}</div>`
               : ""
           }
           ${
             data.company?.trim()
-              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${renderMarkedHtml(data.company.trim(), data.companyMarks)}</div>`
+              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${renderRichTextHtml(data.company, data.companyMarks, data.companyBlocks)}</div>`
               : ""
           }
           ${
@@ -736,7 +664,7 @@ function renderVideoTemplateHtml(
           }
           ${
             data.bodyText?.trim()
-              ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">${renderMarkedHtml(data.bodyText, data.bodyMarks)}</div>`
+              ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">${renderRichTextHtml(data.bodyText, data.bodyMarks, data.bodyBlocks)}</div>`
               : ""
           }
           ${
@@ -925,21 +853,23 @@ async function screenshotCoverPng(
       { timeout: 60000 },
     );
 
-    const measuredHeight = await page.$eval(
-      ".li2-root",
-      (node) => {
-        const el = node as HTMLElement;
-        const rect = el.getBoundingClientRect();
-        return Math.max(1, Math.ceil(rect.height));
-      },
-    );
+    const measuredHeight = await page.$eval(".li2-root", (node) => {
+      const el = node as HTMLElement;
+      const rect = el.getBoundingClientRect();
+      return Math.max(1, Math.ceil(rect.height));
+    });
     const finalFrame =
-      outputFrame ?? getFinalVideoFrame(data.canvasPreset, frame.w, measuredHeight);
+      outputFrame ??
+      getFinalVideoFrame(data.canvasPreset, frame.w, measuredHeight);
 
-    await page.$eval(".video-stage", (node, finalWidth) => {
-      const stage = node as HTMLElement;
-      stage.style.width = `${finalWidth}px`;
-    }, finalFrame.w);
+    await page.$eval(
+      ".video-stage",
+      (node, finalWidth) => {
+        const stage = node as HTMLElement;
+        stage.style.width = `${finalWidth}px`;
+      },
+      finalFrame.w,
+    );
 
     await page.setViewport({
       width: finalFrame.w,
@@ -1136,10 +1066,7 @@ export async function POST(req: Request) {
     }
 
     if (!videoEntries.length) {
-      return NextResponse.json(
-        { error: "No video uploaded" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No video uploaded" }, { status: 400 });
     }
 
     const persistedVideos = await Promise.all(
