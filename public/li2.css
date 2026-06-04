@@ -612,6 +612,12 @@
   text-decoration: none;
   font-weight: 800;
   line-height: 1.35;
+  letter-spacing: normal;
+  word-spacing: normal;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+  flex: 0 0 auto;
 }
 
 .li2-linksList {
