@@ -5,25 +5,9 @@ import path from "path";
 import fs from "fs/promises";
 
 import { configureFfmpegPaths } from "@/app/lib/ffmpeg";
-import {
-  absUrl,
-  escapeHtml,
-  getCanvasFrame,
-  type CanvasPreset,
-} from "@/app/lib/renderUtils";
-import {
-  renderLinkedInRichTextHtml,
-  type LinkedInRichTextMark as TextMark,
-} from "@/app/components/templates/linkedin-shared/richTextRender";
+import { absUrl, getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
+import type { LinkedInRichTextMark as TextMark } from "@/app/components/templates/linkedin-shared/richTextRender";
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
-import {
-  getPresetClass,
-  linkLabel,
-  normalizeTemplateExportFontFamily,
-  parseTemplateHashtags,
-  parseTemplateLinks,
-  sanitizeTemplateTextAlign,
-} from "@/app/components/templates/linkedin-shared/linkedInRichPostTemplateShared";
 
 type Payload = {
   profileImage: string;
@@ -104,24 +88,6 @@ type Payload = {
   canvasPreset?: CanvasPreset;
 };
 
-type PayloadImage = {
-  id: string;
-  src?: string;
-  base64?: string;
-  orientation: "landscape" | "portrait";
-  frameSlotId?: string;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  rotation: number;
-  radius?: number;
-  cropX?: number;
-  cropY?: number;
-  cropScale?: number;
-};
-
-type PayloadFrameSlot = NonNullable<Payload["frameSlots"]>[number];
 type PayloadVideo = NonNullable<Payload["videos"]>[number];
 type VideoEntry = {
   meta: PayloadVideo;
@@ -186,32 +152,6 @@ function getFinalVideoFrame(
   };
 }
 
-function renderRichTextHtml(
-  text: string | undefined,
-  marks?: TextMark[],
-  blocks?: RichTextBlock[],
-) {
-  return renderLinkedInRichTextHtml(text, marks, blocks, {
-    normalizeFontFamily: normalizeTemplateExportFontFamily,
-  });
-}
-
-function getCropValue(value: unknown, fallback: number) {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function styleToInline(style?: BoxTextStyle) {
-  if (!style) return "";
-  return [
-    `font-family:${normalizeTemplateExportFontFamily(style.fontFamily)};`,
-    style.fontSize ? `font-size:${style.fontSize}px;` : "",
-    style.color ? `color:${style.color};` : "",
-    style.textAlign
-      ? `text-align:${sanitizeTemplateTextAlign(style.textAlign)};`
-      : "",
-  ].join("");
-}
-
 function normalizePayload(data: Payload): Payload {
   return {
     ...data,
@@ -261,12 +201,6 @@ function normalizePayload(data: Payload): Payload {
         ];
       }) ?? [],
   };
-}
-
-function resolveSrc(req: Request, raw?: string) {
-  const value = raw?.trim();
-  if (!value) return "";
-  return value.startsWith("data:") ? value : absUrl(req, value);
 }
 
 function getHeaderHeight(preset?: CanvasPreset) {
@@ -330,353 +264,104 @@ function getRoundedVideoAlphaExpression(
   ].join("");
 }
 
-function normalizePayloadImages(data: Payload, req: Request): PayloadImage[] {
-  if (!Array.isArray(data.images)) return [];
-
-  return data.images.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const image = item as Partial<PayloadImage>;
-    if (
-      typeof image.id !== "string" ||
-      typeof image.orientation !== "string" ||
-      typeof image.x !== "number" ||
-      typeof image.y !== "number" ||
-      typeof image.w !== "number" ||
-      typeof image.h !== "number"
-    ) {
-      return [];
-    }
-
-    const resolvedSrc = image.base64?.trim()
-      ? image.base64
-      : resolveSrc(req, image.src);
-    if (!resolvedSrc) return [];
-
-    return [
-      {
-        id: image.id,
-        src: resolvedSrc,
-        base64: image.base64,
-        orientation:
-          image.orientation === "portrait" ? "portrait" : "landscape",
-        frameSlotId: image.frameSlotId,
-        x: image.x,
-        y: image.y,
-        w: image.w,
-        h: image.h,
-        rotation:
-          typeof image.rotation === "number" && Number.isFinite(image.rotation)
-            ? image.rotation
-            : 0,
-        radius:
-          typeof image.radius === "number" && Number.isFinite(image.radius)
-            ? Math.max(0, Math.round(image.radius))
-            : 20,
-        cropX: getCropValue(image.cropX, 50),
-        cropY: getCropValue(image.cropY, 50),
-        cropScale: getCropValue(image.cropScale, 1),
-      },
-    ];
-  });
-}
-
-function renderProductImagesHtml(
+function buildVideoScreenshotPayload(
   data: Payload,
-  req: Request,
   fallbackBox: { x: number; y: number; w: number; h: number },
 ) {
-  const images = normalizePayloadImages(data, req);
+  const existingImages = Array.isArray(data.images) ? data.images : [];
+  const videoSlots = data.videos?.length
+    ? data.videos
+    : [
+        {
+          id: "legacy-video-placeholder",
+          x: fallbackBox.x,
+          y: fallbackBox.y,
+          w: fallbackBox.w,
+          h: fallbackBox.h,
+          radius: data.videoRadius ?? 20,
+          zIndex: 1,
+        },
+      ];
 
-  if (!images.length) {
-    return `
-      <div
-        class="li2-productSlot"
-        style="position:absolute;left:${fallbackBox.x}px;top:${fallbackBox.y}px;width:${fallbackBox.w}px;height:${fallbackBox.h}px;z-index:2;pointer-events:none;transform:none;right:auto;bottom:auto;margin:0;"
-      >
-        <div
-          class="li2-productFrame li2-productFrame--landscape"
-          style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(0deg);transform-origin:center center;border-radius:${data.videoRadius ?? 20}px;background:transparent;border:1px solid rgba(15,23,42,0.10);"
-        >
-          <img
-            class="li2-productImg li2-productImg--cropped"
-            src="${TRANSPARENT_PIXEL}"
-            alt="video-slot"
-            style="position:absolute;left:50%;top:50%;width:100%;height:100%;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;opacity:0;"
-          />
-        </div>
-      </div>
-    `;
-  }
+  const videoPlaceholders = videoSlots.map((video) => ({
+    id: `video-placeholder-${video.id}`,
+    src: TRANSPARENT_PIXEL,
+    base64: TRANSPARENT_PIXEL,
+    orientation: video.h > video.w ? "portrait" : "landscape",
+    x: video.x,
+    y: video.y,
+    w: video.w,
+    h: video.h,
+    rotation: 0,
+    radius: video.radius ?? data.videoRadius ?? 20,
+    cropX: 50,
+    cropY: 50,
+    cropScale: 1,
+  }));
 
-  const frameSlotsById = new Map<string, PayloadFrameSlot>(
-    (data.frameSlots ?? []).map((slot) => [slot.id, slot]),
-  );
-
-  if (data.imageLayout === "frame") {
-    return (data.frameSlots ?? [])
-      .map((slot, index) => {
-        const img = images.find((item) => item.frameSlotId === slot.id);
-        const imageOrientationClass =
-          img?.orientation === "portrait"
-            ? "li2-productFrame--portrait"
-            : "li2-productFrame--landscape";
-
-        return `
-          <div
-            class="li2-productSlot li2-productSlot--frame"
-            style="position:absolute;left:${slot.x}px;top:${slot.y}px;width:${slot.w}px;height:${slot.h}px;z-index:${12 + index};pointer-events:none;right:auto;bottom:auto;margin:0;transform:rotate(${slot.rotation ?? 0}deg);"
-          >
-            <div
-              class="li2-productFrame li2-productFrame--frame ${imageOrientationClass}"
-              style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;border-radius:${slot.radius}px;background:#ffffff;border:1px solid rgba(255,255,255,0.96);${slot.clipPath ? `clip-path:${slot.clipPath};` : ""}"
-            >
-              ${
-                img
-                  ? `
-                <div class="li2-productFrameInner--frame">
-                  <img
-                    class="li2-productImg li2-productImg--cropped"
-                    src="${escapeHtml(img.src ?? "")}"
-                    alt="product"
-                    style="position:absolute;left:${img.cropX}% ;top:${img.cropY}% ;width:${img.cropScale! * 100}% ;height:${img.cropScale! * 100}% ;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
-                  />
-                </div>
-              `
-                  : `<div class="li2-framePlaceholder">Add image</div>`
-              }
-            </div>
-          </div>
-        `;
-      })
-      .join("");
-  }
-
-  return images
-    .map((img, index) => {
-      const slot = img.frameSlotId ? frameSlotsById.get(img.frameSlotId) : null;
-      const isCollage = data.imageLayout === "collage";
-      const imageOrientationClass =
-        img.orientation === "portrait"
-          ? "li2-productFrame--portrait"
-          : "li2-productFrame--landscape";
-      const alignClass =
-        data.productAlign === "left"
-          ? "li2-productSlot--left"
-          : data.productAlign === "right"
-            ? "li2-productSlot--right"
-            : "li2-productSlot--center";
-
-      return `
-        <div
-          class="li2-productSlot ${alignClass}${isCollage ? " li2-productSlot--collage" : ""}"
-          style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.w}px;height:${img.h}px;z-index:${isCollage ? 10 + index : 2};pointer-events:none;transform:none;right:auto;bottom:auto;margin:0;"
-        >
-          <div
-            class="li2-productFrame ${imageOrientationClass}${isCollage ? " li2-productFrame--collage" : ""}"
-            style="width:100%;height:100%;box-sizing:border-box;display:block;overflow:hidden;position:relative;left:auto;top:auto;transform:rotate(${img.rotation ?? 0}deg);transform-origin:center center;border-radius:${img.radius ?? 20}px;background:${isCollage ? "#ffffff" : "transparent"};border:${isCollage ? "1px solid rgba(255,255,255,0.92)" : "1px solid rgba(15,23,42,0.10)"};${slot?.clipPath ? `clip-path:${slot.clipPath};` : ""}"
-          >
-            <div class="${isCollage ? "li2-productFrameInner--collage" : ""}">
-              <img
-                class="li2-productImg li2-productImg--cropped"
-                src="${escapeHtml(img.src ?? "")}"
-                alt="product"
-                style="position:absolute;left:${img.cropX}% ;top:${img.cropY}% ;width:${img.cropScale! * 100}% ;height:${img.cropScale! * 100}% ;max-width:none;max-height:none;transform:translate(-50%, -50%);object-fit:cover;display:block;user-select:none;pointer-events:none;"
-              />
-            </div>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
+  return {
+    ...data,
+    images: [...existingImages, ...videoPlaceholders],
+  };
 }
 
-function renderVideoTemplateHtml(
-  req: Request,
-  data: Payload,
-  box: { x: number; y: number; w: number; h: number },
-  mode: "base" | "foreground" = "base",
-) {
-  const canvas = getCanvasFrame(data.canvasPreset);
-  const presetClass = getPresetClass(data.canvasPreset);
-  const cssUrl = absUrl(req, "/linkedin-rich-post-template.css");
-  const profileImage = resolveSrc(req, data.profileImage);
-  const companyLogo = resolveSrc(req, "/logo.png");
-  const foregroundOnly = mode === "foreground";
-  const imagesHtml = renderProductImagesHtml(data, req, box);
+function getVideoScreenshotCss(foregroundOnly: boolean) {
+  const background = foregroundOnly ? "transparent" : "#ffffff";
 
-  const links = parseTemplateLinks(data);
-  const hashtags = parseTemplateHashtags(data.hashtags);
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <link rel="stylesheet" href="${cssUrl}" />
-  <style>
+  return `
     html, body {
-      margin: 0;
-      padding: 0;
-      background: ${foregroundOnly ? "transparent" : "#ffffff"};
-      width: 100%;
-      height: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: ${background} !important;
+      width: 100% !important;
+      min-height: 100% !important;
+      overflow: visible !important;
     }
-    * { box-sizing: border-box; }
-    .video-stage {
-      width: ${canvas.w}px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      background: ${foregroundOnly ? "transparent" : "#ffffff"};
-      overflow: visible;
+    .pdf-emoji-font-scope {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: flex-start !important;
+      background: ${background} !important;
+      overflow: visible !important;
     }
-    .li2-viewport {
+    .pdf-emoji-font-scope .li2-viewport {
       --li2-scale: 1;
-      width: ${canvas.w}px !important;
       height: auto !important;
       overflow: visible !important;
-      background: ${foregroundOnly ? "transparent" : "#ffffff"} !important;
+      background: ${background} !important;
     }
-    .li2-root {
-      width: ${canvas.w}px !important;
+    .pdf-emoji-font-scope .li2-root {
       height: auto !important;
       min-height: 0 !important;
       overflow: visible !important;
-      position: relative;
-      background: ${foregroundOnly ? "transparent" : "#ffffff"} !important;
-      border-color: ${foregroundOnly ? "transparent" : "rgba(155, 157, 161, 0.32)"} !important;
+      position: relative !important;
+      background: ${background} !important;
+      border-color: ${
+        foregroundOnly ? "transparent" : "rgba(155, 157, 161, 0.32)"
+      } !important;
     }
-    .li2-content {
+    .pdf-emoji-font-scope .li2-content {
       overflow: visible !important;
       flex: 0 0 auto !important;
     }
-    .li2-body,
-    .li2-bottom {
+    .pdf-emoji-font-scope .li2-body,
+    .pdf-emoji-font-scope .li2-bottom {
       overflow: visible !important;
     }
     ${
       foregroundOnly
         ? `
-    .li2-header {
+    .pdf-emoji-font-scope .li2-header {
       background: transparent !important;
       background-image: none !important;
     }
-    .li2-productSlot {
+    .pdf-emoji-font-scope .li2-productSlot {
       display: none !important;
     }
     `
         : ""
     }
-  </style>
-</head>
-<body>
-  <div class="video-stage">
-    <div class="li2-viewport li2-viewport--${presetClass} li2-viewport--autoHeight">
-      <div class="li2-root li2-root--${presetClass} li2-theme-cream li2-root--autoHeight">
-        <div class="li2-header li2-header--hasimg">
-          ${imagesHtml}
-          ${
-            companyLogo
-              ? `<img src="${escapeHtml(companyLogo)}" alt="Company logo" class="li2-companyLogo" />`
-              : ""
-          }
-          <div class="li2-badge" style="min-width:120px;${styleToInline(data.badgeStyle)}">
-            ${data.badgeText?.trim() ? renderRichTextHtml(data.badgeText, data.badgeMarks, data.badgeBlocks) : "&nbsp;"}
-          </div>
-          <div class="li2-userTop">
-            <div class="li2-userTopMeta">
-              <div class="li2-userTopName" title="${escapeHtml(data.name ?? "")}">
-                ${escapeHtml(data.name ?? "")}
-              </div>
-              <div class="li2-userTopRole" title="${escapeHtml(data.role ?? "")}">
-                ${escapeHtml(data.role ?? "")}
-              </div>
-            </div>
-            <div class="li2-avatarWrap">
-              <img class="li2-avatar" src="${escapeHtml(profileImage)}" alt="profile" />
-            </div>
-          </div>
-        </div>
-        <div class="li2-content li2-content--autoHeight">
-          ${
-            data.linkTitle?.trim()
-              ? `<div class="li2-linkTitle" style="${styleToInline(data.titleStyle)}">${renderRichTextHtml(data.linkTitle, data.titleMarks, data.titleBlocks)}</div>`
-              : ""
-          }
-          ${
-            data.company?.trim()
-              ? `<div class="li2-company" style="${styleToInline(data.companyStyle)}">${renderRichTextHtml(data.company, data.companyMarks, data.companyBlocks)}</div>`
-              : ""
-          }
-          ${
-            data.headline?.trim()
-              ? `<div class="li2-headline" style="${styleToInline(data.headlineStyle)}">${escapeHtml(data.headline.trim())}</div>`
-              : ""
-          }
-          ${
-            data.subline?.trim()
-              ? `<div class="li2-subline" style="${styleToInline(data.sublineStyle)}">${escapeHtml(data.subline.trim())}</div>`
-              : ""
-          }
-          ${
-            data.bodyText?.trim()
-              ? `<div class="li2-body" style="${styleToInline(data.bodyStyle)}">${renderRichTextHtml(data.bodyText, data.bodyMarks, data.bodyBlocks)}</div>`
-              : ""
-          }
-          ${
-            hashtags.length
-              ? `<div class="li2-linkRow">
-                  <div class="li2-linksList">
-                    ${hashtags
-                      .map(
-                        (hashtag) =>
-                          `<span class="li2-link" style="color:#64748b;display:inline-block;margin-right:12px;">${escapeHtml(hashtag)}</span>`,
-                      )
-                      .join("")}
-                  </div>
-                </div>`
-              : ""
-          }
-          ${
-            links.length
-              ? `<div class="li2-linkRow">
-                  ${
-                    links.length === 1
-                      ? `<a class="li2-link" href="${escapeHtml(links[0])}" target="_blank" rel="noreferrer">
-                          ${escapeHtml(linkLabel(links[0]))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
-                        </a>`
-                      : `<div class="li2-linksList">
-                          ${links
-                            .map(
-                              (href) =>
-                                `<a class="li2-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer">
-                                  ${escapeHtml(linkLabel(href))}<span class="li2-linkArrow" aria-hidden="true"> &#8594;</span>
-                                </a>`,
-                            )
-                            .join("")}
-                        </div>`
-                  }
-                </div>`
-              : ""
-          }
-        </div>
-        <div class="li2-bottom">
-          <div class="li2-bottomLeft">
-            <img class="li2-profileMini" src="${escapeHtml(profileImage)}" alt="profile-small" />
-            <div class="li2-bottomMeta">
-              <div class="li2-bottomName" title="${escapeHtml(data.name ?? "")}">
-                ${escapeHtml(data.name ?? "")}
-              </div>
-              <div class="li2-bottomRole" title="${escapeHtml(data.role ?? "")}">
-                ${escapeHtml(data.role ?? "")}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
+  `;
 }
 
 function getPuppeteerLaunchOptions() {
@@ -776,7 +461,9 @@ async function screenshotCoverPng(
         h: Math.round(data.videoBox.h),
       }
     : getFinalVideoBox(data.canvasPreset, data.mediaBox);
-  const html = renderVideoTemplateHtml(req, data, box, mode);
+  const renderUrl = absUrl(req, "/pdf-render");
+  const screenshotPayload = buildVideoScreenshotPayload(data, box);
+  const foregroundOnly = mode === "foreground";
 
   const browser = await puppeteer.launch(getPuppeteerLaunchOptions());
 
@@ -790,7 +477,12 @@ async function screenshotCoverPng(
     });
 
     await page.emulateMediaType("screen");
-    await page.setContent(html, { waitUntil: "networkidle0", timeout: 60000 });
+    await page.evaluateOnNewDocument((payload) => {
+      (window as unknown as { __PDF_PAYLOAD__?: unknown }).__PDF_PAYLOAD__ =
+        payload;
+    }, screenshotPayload);
+    await page.goto(renderUrl, { waitUntil: "networkidle0", timeout: 60000 });
+    await page.addStyleTag({ content: getVideoScreenshotCss(foregroundOnly) });
 
     await page.waitForSelector(".li2-root", { timeout: 60000 });
 
@@ -818,10 +510,13 @@ async function screenshotCoverPng(
       getFinalVideoFrame(data.canvasPreset, frame.w, measuredHeight);
 
     await page.$eval(
-      ".video-stage",
+      ".pdf-emoji-font-scope",
       (node, finalWidth) => {
         const stage = node as HTMLElement;
         stage.style.width = `${finalWidth}px`;
+        stage.style.display = "flex";
+        stage.style.justifyContent = "center";
+        stage.style.alignItems = "flex-start";
       },
       finalFrame.w,
     );
@@ -833,7 +528,7 @@ async function screenshotCoverPng(
     });
 
     const clip = await page.$eval(
-      ".video-stage",
+      ".pdf-emoji-font-scope",
       (node, finalWidth, finalHeight) => {
         const stage = node as HTMLElement;
         const rect = stage.getBoundingClientRect();
@@ -851,7 +546,7 @@ async function screenshotCoverPng(
     const buffer = await page.screenshot({
       type: "png",
       clip,
-      ...(mode === "foreground" ? { omitBackground: true } : {}),
+      ...(foregroundOnly ? { omitBackground: true } : {}),
     });
     await fs.writeFile(outPngPath, buffer);
 
