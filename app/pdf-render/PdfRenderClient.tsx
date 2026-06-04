@@ -1,7 +1,8 @@
 "use client";
 
 import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
-import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
+import { sanitizeTemplateTextAlign } from "@/app/components/templates/linkedin-shared/template2Shared";
 import { getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
 import { useMemo, useSyncExternalStore } from "react";
 
@@ -115,10 +116,6 @@ const PDF_EMOJI_FONT_FALLBACK =
 const PDF_DETERMINISTIC_FONT =
   '"Inter", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
 
-function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
-  return value === "center" || value === "right" ? value : "left";
-}
-
 function normalizePdfFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
   return !value ||
@@ -143,13 +140,13 @@ function withPdfEmojiStyle<
   if (!style.fontFamily?.trim()) {
     return {
       ...style,
-      textAlign: sanitizeTextAlign(style.textAlign),
+      textAlign: sanitizeTemplateTextAlign(style.textAlign),
     };
   }
   return {
     ...style,
     fontFamily: withPdfEmojiFallback(style.fontFamily),
-    textAlign: sanitizeTextAlign(style.textAlign),
+    textAlign: sanitizeTemplateTextAlign(style.textAlign),
   };
 }
 

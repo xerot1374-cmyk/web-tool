@@ -3,7 +3,7 @@ import LinkedInTemplate2Renderer, {
   type LinkedInTemplate2Data,
   type MediaBox,
 } from "./LinkedInTemplate2Renderer";
-import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
 import type { FrameSlot } from "@/app/lib/imageLayouts";
 
 export type TextStyle = {

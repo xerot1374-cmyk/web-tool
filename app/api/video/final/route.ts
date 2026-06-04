@@ -15,7 +15,15 @@ import {
   renderLinkedInRichTextHtml,
   type LinkedInRichTextMark as TextMark,
 } from "@/app/components/templates/linkedin-shared/richTextRender";
-import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
+import {
+  getPresetClass,
+  linkLabel,
+  normalizeTemplateExportFontFamily,
+  parseTemplateHashtags,
+  parseTemplateLinks,
+  sanitizeTemplateTextAlign,
+} from "@/app/components/templates/linkedin-shared/template2Shared";
 
 type Payload = {
   profileImage: string;
@@ -41,7 +49,9 @@ type Payload = {
   bodyBlocks?: RichTextBlock[];
 
   link?: string;
-  hashtags?: string;
+  linkUrl?: string | string[];
+  linkUrls?: string[];
+  hashtags?: string | string[];
 
   mediaBox?: {
     x: number;
@@ -125,29 +135,6 @@ type BoxTextStyle = {
   textAlign?: "left" | "center" | "right";
 };
 
-const LI2_EMOJI_FONT_FALLBACK =
-  '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
-const LI2_DETERMINISTIC_FONT = `"Inter", ${LI2_EMOJI_FONT_FALLBACK}`;
-
-function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
-  return value === "center" || value === "right" ? value : "left";
-}
-
-function normalizeTemplateFontFamily(fontFamily?: string) {
-  const value = fontFamily?.trim();
-  if (
-    !value ||
-    /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
-    /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
-  ) {
-    return LI2_DETERMINISTIC_FONT;
-  }
-
-  return /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji/i.test(value)
-    ? value
-    : `${value}, ${LI2_EMOJI_FONT_FALLBACK}`;
-}
-
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -199,35 +186,13 @@ function getFinalVideoFrame(
   };
 }
 
-function normalizeHttpUrl(raw?: string): string | undefined {
-  const value = raw?.trim();
-  if (!value) return undefined;
-  if (value.startsWith("http://") || value.startsWith("https://")) return value;
-  return `https://${value}`;
-}
-
-function linkLabel(linkUrl: string) {
-  try {
-    const url = new URL(linkUrl);
-    return url.host.replace(/^www\./, "");
-  } catch {
-    return linkUrl;
-  }
-}
-
-function normalizeHashtag(raw: string) {
-  const value = raw.trim();
-  if (!value) return "";
-  return value.startsWith("#") ? value : `#${value}`;
-}
-
 function renderRichTextHtml(
   text: string | undefined,
   marks?: TextMark[],
   blocks?: RichTextBlock[],
 ) {
   return renderLinkedInRichTextHtml(text, marks, blocks, {
-    normalizeFontFamily: normalizeTemplateFontFamily,
+    normalizeFontFamily: normalizeTemplateExportFontFamily,
   });
 }
 
@@ -238,17 +203,13 @@ function getCropValue(value: unknown, fallback: number) {
 function styleToInline(style?: BoxTextStyle) {
   if (!style) return "";
   return [
-    `font-family:${normalizeTemplateFontFamily(style.fontFamily)};`,
+    `font-family:${normalizeTemplateExportFontFamily(style.fontFamily)};`,
     style.fontSize ? `font-size:${style.fontSize}px;` : "",
     style.color ? `color:${style.color};` : "",
-    style.textAlign ? `text-align:${sanitizeTextAlign(style.textAlign)};` : "",
+    style.textAlign
+      ? `text-align:${sanitizeTemplateTextAlign(style.textAlign)};`
+      : "",
   ].join("");
-}
-
-function getPresetClass(preset?: CanvasPreset) {
-  if (preset === "instagramStory") return "story";
-  if (preset === "instagram") return "instagram";
-  return "linkedin";
 }
 
 function normalizePayload(data: Payload): Payload {
@@ -543,14 +504,8 @@ function renderVideoTemplateHtml(
   const foregroundOnly = mode === "foreground";
   const imagesHtml = renderProductImagesHtml(data, req, box);
 
-  const links = (data.link ?? "")
-    .split("\n")
-    .map((item) => normalizeHttpUrl(item))
-    .filter((item): item is string => Boolean(item));
-  const hashtags = (data.hashtags ?? "")
-    .split("\n")
-    .map((item) => normalizeHashtag(item))
-    .filter(Boolean);
+  const links = parseTemplateLinks(data);
+  const hashtags = parseTemplateHashtags(data.hashtags);
 
   return `<!doctype html>
 <html lang="en">

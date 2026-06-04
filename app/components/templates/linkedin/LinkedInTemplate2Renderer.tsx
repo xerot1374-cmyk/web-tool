@@ -7,6 +7,14 @@ import LexicalInlineEditor, {
   type RichTextBlock,
 } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { renderLinkedInRichText } from "@/app/components/templates/linkedin-shared/richTextRender";
+import {
+  buildHashtagHref,
+  linkLabel,
+  normalizeTemplateFontFamily,
+  parseTemplateHashtags,
+  parseTemplateLinks,
+  sanitizeTemplateTextAlign,
+} from "@/app/components/templates/linkedin-shared/template2Shared";
 
 export type MediaBox = {
   x: number;
@@ -189,73 +197,11 @@ function safeScale(scale?: number) {
     : 1;
 }
 
-function normalizeHttpUrl(raw: string) {
-  const value = raw.trim();
-  if (!value) return "";
-  if (/^https?:\/\//i.test(value)) return value;
-  return `https://${value}`;
-}
-
-function linkLabel(linkUrl: string) {
-  const value = normalizeHttpUrl(linkUrl);
-  const withoutProtocol = value.replace(/^https?:\/\//i, "");
-  const host = withoutProtocol.split(/[/?#]/)[0];
-  return (host || linkUrl.trim()).replace(/^www\./i, "");
-}
-
-function normalizeHashtag(raw: string) {
-  const value = raw.trim();
-  if (!value) return "";
-  return value.startsWith("#") ? value : `#${value}`;
-}
-
-function buildHashtagHref(raw: string) {
-  const value = normalizeHashtag(raw);
-  const target = value.replace(/^#+/, "").replace(/\s+/g, "");
-  if (!target) return "";
-  return `https://www.linkedin.com/feed/hashtag/?keywords=${encodeURIComponent(target)}`;
-}
-
 function cx(...parts: Array<string | false | null | undefined>) {
   return parts.filter(Boolean).join(" ");
 }
 
 const clean = (v?: string) => (v?.trim() ? v.trim() : "");
-const LI2_DETERMINISTIC_FONT = '"Inter", Arial, Helvetica, sans-serif';
-
-function isLegacySystemFont(fontFamily?: string) {
-  const value = fontFamily?.trim();
-  return (
-    !value ||
-    /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
-    /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
-  );
-}
-
-function normalizeTemplateFontFamily(fontFamily?: string) {
-  if (!isLegacySystemFont(fontFamily)) return fontFamily;
-  const emojiSuffix =
-    fontFamily?.match(
-      /,\s*(?:"Apple Color Emoji"|"Segoe UI Emoji"|"Noto Color Emoji"|"Segoe UI Symbol").*$/i,
-    )?.[0] ?? "";
-  return `${LI2_DETERMINISTIC_FONT}${emojiSuffix}`;
-}
-
-function sanitizeTextAlign(value: unknown): "left" | "center" | "right" {
-  return value === "center" || value === "right" ? value : "left";
-}
-
-function normalizeTemplateMarks(marks?: TextMark[]) {
-  return marks?.map((mark) => ({
-    ...mark,
-    style: {
-      ...mark.style,
-      ...(mark.style.fontFamily
-        ? { fontFamily: normalizeTemplateFontFamily(mark.style.fontFamily) }
-        : {}),
-    },
-  }));
-}
 
 function EditableInput({
   value,
@@ -306,7 +252,6 @@ function getCropValues(img?: ImageItem) {
 
 function renderRichTextContent(params: {
   active: React.ReactNode | null;
-  readOnly?: React.ReactNode | null;
   html?: string;
   text: string;
   marks?: TextMark[];
@@ -316,7 +261,6 @@ function renderRichTextContent(params: {
 }) {
   const {
     active,
-    readOnly,
     html,
     text,
     marks,
@@ -327,7 +271,6 @@ function renderRichTextContent(params: {
 
   return (
     active ??
-    readOnly ??
     (text
       ? renderLinkedInRichText(text, marks, blocks, {
           baseStyle,
@@ -377,51 +320,6 @@ export default function LinkedInTemplate2Renderer({
         onClick={activeRichTextEditor.onClick}
         onDoubleClick={activeRichTextEditor.onDoubleClick}
         onChange={activeRichTextEditor.onChange}
-      />
-    );
-  };
-
-  const renderReadOnlyRichText = (
-    field: "badge" | "title" | "body" | "company",
-    text: string,
-    marks: TextMark[] | undefined,
-    blocks: RichTextBlock[] | undefined,
-    multiline: boolean,
-  ) => {
-    if (activeRichTextEditor?.field === field) return null;
-    if (mode !== "edit") return null;
-
-    return (
-      <LexicalInlineEditor
-        key={`readonly-${field}-${text}-${JSON.stringify(marks ?? [])}-${JSON.stringify(blocks ?? [])}`}
-        text={text}
-        marks={normalizeTemplateMarks(marks) ?? []}
-        blocks={blocks ?? []}
-        multiline={multiline}
-        editable={false}
-        showToolbar={false}
-        className="template-inline-editor"
-        style={{
-          display: "block",
-          width: "100%",
-          padding: 0,
-          margin: 0,
-          border: "none",
-          background: "transparent",
-          boxShadow: "none",
-          outline: "none",
-          pointerEvents: "none",
-          userSelect: "none",
-        }}
-        onBlur={() => {}}
-        onKeyDown={() => {}}
-        onKeyUp={() => {}}
-        onMouseUp={() => {}}
-        onPointerDown={() => {}}
-        onMouseDown={() => {}}
-        onClick={() => {}}
-        onDoubleClick={() => {}}
-        onChange={() => {}}
       />
     );
   };
@@ -481,37 +379,10 @@ export default function LinkedInTemplate2Renderer({
   const vSubline = isEdit ? (data.subline ?? "") : clean(data.subline);
   const vBody = isEdit ? (data.bodyText ?? "") : clean(data.bodyText);
 
-  const urls = useMemo((): string[] => {
-    if (Array.isArray(data.linkUrls) && data.linkUrls.length) {
-      return data.linkUrls
-        .map((s) => normalizeHttpUrl(String(s)))
-        .filter(Boolean);
-    }
-
-    if (Array.isArray(data.linkUrl) && data.linkUrl.length) {
-      return data.linkUrl
-        .map((s) => normalizeHttpUrl(String(s)))
-        .filter(Boolean);
-    }
-
-    const raw = typeof data.linkUrl === "string" ? data.linkUrl : "";
-    return String(raw)
-      .split("\n")
-      .map((s) => normalizeHttpUrl(s))
-      .filter(Boolean);
-  }, [data.linkUrls, data.linkUrl]);
+  const urls = useMemo((): string[] => parseTemplateLinks(data), [data]);
 
   const hashtags = useMemo((): string[] => {
-    if (Array.isArray(data.hashtags)) {
-      return data.hashtags
-        .map((value) => normalizeHashtag(value))
-        .filter(Boolean);
-    }
-
-    return String(data.hashtags ?? "")
-      .split("\n")
-      .map((value) => normalizeHashtag(value))
-      .filter(Boolean);
+    return parseTemplateHashtags(data.hashtags);
   }, [data.hashtags]);
 
   const linkText = useMemo(() => (urls[0] ? linkLabel(urls[0]) : ""), [urls]);
@@ -795,7 +666,7 @@ export default function LinkedInTemplate2Renderer({
               ),
               fontSize: data.badgeStyle?.fontSize,
               color: data.badgeStyle?.color,
-              textAlign: sanitizeTextAlign(data.badgeStyle?.textAlign),
+              textAlign: sanitizeTemplateTextAlign(data.badgeStyle?.textAlign),
               pointerEvents: "auto",
             }}
           >
@@ -809,13 +680,6 @@ export default function LinkedInTemplate2Renderer({
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("badge"),
-                readOnly: renderReadOnlyRichText(
-                  "badge",
-                  vBadge,
-                  data.badgeMarks,
-                  data.badgeBlocks,
-                  false,
-                ),
                 html: data.badgeHtml,
                 text: vBadge,
                 marks: data.badgeMarks,
@@ -865,18 +729,11 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.titleStyle?.fontSize,
                 color: data.titleStyle?.color,
-                textAlign: sanitizeTextAlign(data.titleStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.titleStyle?.textAlign),
               }}
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("title"),
-                readOnly: renderReadOnlyRichText(
-                  "title",
-                  vTitle,
-                  data.titleMarks,
-                  data.titleBlocks,
-                  true,
-                ),
                 html: data.titleHtml,
                 text: vTitle,
                 marks: data.titleMarks,
@@ -900,18 +757,11 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.companyStyle?.fontSize,
                 color: data.companyStyle?.color,
-                textAlign: sanitizeTextAlign(data.companyStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.companyStyle?.textAlign),
               }}
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("company"),
-                readOnly: renderReadOnlyRichText(
-                  "company",
-                  vCompany,
-                  data.companyMarks,
-                  data.companyBlocks,
-                  true,
-                ),
                 html: data.companyHtml,
                 text: vCompany,
                 marks: data.companyMarks,
@@ -931,7 +781,7 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.headlineStyle?.fontSize,
                 color: data.headlineStyle?.color,
-                textAlign: sanitizeTextAlign(data.headlineStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.headlineStyle?.textAlign),
               }}
             >
               <EditableInput
@@ -951,7 +801,7 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.headlineStyle?.fontSize,
                 color: data.headlineStyle?.color,
-                textAlign: sanitizeTextAlign(data.headlineStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.headlineStyle?.textAlign),
               }}
             >
               {vHeadline}
@@ -968,7 +818,7 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
-                textAlign: sanitizeTextAlign(data.sublineStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.sublineStyle?.textAlign),
               }}
             >
               <EditableInput
@@ -988,7 +838,7 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.sublineStyle?.fontSize,
                 color: data.sublineStyle?.color,
-                textAlign: sanitizeTextAlign(data.sublineStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.sublineStyle?.textAlign),
               }}
             >
               {vSubline}
@@ -1009,18 +859,11 @@ export default function LinkedInTemplate2Renderer({
                 ),
                 fontSize: data.bodyStyle?.fontSize,
                 color: data.bodyStyle?.color,
-                textAlign: sanitizeTextAlign(data.bodyStyle?.textAlign),
+                textAlign: sanitizeTemplateTextAlign(data.bodyStyle?.textAlign),
               }}
             >
               {renderRichTextContent({
                 active: renderActiveRichTextEditor("body"),
-                readOnly: renderReadOnlyRichText(
-                  "body",
-                  vBody,
-                  data.bodyMarks,
-                  data.bodyBlocks,
-                  true,
-                ),
                 html: data.bodyHtml,
                 text: vBody,
                 marks: data.bodyMarks,

@@ -1,5 +1,5 @@
 import React from "react";
-import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
 
 export type LinkedInRichTextMark = {
   start: number;

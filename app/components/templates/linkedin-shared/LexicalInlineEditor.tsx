@@ -68,6 +68,7 @@ import {
   $patchStyleText,
   getStyleObjectFromCSS,
 } from "@lexical/selection";
+import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
 
 type RichStyle = {
   fontFamily?: string;
@@ -85,13 +86,7 @@ export type TextMark = {
   style: RichStyle;
 };
 
-export type RichTextBlock = {
-  type: "paragraph" | "bullet" | "number";
-  start: number;
-  end: number;
-  contentStart: number;
-  contentEnd: number;
-};
+export type { RichTextBlock };
 
 type SelectionRange = {
   start: number;
