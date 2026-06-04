@@ -23,7 +23,7 @@ import {
   parseTemplateHashtags,
   parseTemplateLinks,
   sanitizeTemplateTextAlign,
-} from "@/app/components/templates/linkedin-shared/template2Shared";
+} from "@/app/components/templates/linkedin-shared/linkedInRichPostTemplateShared";
 
 type Payload = {
   profileImage: string;
@@ -498,7 +498,7 @@ function renderVideoTemplateHtml(
 ) {
   const canvas = getCanvasFrame(data.canvasPreset);
   const presetClass = getPresetClass(data.canvasPreset);
-  const cssUrl = absUrl(req, "/li2.css");
+  const cssUrl = absUrl(req, "/linkedin-rich-post-template.css");
   const profileImage = resolveSrc(req, data.profileImage);
   const companyLogo = resolveSrc(req, "/logo.png");
   const foregroundOnly = mode === "foreground";

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useRef } from "react";
 
-type LinkedInTemplate1Props = {
+type LinkedInSimplePostTemplateProps = {
   profileImage: string;
   name: string;
   role: string;
@@ -13,7 +13,7 @@ type LinkedInTemplate1Props = {
   companyLogo: string;
 };
 
-export default function LinkedInTemplate1({
+export default function LinkedInSimplePostTemplate({
   profileImage,
   name,
   role,
@@ -21,7 +21,7 @@ export default function LinkedInTemplate1({
   body,
   link,
   companyLogo,
-}: LinkedInTemplate1Props) {
+}: LinkedInSimplePostTemplateProps) {
   const templateRef = useRef<HTMLDivElement>(null);
 
   return (

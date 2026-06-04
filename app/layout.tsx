@@ -25,8 +25,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="stylesheet" href="/li2.css" />
-        <link rel="stylesheet" href="/li2-edit.css" />
+        <link rel="stylesheet" href="/linkedin-rich-post-template.css" />
+        <link rel="stylesheet" href="/linkedin-rich-post-editor.css" />
       </head>
 
       <body

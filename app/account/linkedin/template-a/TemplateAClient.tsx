@@ -3,7 +3,7 @@
 import LinkedInEditorBaseClient from "@/app/components/templates/linkedin-shared/LinkedInEditorBaseClient";
 import LinkedInEditorLayout from "@/app/components/templates/linkedin-shared/LinkedInEditorLayout";
 import { LinkedInToolbox } from "@/app/components/templates/linkedin-shared/ToolBox";
-import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import LinkedInRichPostTemplate from "@/app/components/templates/linkedin/LinkedInRichPostTemplate";
 import {
   useEffect,
   useEffectEvent,
@@ -1817,7 +1817,7 @@ export default function TemplateAClient({
           overflow: "visible",
         }}
       >
-        <LinkedInTemplate2
+        <LinkedInRichPostTemplate
           scale={1}
           canvasPreset={effective.canvasPreset}
           productImage={effective.productImage}

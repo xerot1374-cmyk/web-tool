@@ -1,8 +1,8 @@
 import React from "react";
-import LinkedInTemplate2Renderer, {
-  type LinkedInTemplate2Data,
+import LinkedInRichPostRenderer, {
+  type LinkedInRichPostTemplateData,
   type MediaBox,
-} from "./LinkedInTemplate2Renderer";
+} from "./LinkedInRichPostRenderer";
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
 import type { FrameSlot } from "@/app/lib/imageLayouts";
 
@@ -52,11 +52,11 @@ export type ImageItem = {
 
 export type ImageLayoutMode = "manual" | "collage" | "frame";
 
-type Props = LinkedInTemplate2Data & {
+type Props = LinkedInRichPostTemplateData & {
   scale?: number;
   mode?: "edit" | "preview" | "export";
   activeRichTextEditor?: React.ComponentProps<
-    typeof LinkedInTemplate2Renderer
+    typeof LinkedInRichPostRenderer
   >["activeRichTextEditor"];
 
   bodyStyle?: BoxTextStyle;
@@ -103,7 +103,7 @@ type Props = LinkedInTemplate2Data & {
   ) => void;
 };
 
-export default function LinkedInTemplate2(props: Props) {
+export default function LinkedInRichPostTemplate(props: Props) {
   const {
     scale,
     mode = "preview",
@@ -141,7 +141,7 @@ export default function LinkedInTemplate2(props: Props) {
   } = props;
 
   return (
-    <LinkedInTemplate2Renderer
+    <LinkedInRichPostRenderer
       data={{
         ...rest,
         bodyStyle,

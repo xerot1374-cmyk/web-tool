@@ -1,8 +1,8 @@
 "use client";
 
-import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import LinkedInRichPostTemplate from "@/app/components/templates/linkedin/LinkedInRichPostTemplate";
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
-import { sanitizeTemplateTextAlign } from "@/app/components/templates/linkedin-shared/template2Shared";
+import { sanitizeTemplateTextAlign } from "@/app/components/templates/linkedin-shared/linkedInRichPostTemplateShared";
 import { getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
 import { useMemo, useSyncExternalStore } from "react";
 
@@ -339,7 +339,7 @@ export default function PdfRenderClient() {
           }
         `}
       </style>
-      <LinkedInTemplate2 {...effective} scale={1} mode="preview" />
+      <LinkedInRichPostTemplate {...effective} scale={1} mode="preview" />
     </div>
   );
 }

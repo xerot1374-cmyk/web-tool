@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import LinkedInRichPostTemplate from "@/app/components/templates/linkedin/LinkedInRichPostTemplate";
 
 export default function TemplatePreviewPage() {
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function TemplatePreviewPage() {
       </button>
 
       {/* This is only the preview. */}
-      <LinkedInTemplate2 {...data} />
+      <LinkedInRichPostTemplate {...data} />
     </div>
   );
 }

@@ -14,7 +14,7 @@ import {
   parseTemplateHashtags,
   parseTemplateLinks,
   sanitizeTemplateTextAlign,
-} from "@/app/components/templates/linkedin-shared/template2Shared";
+} from "@/app/components/templates/linkedin-shared/linkedInRichPostTemplateShared";
 
 export type MediaBox = {
   x: number;
@@ -41,7 +41,7 @@ export type ImageItem = {
 };
 export type ImageLayoutMode = "manual" | "collage" | "frame";
 
-export type LinkedInTemplate2Data = {
+export type LinkedInRichPostTemplateData = {
   profileImage: string;
   name: string;
   role: string;
@@ -145,8 +145,8 @@ export type TextMark = {
   };
 };
 
-export type LinkedInTemplate2RendererProps = {
-  data: LinkedInTemplate2Data;
+export type LinkedInRichPostRendererProps = {
+  data: LinkedInRichPostTemplateData;
   mode: "edit" | "preview" | "export";
   scale?: number;
   activeRichTextEditor?: {
@@ -175,7 +175,7 @@ export type LinkedInTemplate2RendererProps = {
     }) => void;
   } | null;
 
-  onFieldChange?: (key: keyof LinkedInTemplate2Data, value: string) => void;
+  onFieldChange?: (key: keyof LinkedInRichPostTemplateData, value: string) => void;
   onPickProductImage?: (file: File) => void;
   onStartFrameImageDrag?: (
     imageId: string,
@@ -280,7 +280,7 @@ function renderRichTextContent(params: {
   );
 }
 
-export default function LinkedInTemplate2Renderer({
+export default function LinkedInRichPostRenderer({
   data,
   mode,
   scale = 1,
@@ -290,7 +290,7 @@ export default function LinkedInTemplate2Renderer({
   onStartFrameImageDrag,
   onSelectableClick,
   onSelectableDoubleClick,
-}: LinkedInTemplate2RendererProps) {
+}: LinkedInRichPostRendererProps) {
   const s = safeScale(scale);
   const fileRef = useRef<HTMLInputElement | null>(null);
 
@@ -388,7 +388,7 @@ export default function LinkedInTemplate2Renderer({
   const linkText = useMemo(() => (urls[0] ? linkLabel(urls[0]) : ""), [urls]);
 
   const setField = useCallback(
-    (key: keyof LinkedInTemplate2Data, value: string) => {
+    (key: keyof LinkedInRichPostTemplateData, value: string) => {
       onFieldChange?.(key, value);
     },
     [onFieldChange],

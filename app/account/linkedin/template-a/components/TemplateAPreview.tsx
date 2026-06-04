@@ -1,6 +1,6 @@
 "use client";
 
-import LinkedInTemplate2 from "@/app/components/templates/linkedin/LinkedInTemplate2";
+import LinkedInRichPostTemplate from "@/app/components/templates/linkedin/LinkedInRichPostTemplate";
 import LexicalInlineEditor, {
   type LexicalInlineEditorHandle,
   type RichTextBlock,
@@ -280,7 +280,7 @@ export default function TemplateAPreview({
                 }}
               >
                 <div className="li2-template">
-                  <LinkedInTemplate2
+                  <LinkedInRichPostTemplate
                     scale={1}
                     mode="edit"
                     activeRichTextEditor={activeRichTextEditor ?? undefined}

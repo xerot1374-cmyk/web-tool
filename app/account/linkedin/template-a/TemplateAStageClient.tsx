@@ -1,16 +1,16 @@
 "use client";
 
-import LinkedInTemplate2Renderer, {
-  type LinkedInTemplate2RendererProps,
-} from "../../../components/templates/linkedin/LinkedInTemplate2Renderer";
+import LinkedInRichPostRenderer, {
+  type LinkedInRichPostRendererProps,
+} from "../../../components/templates/linkedin/LinkedInRichPostRenderer";
 
 export default function TemplateAStageClient(
-  props: LinkedInTemplate2RendererProps,
+  props: LinkedInRichPostRendererProps,
 ) {
   return (
     <div className="li2-stage">
       <div className="li2-template">
-        <LinkedInTemplate2Renderer {...props} />
+        <LinkedInRichPostRenderer {...props} />
       </div>
 
       <div className="li2-overlay">
