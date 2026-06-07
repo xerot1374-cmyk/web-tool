@@ -170,7 +170,7 @@ export default function useTemplateAHydration({
     setBadgeText(source.badgeText ?? "");
     setTitle(source.linkTitle ?? "");
     setBodyRaw(source.bodyText ?? "");
-    setCaptionRaw(source.captionText ?? "");
+    setCaptionRaw(source.captionText ?? source.caption ?? "");
     setBadgeHtml(source.badgeHtml ?? "");
     setBadgeMarks(source.badgeMarks ?? []);
     setBadgeBlocks(source.badgeBlocks ?? []);

@@ -156,6 +156,56 @@ const SELECTION_HANDLES = [
   transform?: string;
 }>;
 
+function hasItalicMark(
+  marks: TextMark[],
+  start: number,
+  end: number,
+) {
+  return marks.some(
+    (mark) =>
+      mark.style.fontStyle === "italic" && mark.start < end && mark.end > start,
+  );
+}
+
+function getLineIndexAtOffset(value: string, offset: number) {
+  return value.slice(0, offset).split("\n").length - 1;
+}
+
+function renderCaptionPreviewText(
+  value: string,
+  caption: string,
+  marks: TextMark[],
+  blocks: RichTextBlock[],
+) {
+  if (!value) return "\u00a0";
+
+  const italicNumberLineIndexes = new Set(
+    blocks
+      .filter(
+        (block) =>
+          block.type === "number" &&
+          hasItalicMark(marks, block.contentStart, block.contentEnd),
+      )
+      .map((block) => getLineIndexAtOffset(caption, block.start)),
+  );
+
+  return value.split("\n").map((line, index) => (
+    <span key={index}>
+      {index > 0 ? <br /> : null}
+      {italicNumberLineIndexes.has(index) ? (
+        <>
+          <span style={{ fontStyle: "italic" }}>
+            {line.match(/^(\S+\.\s?)/)?.[1] ?? ""}
+          </span>
+          {line.replace(/^(\S+\.\s?)/, "") || "\u00a0"}
+        </>
+      ) : (
+        line || "\u00a0"
+      )}
+    </span>
+  ));
+}
+
 export default function TemplateAPreview({
   canvasPreset,
   draftName,
@@ -700,6 +750,7 @@ export default function TemplateAPreview({
               blocks={captionBlocks}
               multiline={true}
               toolbarMode="caption"
+              stripPasteFormatting={true}
               className="editor-textarea template-captionEditor"
               style={{
                 fontFamily: captionStyle.fontFamily,
@@ -736,7 +787,12 @@ export default function TemplateAPreview({
               </div>
 
               <div className="tb__captionText" style={{ whiteSpace: "pre-wrap" }}>
-                {linkedInReadyCaption || "\u00a0"}
+                {renderCaptionPreviewText(
+                  linkedInReadyCaption,
+                  caption,
+                  captionMarks,
+                  captionBlocks,
+                )}
               </div>
               <div className="tb__hint">
                 Highlight is visual in the editor; LinkedIn caption copy keeps

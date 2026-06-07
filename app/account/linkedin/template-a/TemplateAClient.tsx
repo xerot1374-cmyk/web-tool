@@ -83,6 +83,7 @@ const DEFAULT_TEMPLATE_A_DRAFT: TemplateADraftPayload = {
   linkTitle: "Your Tile Goes Here",
   company: "PROTOS-3D Metrology GmbH",
   bodyText: "The main content. You can edit using the rich text editor.",
+  caption: "",
   captionText: "",
   titleStyle: {
     fontFamily: "system-ui",
@@ -972,6 +973,7 @@ export default function TemplateAClient({
       bodyHtml,
       bodyMarks,
       bodyBlocks,
+      caption,
       captionText: caption,
       captionHtml,
       captionMarks,

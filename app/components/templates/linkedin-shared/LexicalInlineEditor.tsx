@@ -55,10 +55,12 @@ import {
   CAN_REDO_COMMAND,
   CAN_UNDO_COMMAND,
   COMMAND_PRIORITY_EDITOR,
+  COMMAND_PRIORITY_CRITICAL,
   KEY_ENTER_COMMAND,
   COMMAND_PRIORITY_LOW,
   FORMAT_ELEMENT_COMMAND,
   FORMAT_TEXT_COMMAND,
+  PASTE_COMMAND,
   REDO_COMMAND,
   SELECTION_CHANGE_COMMAND,
   UNDO_COMMAND,
@@ -103,6 +105,7 @@ type Props = {
   editable?: boolean;
   showToolbar?: boolean;
   toolbarMode?: "full" | "caption";
+  stripPasteFormatting?: boolean;
   onAlignChange?: (align: "left" | "center" | "right") => void;
   onBlur: (event: FocusEvent<HTMLElement>) => void;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
@@ -439,6 +442,9 @@ function serializeEditorState(editorState: EditorState) {
             text += "\n";
           }
         });
+        if (node.getNextSibling() != null) {
+          text += "\n";
+        }
         return;
       }
 
@@ -515,6 +521,72 @@ function EnterBehaviorPlugin({ multiline }: { multiline: boolean }) {
       COMMAND_PRIORITY_LOW,
     );
   }, [editor, multiline]);
+
+  return null;
+}
+
+function normalizePastedText(value: string) {
+  return value.replace(/\r\n?/g, "\n");
+}
+
+function htmlToPlainText(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  doc.body
+    .querySelectorAll("br,p,div,li,blockquote,h1,h2,h3,h4,h5,h6,tr")
+    .forEach((node) => node.append("\n"));
+  return normalizePastedText(doc.body.textContent ?? "");
+}
+
+function getPlainPasteText(event: Event) {
+  const data =
+    event instanceof ClipboardEvent
+      ? event.clipboardData
+      : event instanceof InputEvent
+        ? event.dataTransfer
+        : null;
+  if (!data) return null;
+
+  const text = data.getData("text/plain");
+  if (text) return normalizePastedText(text);
+
+  const html = data.getData("text/html");
+  return html ? htmlToPlainText(html) : null;
+}
+
+function PlainTextPastePlugin({ enabled }: { enabled: boolean }) {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (event) => {
+        const text = getPlainPasteText(event);
+        if (text == null) return false;
+
+        event.preventDefault();
+        editor.update(() => {
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection)) return;
+
+          selection.removeText();
+          const parts = text.split("\n");
+          const nodes = parts.flatMap((part, index) => {
+            const textNode = $createTextNode(part);
+            textNode.setStyle("");
+            return index < parts.length - 1
+              ? [textNode, $createLineBreakNode()]
+              : [textNode];
+          });
+          selection.insertNodes(nodes);
+        });
+
+        return true;
+      },
+      COMMAND_PRIORITY_CRITICAL,
+    );
+  }, [editor, enabled]);
 
   return null;
 }
@@ -948,6 +1020,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
       editable = true,
       showToolbar = true,
       toolbarMode = "full",
+      stripPasteFormatting = false,
       onAlignChange,
       onBlur,
       onKeyDown,
@@ -1152,6 +1225,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
       <LexicalComposer initialConfig={initialConfig}>
         <EditorRefPlugin onReady={setEditor} />
         <EnterBehaviorPlugin multiline={multiline} />
+        <PlainTextPastePlugin enabled={stripPasteFormatting} />
         <NativeToolbarPlugin
           multiline={multiline}
           enabled={editable && showToolbar}

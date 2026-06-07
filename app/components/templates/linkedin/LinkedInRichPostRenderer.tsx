@@ -309,6 +309,7 @@ export default function LinkedInRichPostRenderer({
         marks={activeRichTextEditor.marks}
         blocks={activeRichTextEditor.blocks}
         multiline={activeRichTextEditor.multiline}
+        stripPasteFormatting={field !== "company"}
         className={activeRichTextEditor.className}
         style={activeRichTextEditor.style}
         onBlur={activeRichTextEditor.onBlur}

@@ -106,7 +106,6 @@ export const dynamic = "force-dynamic";
 
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn7n6QAAAAASUVORK5CYII=";
-const LINKEDIN_VIDEO_TARGET_ASPECT = 4 / 5;
 const MAX_FINAL_VIDEO_DIMENSION = 4096;
 const TEMPLATE_VIDEO_UPLOAD_PREFIX = "/uploads/template-videos/";
 const TEMPLATE_VIDEO_UPLOAD_ROOT = path.resolve(
@@ -132,17 +131,12 @@ function clampVideoDimension(value: number) {
 }
 
 function getFinalVideoFrame(
-  preset: CanvasPreset | undefined,
   templateContentWidth: number,
   measuredHeight: number,
 ): FinalVideoFrame {
   const finalHeight = makeEven(clampVideoDimension(Math.ceil(measuredHeight)));
-  const desiredWidth =
-    preset === undefined || preset === "linkedin"
-      ? Math.round(finalHeight * LINKEDIN_VIDEO_TARGET_ASPECT)
-      : templateContentWidth;
   const finalWidth = makeEven(
-    clampVideoDimension(Math.max(templateContentWidth, desiredWidth)),
+    clampVideoDimension(templateContentWidth),
   );
 
   return {
@@ -507,7 +501,7 @@ async function screenshotCoverPng(
     });
     const finalFrame =
       outputFrame ??
-      getFinalVideoFrame(data.canvasPreset, frame.w, measuredHeight);
+      getFinalVideoFrame(frame.w, measuredHeight);
 
     await page.$eval(
       ".pdf-emoji-font-scope",

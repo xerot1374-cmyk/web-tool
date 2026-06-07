@@ -115,14 +115,45 @@ const PDF_EMOJI_FONT_FALLBACK =
   '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
 const PDF_DETERMINISTIC_FONT =
   '"Inter", "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
+const PDF_ARIAL_EXPORT_FONT = '"Arial", "Liberation Sans", Helvetica, sans-serif';
+const PDF_GEORGIA_EXPORT_FONT = '"Liberation Serif", "Times New Roman", Times, serif';
+const PDF_TIMES_EXPORT_FONT = '"Times New Roman", Times, serif';
+
+function isArialFontFamily(fontFamily: string) {
+  return /^["']?Arial["']?(?=\s*,|$)/i.test(fontFamily);
+}
+
+function isGeorgiaFontFamily(fontFamily: string) {
+  return /^["']?Georgia["']?(?=\s*,|$)/i.test(fontFamily);
+}
+
+function isTimesFontFamily(fontFamily: string) {
+  return /^["']?Times New Roman["']?(?=\s*,|$)/i.test(fontFamily);
+}
 
 function normalizePdfFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
-  return !value ||
+  if (
+    !value ||
     /system-ui|-apple-system|BlinkMacSystemFont/i.test(value) ||
     /["']?Segoe UI["']?(?=\s*,|$)/i.test(value)
-    ? PDF_DETERMINISTIC_FONT
-    : value;
+  ) {
+    return PDF_DETERMINISTIC_FONT;
+  }
+
+  if (isArialFontFamily(value)) {
+    return PDF_ARIAL_EXPORT_FONT;
+  }
+
+  if (isGeorgiaFontFamily(value)) {
+    return PDF_GEORGIA_EXPORT_FONT;
+  }
+
+  if (isTimesFontFamily(value)) {
+    return PDF_TIMES_EXPORT_FONT;
+  }
+
+  return value;
 }
 
 function withPdfEmojiFallback(fontFamily?: string) {

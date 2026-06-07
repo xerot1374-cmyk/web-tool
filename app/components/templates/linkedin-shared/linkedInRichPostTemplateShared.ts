@@ -4,6 +4,9 @@ const LI2_EMOJI_FONT_FALLBACK =
   '"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Arial, Helvetica, sans-serif';
 const LI2_DETERMINISTIC_BASE_FONT = '"Inter", Arial, Helvetica, sans-serif';
 const LI2_DETERMINISTIC_EMOJI_FONT = `"Inter", ${LI2_EMOJI_FONT_FALLBACK}`;
+const LI2_ARIAL_EXPORT_FONT = '"Arial", "Liberation Sans", Helvetica, sans-serif';
+const LI2_GEORGIA_EXPORT_FONT = '"Liberation Serif", "Times New Roman", Times, serif';
+const LI2_TIMES_EXPORT_FONT = '"Times New Roman", Times, serif';
 
 export function sanitizeTemplateTextAlign(
   value: unknown,
@@ -98,6 +101,15 @@ export function normalizeTemplateFontFamily(fontFamily?: string) {
 export function normalizeTemplateExportFontFamily(fontFamily?: string) {
   const value = fontFamily?.trim();
   if (!value || isLegacySystemFont(value)) return LI2_DETERMINISTIC_EMOJI_FONT;
+  if (/^["']?Arial["']?(?=\s*,|$)/i.test(value)) {
+    return `${LI2_ARIAL_EXPORT_FONT}, ${LI2_EMOJI_FONT_FALLBACK}`;
+  }
+  if (/^["']?Georgia["']?(?=\s*,|$)/i.test(value)) {
+    return `${LI2_GEORGIA_EXPORT_FONT}, ${LI2_EMOJI_FONT_FALLBACK}`;
+  }
+  if (/^["']?Times New Roman["']?(?=\s*,|$)/i.test(value)) {
+    return `${LI2_TIMES_EXPORT_FONT}, ${LI2_EMOJI_FONT_FALLBACK}`;
+  }
   const customValue = value;
   return /Apple Color Emoji|Segoe UI Emoji|Noto Color Emoji/i.test(customValue)
     ? value

@@ -156,6 +156,7 @@ export type PdfPayload = {
   companyMarks?: TextMark[];
   companyHtml?: string;
   companyBlocks?: RichTextBlock[];
+  caption?: string;
   captionText?: string;
   captionMarks?: TextMark[];
   captionHtml?: string;

@@ -95,18 +95,64 @@ function isProtectedOffset(
   return ranges.some((range) => range.start < end && range.end > start);
 }
 
+function expandListPrefixMarks(
+  caption: string,
+  marks: TextMark[],
+  blocks: RichTextBlock[],
+) {
+  if (!blocks.length) return marks;
+
+  const prefixMarks = blocks.flatMap((block) => {
+    if (
+      (block.type !== "bullet" && block.type !== "number") ||
+      block.contentStart <= block.start ||
+      block.contentStart >= caption.length
+    ) {
+      return [];
+    }
+
+    const prefixStyle = marks
+      .filter(
+        (mark) =>
+          mark.start < block.contentEnd && mark.end > block.contentStart,
+      )
+      .reduce<TextMark["style"]>((style, mark) => {
+        const next = { ...style };
+        if (isBoldWeight(mark.style.fontWeight)) {
+          next.fontWeight = mark.style.fontWeight;
+        }
+        if (mark.style.fontStyle === "italic") {
+          next.fontStyle = "italic";
+        }
+        return next;
+      }, {});
+
+    if (!prefixStyle.fontWeight && !prefixStyle.fontStyle) return [];
+
+    return [
+      {
+        start: block.start,
+        end: block.contentStart,
+        style: prefixStyle,
+      },
+    ];
+  });
+
+  return [...marks, ...prefixMarks];
+}
+
 export function buildLinkedInReadyCaption(
   caption: string,
   captionMarks: TextMark[],
   captionBlocks: RichTextBlock[],
 ) {
-  // Blocks remain represented by caption text; they are accepted so the export
-  // signature stays aligned with the caption editor state.
-  void captionBlocks;
-
   if (!caption) return caption;
 
-  const safeMarks = captionMarks
+  const safeMarks = expandListPrefixMarks(
+    caption,
+    captionMarks,
+    captionBlocks,
+  )
     .map((mark) => ({
       ...mark,
       start: Math.max(0, Math.min(mark.start, caption.length)),
