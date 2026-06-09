@@ -700,6 +700,7 @@ async function buildVideoInsideTemplateWithAudio(
   foregroundPngPath: string,
   outputMp4Path: string,
   frame: FinalVideoFrame,
+  durationSeconds: number,
   onProgress?: (elapsedSeconds: number) => void,
   onCommand?: (command: ReturnType<typeof ffmpeg>) => void,
 ) {
@@ -772,6 +773,8 @@ async function buildVideoInsideTemplateWithAudio(
         "-pix_fmt yuv420p",
         "-r",
         outputFrameRate,
+        "-t",
+        String(durationSeconds),
         "-c:a aac",
         "-b:a 192k",
         "-shortest",
@@ -934,7 +937,7 @@ export async function POST(req: Request) {
 
     const totalSeconds = Math.max(
       1,
-      Math.round(
+      Math.ceil(
         preparedVideos
           .map((video) => video.duration ?? 0)
           .reduce((longest, duration) => Math.max(longest, duration), 0),
@@ -972,6 +975,7 @@ export async function POST(req: Request) {
         foregroundPng,
         finalMp4,
         finalFrame,
+        totalSeconds,
         (elapsedSeconds) => {
           if (!jobId) return;
           if (getFinalVideoJob(jobId)?.status === "canceled") return;
