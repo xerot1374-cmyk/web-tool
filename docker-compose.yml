@@ -37,6 +37,8 @@ services:
     build:
       context: .
       target: runner
+      args:
+        NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES: ${NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES:-104857600}
     init: true
     restart: unless-stopped
     shm_size: "1gb"
@@ -45,9 +47,12 @@ services:
       PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
       FFMPEG_PATH: /usr/bin/ffmpeg
       FFPROBE_PATH: /usr/bin/ffprobe
+      FINAL_VIDEO_MAX_DURATION_SECONDS: ${FINAL_VIDEO_MAX_DURATION_SECONDS:-480}
       HOSTNAME: 0.0.0.0
       NODE_ENV: production
+      NEXT_PROXY_CLIENT_MAX_BODY_SIZE: ${NEXT_PROXY_CLIENT_MAX_BODY_SIZE:-100mb}
       PORT: ${APP_PORT:-3100}
+      VIDEO_UPLOAD_MAX_BYTES: ${VIDEO_UPLOAD_MAX_BYTES:-104857600}
     ports:
       - "${APP_PORT:-3100}:${APP_PORT:-3100}"
     volumes:

@@ -8,7 +8,7 @@ import { requireCurrentUser } from "@/app/lib/currentUser";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
+const DEFAULT_MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
 const UPLOAD_PUBLIC_PREFIX = "/uploads/template-videos";
 const UPLOAD_ROOT = path.join(
   process.cwd(),
@@ -37,9 +37,55 @@ function extensionFor(file: File) {
   return fromName && fromName.length <= 8 ? fromName : ".mp4";
 }
 
+function parseByteLimit(raw: string | undefined) {
+  const clean = raw?.trim();
+  if (!clean) return DEFAULT_MAX_VIDEO_UPLOAD_BYTES;
+
+  const numeric = Number(clean);
+  if (Number.isFinite(numeric) && numeric > 0) return Math.floor(numeric);
+
+  const match = clean.match(/^(\d+(?:\.\d+)?)([kKmMgGtT])[bB]?$/);
+  if (!match) return DEFAULT_MAX_VIDEO_UPLOAD_BYTES;
+
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multiplier =
+    unit === "k"
+      ? 1024
+      : unit === "m"
+        ? 1024 * 1024
+        : unit === "g"
+          ? 1024 * 1024 * 1024
+          : 1024 * 1024 * 1024 * 1024;
+
+  return Math.floor(value * multiplier);
+}
+
+function getMaxVideoUploadBytes() {
+  return parseByteLimit(process.env.VIDEO_UPLOAD_MAX_BYTES);
+}
+
+function formatBytes(bytes: number) {
+  const mb = bytes / (1024 * 1024);
+  return `${Math.round(mb)} MB`;
+}
+
 export async function POST(req: Request) {
   const user = await requireCurrentUser();
-  const formData = await req.formData();
+  let formData: FormData;
+
+  try {
+    formData = await req.formData();
+  } catch {
+    return NextResponse.json(
+      {
+        message:
+          "Video upload is too big or incomplete. Choose a smaller file and try again.",
+      },
+      { status: 413 },
+    );
+  }
+
   const file = formData.get("file");
 
   if (!(file instanceof File) || file.size === 0) {
@@ -56,9 +102,16 @@ export async function POST(req: Request) {
     );
   }
 
-  if (file.size > MAX_VIDEO_UPLOAD_BYTES) {
+  const maxVideoUploadBytes = getMaxVideoUploadBytes();
+  if (file.size > maxVideoUploadBytes) {
     return NextResponse.json(
-      { message: "Video file is too large" },
+      {
+        message: `Video upload is too big. Maximum upload size is ${formatBytes(
+          maxVideoUploadBytes,
+        )}.`,
+        maxBytes: maxVideoUploadBytes,
+        actualBytes: file.size,
+      },
       { status: 413 },
     );
   }

@@ -6,7 +6,9 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PUPPETEER_SKIP_DOWNLOAD=1
 ARG DATABASE_URL=postgresql://postgres:postgres@localhost:5432/social_media_tool?schema=public
+ARG NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES=104857600
 ENV DATABASE_URL=${DATABASE_URL}
+ENV NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES=${NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES}
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -34,7 +36,9 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PUPPETEER_SKIP_DOWNLOAD=1
 ARG DATABASE_URL=postgresql://postgres:postgres@localhost:5432/social_media_tool?schema=public
+ARG NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES=104857600
 ENV DATABASE_URL=${DATABASE_URL}
+ENV NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES=${NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES}
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
