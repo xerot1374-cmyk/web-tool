@@ -331,6 +331,7 @@ export default function TemplateAClient({
     frameSlots,
     videos,
     setVideos,
+    videoUploadProgress,
     editorVideos,
     selectedVideoId,
     addVideoFiles,
@@ -390,11 +391,13 @@ export default function TemplateAClient({
     effective,
     finalUrl,
     finalLoading,
+    finalProgress,
     loadingPdf,
     successMsg,
     errorMsg,
     downloadPDF,
     generateFinal,
+    cancelFinal,
   } = useTemplateAExport({
     isPdf,
     payload,
@@ -2126,7 +2129,9 @@ export default function TemplateAClient({
           <TemplateAExportPanel
             loadingPdf={loadingPdf}
             hasVideo={hasVideo}
+            videoUploadProgress={videoUploadProgress}
             finalLoading={finalLoading}
+            finalProgress={finalProgress}
             finalUrl={finalUrl}
             draftStatus={draftStatus}
             draftStatusMessage={draftStatusMessage}
@@ -2140,6 +2145,9 @@ export default function TemplateAClient({
             onGenerateFinal={(e) => {
               e.preventDefault();
               void generateFinal();
+            }}
+            onCancelFinal={() => {
+              void cancelFinal();
             }}
           />
         }

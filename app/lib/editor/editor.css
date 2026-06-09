@@ -70,6 +70,9 @@
   border-radius: 18px;
   border: 1px solid #e5e7eb;
   font-weight: 700;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .editor-msg--success {
@@ -899,6 +902,67 @@
 .export-actions-panel__actions {
   display: grid;
   gap: 10px;
+}
+
+.export-actions-panel__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.export-actions-panel__cancel {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: var(--brand-red-dark);
+}
+
+.export-actions-panel__progress {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.export-actions-panel__progressMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--brand-ink);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.export-actions-panel__progressTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5e7eb;
+}
+
+.export-actions-panel__progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-red);
+  transition: width 300ms ease;
+}
+
+.export-actions-panel__progress--error {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.export-actions-panel__progress--error .export-actions-panel__progressFill {
+  background: #dc2626;
+}
+
+.export-actions-panel__progressDetail {
+  color: var(--brand-gray-dark);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
 }
 
 .tt {

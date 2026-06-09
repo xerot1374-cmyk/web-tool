@@ -254,6 +254,7 @@ export default function useTemplateAHydration({
               src: video.src,
               fileName: video.fileName,
               mimeType: video.mimeType,
+              durationSeconds: video.durationSeconds,
               x: video.x,
               y: video.y,
               w: video.w,

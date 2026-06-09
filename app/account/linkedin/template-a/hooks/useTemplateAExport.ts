@@ -1,10 +1,52 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resolveFrameSlots } from "@/app/lib/imageLayouts";
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import type { BoxTextStyle, FieldErrors, ImageItem, ImagePayloadItem, MediaBox, PdfPayload, SessionUser, TextMark, VideoItem, VideoPayloadItem } from "../lib/templateA.types";
 import { DEFAULT_FRAME_PRESET_ID, fileToBase64 } from "../lib/templateA.utils";
+
+function getApiErrorMessage(raw: string) {
+  if (!raw.trim()) return "";
+
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object") {
+      const message = (parsed as { message?: unknown; error?: unknown }).message;
+      if (typeof message === "string" && message.trim()) return message;
+
+      const error = (parsed as { error?: unknown }).error;
+      if (typeof error === "string" && error.trim()) return error;
+    }
+  } catch {}
+
+  return raw;
+}
+
+const FINAL_VIDEO_JOB_STORAGE_KEY = "template-a-final-video-job-id";
+
+type FinalVideoProgress = {
+  percent: number;
+  elapsedSeconds: number;
+  estimatedSeconds: number;
+  wallElapsedSeconds: number;
+};
+
+type FinalVideoJobResponse = {
+  jobId?: string;
+  statusUrl?: string;
+};
+
+type FinalVideoJobStatusResponse = {
+  id: string;
+  status: "queued" | "rendering" | "completed" | "failed" | "canceled";
+  percent: number;
+  elapsedSeconds: number;
+  totalSeconds: number;
+  wallElapsedSeconds?: number;
+  error?: string;
+  resultUrl?: string;
+};
 
 type UseTemplateAExportParams = {
   isPdf: boolean;
@@ -107,9 +149,14 @@ export default function useTemplateAExport({
 }: UseTemplateAExportParams) {
   const [finalUrl, setFinalUrl] = useState<string | null>(null);
   const [finalLoading, setFinalLoading] = useState(false);
+  const [finalProgress, setFinalProgress] = useState<FinalVideoProgress | null>(
+    null,
+  );
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [finalJobId, setFinalJobId] = useState<string | null>(null);
+  const pollingJobIdRef = useRef<string | null>(null);
 
   const sessionName = sessionUser?.name ?? "";
   const sessionRole = sessionUser?.role ?? "";
@@ -293,6 +340,143 @@ export default function useTemplateAExport({
     };
   }, [finalUrl]);
 
+  const getEstimatedFinalSeconds = useCallback(() => {
+    const longestVideoSeconds = Math.max(
+      0,
+      ...videos.map((video) =>
+        typeof video.durationSeconds === "number" &&
+        Number.isFinite(video.durationSeconds)
+          ? video.durationSeconds
+          : 0,
+      ),
+    );
+    return Math.max(30, Math.ceil(longestVideoSeconds || 8 * 60));
+  }, [videos]);
+
+  const pollFinalVideoJob = useCallback(
+    async (statusUrl: string, jobId: string, signal?: AbortSignal) => {
+      pollingJobIdRef.current = jobId;
+      setFinalJobId(jobId);
+
+      try {
+        while (!signal?.aborted) {
+          const statusRes = await fetch(statusUrl, { signal });
+          const raw = await statusRes.text();
+          if (!statusRes.ok) {
+            window.localStorage.removeItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+            throw new Error(
+              getApiErrorMessage(raw) ||
+                "Video generation job was not found. Start generation again.",
+            );
+          }
+
+          const job = JSON.parse(raw) as FinalVideoJobStatusResponse;
+          const estimatedSeconds = Math.max(1, Math.ceil(job.totalSeconds || 1));
+          setFinalProgress({
+            percent: Math.max(0, Math.min(100, Math.round(job.percent))),
+            elapsedSeconds: Math.max(0, Math.floor(job.elapsedSeconds || 0)),
+            estimatedSeconds,
+            wallElapsedSeconds: Math.max(
+              0,
+              Math.floor(job.wallElapsedSeconds || 0),
+            ),
+          });
+
+          if (job.status === "failed") {
+            window.localStorage.removeItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+            throw new Error(job.error || "Final video generation failed.");
+          }
+
+          if (job.status === "canceled") {
+            window.localStorage.removeItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+            throw new Error(job.error || "Video generation canceled.");
+          }
+
+          if (job.status === "completed") {
+            if (!job.resultUrl) {
+              throw new Error(
+                "Generated video is complete, but no download is available.",
+              );
+            }
+
+            const resultRes = await fetch(job.resultUrl, { signal });
+            if (!resultRes.ok) {
+              throw new Error(
+                getApiErrorMessage(await resultRes.text()) ||
+                  "Generated video is not ready.",
+              );
+            }
+
+            const blob = await resultRes.blob();
+            const url = URL.createObjectURL(blob);
+            setFinalUrl((prev) => {
+              if (prev) URL.revokeObjectURL(prev);
+              return url;
+            });
+            window.localStorage.removeItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+            setSuccessMsg("final.mp4 is created!");
+            return;
+          }
+
+          await new Promise<void>((resolve, reject) => {
+            const timeoutId = window.setTimeout(resolve, 1000);
+            signal?.addEventListener(
+              "abort",
+              () => {
+                window.clearTimeout(timeoutId);
+                reject(new DOMException("Aborted", "AbortError"));
+              },
+              { once: true },
+            );
+          });
+        }
+      } finally {
+        if (pollingJobIdRef.current === jobId) {
+          pollingJobIdRef.current = null;
+        }
+        setFinalJobId((currentJobId) =>
+          currentJobId === jobId ? null : currentJobId,
+        );
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const jobId = window.localStorage.getItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+    if (!jobId || pollingJobIdRef.current === jobId) return;
+
+    const controller = new AbortController();
+    setFinalLoading(true);
+    setFinalProgress({
+      percent: 0,
+      elapsedSeconds: 0,
+      estimatedSeconds: getEstimatedFinalSeconds(),
+      wallElapsedSeconds: 0,
+    });
+    pollFinalVideoJob(
+      `/api/video/final/jobs/${encodeURIComponent(jobId)}`,
+      jobId,
+      controller.signal,
+    )
+      .catch((err: unknown) => {
+        if (controller.signal.aborted) return;
+        setErrorMsg(
+          err instanceof Error ? err.message : "the creation failed.",
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setFinalLoading(false);
+      });
+
+    return () => {
+      if (pollingJobIdRef.current === jobId) {
+        pollingJobIdRef.current = null;
+      }
+      controller.abort();
+    };
+  }, [getEstimatedFinalSeconds, pollFinalVideoJob]);
+
   function resetMessages() {
     setSuccessMsg("");
     setErrorMsg("");
@@ -393,7 +577,7 @@ export default function useTemplateAExport({
 
       if (!res.ok) {
         const t = await res.text();
-        throw new Error(t || "PDF API failed");
+        throw new Error(getApiErrorMessage(t) || "PDF API failed");
       }
 
       const blob = await res.blob();
@@ -426,6 +610,12 @@ export default function useTemplateAExport({
     }
 
     setFinalLoading(true);
+    setFinalProgress({
+      percent: 0,
+      elapsedSeconds: 0,
+      estimatedSeconds: getEstimatedFinalSeconds(),
+      wallElapsedSeconds: 0,
+    });
     try {
       const imagePayload: ImagePayloadItem[] = images.map((img) => ({
         id: img.id,
@@ -457,6 +647,7 @@ export default function useTemplateAExport({
           src: video.src,
           fileName: video.fileName,
           mimeType: video.mimeType,
+          durationSeconds: video.durationSeconds,
           x: video.x,
           y: video.y,
           w: video.w,
@@ -510,19 +701,24 @@ export default function useTemplateAExport({
         }),
       );
 
-      const res = await fetch("/api/video/final", {
+      const res = await fetch("/api/video/final?job=1", {
         method: "POST",
         body: form,
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        throw new Error(
+          getApiErrorMessage(await res.text()) || "Final video generation failed.",
+        );
+      }
 
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      setFinalUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
-      setSuccessMsg("final.mp4 is created!");
+      const job = (await res.json()) as FinalVideoJobResponse;
+      if (!job.jobId || !job.statusUrl) {
+        throw new Error("Video generation job did not start.");
+      }
+
+      window.localStorage.setItem(FINAL_VIDEO_JOB_STORAGE_KEY, job.jobId);
+      setFinalJobId(job.jobId);
+      await pollFinalVideoJob(job.statusUrl, job.jobId);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "the creation failed.");
     } finally {
@@ -530,14 +726,48 @@ export default function useTemplateAExport({
     }
   }
 
+  async function cancelFinal() {
+    const jobId =
+      finalJobId ?? window.localStorage.getItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+    if (!jobId) return;
+
+    resetMessages();
+    try {
+      const res = await fetch(
+        `/api/video/final/jobs/${encodeURIComponent(jobId)}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) {
+        throw new Error(
+          getApiErrorMessage(await res.text()) ||
+            "Video generation could not be canceled.",
+        );
+      }
+
+      window.localStorage.removeItem(FINAL_VIDEO_JOB_STORAGE_KEY);
+      setFinalJobId(null);
+      setFinalLoading(false);
+      setFinalProgress(null);
+      setErrorMsg("Video generation canceled.");
+    } catch (err: unknown) {
+      setErrorMsg(
+        err instanceof Error
+          ? err.message
+          : "Video generation could not be canceled.",
+      );
+    }
+  }
+
   return {
     effective,
     finalUrl,
     finalLoading,
+    finalProgress,
     loadingPdf,
     successMsg,
     errorMsg,
     downloadPDF,
     generateFinal,
+    cancelFinal,
   };
 }

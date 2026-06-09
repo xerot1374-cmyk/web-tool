@@ -49,6 +49,62 @@ type UseTemplateAMediaEditorParams = {
   badgeText: string;
 };
 
+type TemplateVideoUploadResponse = {
+  message?: string;
+  video?: {
+    src?: string;
+    fileName?: string;
+    mimeType?: string;
+  };
+};
+
+const DEFAULT_MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+function parseByteLimit(raw: string | undefined) {
+  const clean = raw?.trim();
+  if (!clean) return DEFAULT_MAX_VIDEO_UPLOAD_BYTES;
+
+  const numeric = Number(clean);
+  if (Number.isFinite(numeric) && numeric > 0) return Math.floor(numeric);
+
+  const match = clean.match(/^(\d+(?:\.\d+)?)([kKmMgGtT])[bB]?$/);
+  if (!match) return DEFAULT_MAX_VIDEO_UPLOAD_BYTES;
+
+  const value = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multiplier =
+    unit === "k"
+      ? 1024
+      : unit === "m"
+        ? 1024 * 1024
+        : unit === "g"
+          ? 1024 * 1024 * 1024
+          : 1024 * 1024 * 1024 * 1024;
+
+  return Math.floor(value * multiplier);
+}
+
+function getMaxVideoUploadBytes() {
+  return parseByteLimit(process.env.NEXT_PUBLIC_VIDEO_UPLOAD_MAX_BYTES);
+}
+
+function formatBytes(bytes: number) {
+  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`;
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${bytes} B`;
+}
+
+function parseTemplateVideoUploadResponse(raw: string) {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object"
+      ? (parsed as TemplateVideoUploadResponse)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function useTemplateAMediaEditor({
   stageRef,
   previewScale,
@@ -111,6 +167,14 @@ export default function useTemplateAMediaEditor({
   );
   const [images, setImages] = useState<ImageItem[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<{
+    active: boolean;
+    percent: number;
+    loadedBytes: number;
+    totalBytes: number;
+    fileName?: string;
+    error?: string;
+  } | null>(null);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
   const editorMediaImages: EditorMediaImage[] = useMemo(
@@ -154,29 +218,97 @@ export default function useTemplateAMediaEditor({
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/account/template-video-assets", {
-      method: "POST",
-      body: formData,
+    setVideoUploadProgress({
+      active: true,
+      percent: 0,
+      loadedBytes: 0,
+      totalBytes: file.size,
+      fileName: file.name,
     });
 
-    if (!res.ok) {
-      const message = await res.text();
-      throw new Error(message || "Video upload failed");
-    }
+    return new Promise<{
+      src?: string;
+      fileName?: string;
+      mimeType?: string;
+    }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
 
-    const body = (await res.json()) as {
-      video?: {
-        src?: string;
-        fileName?: string;
-        mimeType?: string;
+      xhr.upload.onprogress = (event) => {
+        const totalBytes = event.lengthComputable ? event.total : file.size;
+        const loadedBytes = event.loaded;
+        setVideoUploadProgress({
+          active: true,
+          percent: Math.min(
+            99,
+            Math.max(1, Math.round((loadedBytes / totalBytes) * 100)),
+          ),
+          loadedBytes,
+          totalBytes,
+          fileName: file.name,
+        });
       };
-    };
 
-    if (!body.video?.src) {
-      throw new Error("Video upload response is missing a source URL");
-    }
+      xhr.onload = () => {
+        const body = parseTemplateVideoUploadResponse(xhr.responseText);
 
-    return body.video;
+        if (xhr.status < 200 || xhr.status >= 300) {
+          const message =
+            body?.message ||
+            (xhr.status === 413
+              ? "Video upload is too big."
+              : "Video upload failed");
+          setVideoUploadProgress((prev) => ({
+            active: false,
+            percent: prev?.percent ?? 0,
+            loadedBytes: prev?.loadedBytes ?? 0,
+            totalBytes: prev?.totalBytes ?? file.size,
+            fileName: file.name,
+            error: message,
+          }));
+          reject(new Error(message));
+          return;
+        }
+
+        if (!body?.video?.src) {
+          const message = "Video upload response is missing a source URL";
+          setVideoUploadProgress((prev) => ({
+            active: false,
+            percent: prev?.percent ?? 0,
+            loadedBytes: prev?.loadedBytes ?? 0,
+            totalBytes: prev?.totalBytes ?? file.size,
+            fileName: file.name,
+            error: message,
+          }));
+          reject(new Error(message));
+          return;
+        }
+
+        setVideoUploadProgress({
+          active: false,
+          percent: 100,
+          loadedBytes: file.size,
+          totalBytes: file.size,
+          fileName: file.name,
+        });
+        resolve(body.video);
+      };
+
+      xhr.onerror = () => {
+        const message = "Video upload failed";
+        setVideoUploadProgress((prev) => ({
+          active: false,
+          percent: prev?.percent ?? 0,
+          loadedBytes: prev?.loadedBytes ?? 0,
+          totalBytes: prev?.totalBytes ?? file.size,
+          fileName: file.name,
+          error: message,
+        }));
+        reject(new Error(message));
+      };
+
+      xhr.open("POST", "/api/account/template-video-assets");
+      xhr.send(formData);
+    });
   }
 
   function bringImageObjectToFront(imageId: string) {
@@ -244,6 +376,49 @@ export default function useTemplateAMediaEditor({
     const r = Math.min(maxW / w, maxH / h, 1);
     return { w: Math.round(w * r), h: Math.round(h * r) };
   }
+
+  function readVideoDuration(src: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        const duration = video.duration;
+        video.removeAttribute("src");
+        video.load();
+        resolve(Number.isFinite(duration) ? duration : 0);
+      };
+      video.onerror = () => reject(new Error("Unable to read video duration"));
+      video.src = src;
+    });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    const missingDurationVideos = videos.filter(
+      (video) =>
+        video.previewUrl &&
+        (typeof video.durationSeconds !== "number" ||
+          !Number.isFinite(video.durationSeconds) ||
+          video.durationSeconds <= 0),
+    );
+
+    missingDurationVideos.forEach((video) => {
+      void readVideoDuration(video.previewUrl)
+        .then((durationSeconds) => {
+          if (cancelled || durationSeconds <= 0) return;
+          setVideos((prev) =>
+            prev.map((item) =>
+              item.id === video.id ? { ...item, durationSeconds } : item,
+            ),
+          );
+        })
+        .catch(() => {});
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [videos]);
 
   function clampImageBox(
     item: Pick<ImageItem, "x" | "y" | "w" | "h">,
@@ -787,6 +962,22 @@ export default function useTemplateAMediaEditor({
   function addVideoFiles(fileList: FileList | File[] | null) {
     const files = fileList ? Array.from(fileList) : [];
     if (!files.length) return;
+    const maxVideoUploadBytes = getMaxVideoUploadBytes();
+    const oversizedFile = files.find((file) => file.size > maxVideoUploadBytes);
+
+    if (oversizedFile) {
+      setVideoUploadProgress({
+        active: false,
+        percent: 0,
+        loadedBytes: 0,
+        totalBytes: oversizedFile.size,
+        fileName: oversizedFile.name,
+        error: `Video upload is too big. Maximum upload size is ${formatBytes(
+          maxVideoUploadBytes,
+        )}.`,
+      });
+      return;
+    }
 
     const nextVideos: VideoItem[] = files.map((file, index) => {
       const box = getInitialVideoBox(videos.length + index);
@@ -796,6 +987,7 @@ export default function useTemplateAMediaEditor({
         previewUrl: URL.createObjectURL(file),
         fileName: file.name,
         mimeType: file.type,
+        durationSeconds: undefined,
         x: box.x,
         y: box.y,
         w: box.w,
@@ -1357,6 +1549,7 @@ export default function useTemplateAMediaEditor({
     frameSlots,
     videos,
     setVideos,
+    videoUploadProgress,
     editorVideos,
     selectedVideoId,
     addVideoFiles,
