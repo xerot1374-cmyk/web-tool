@@ -6,6 +6,11 @@ import fs from "fs/promises";
 
 import { configureFfmpegPaths } from "@/app/lib/ffmpeg";
 import { absUrl, getCanvasFrame, type CanvasPreset } from "@/app/lib/renderUtils";
+import {
+  createFinalVideoJob,
+  getFinalVideoJob,
+  updateFinalVideoJob,
+} from "./jobStore";
 import type { LinkedInRichTextMark as TextMark } from "@/app/components/templates/linkedin-shared/richTextRender";
 import type { RichTextBlock } from "@/app/components/templates/linkedin-shared/richTextTypes";
 
@@ -107,6 +112,7 @@ export const dynamic = "force-dynamic";
 const TRANSPARENT_PIXEL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn7n6QAAAAASUVORK5CYII=";
 const MAX_FINAL_VIDEO_DIMENSION = 4096;
+const DEFAULT_MAX_FINAL_VIDEO_SECONDS = 8 * 60;
 const TEMPLATE_VIDEO_UPLOAD_PREFIX = "/uploads/template-videos/";
 const TEMPLATE_VIDEO_UPLOAD_ROOT = path.resolve(
   process.cwd(),
@@ -121,6 +127,19 @@ type FinalVideoFrame = {
   templateOffsetX: number;
 };
 
+type PreparedVideo = {
+  path: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  radius: number;
+  zIndex?: number;
+  maskPath?: string;
+  frameRate?: string;
+  duration?: number;
+};
+
 function makeEven(value: number) {
   const rounded = Math.max(2, Math.round(value));
   return rounded % 2 === 0 ? rounded : rounded + 1;
@@ -128,6 +147,103 @@ function makeEven(value: number) {
 
 function clampVideoDimension(value: number) {
   return Math.min(MAX_FINAL_VIDEO_DIMENSION, Math.max(2, value));
+}
+
+function getMaxFinalVideoSeconds() {
+  const raw = process.env.FINAL_VIDEO_MAX_DURATION_SECONDS?.trim();
+  if (!raw) return DEFAULT_MAX_FINAL_VIDEO_SECONDS;
+
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_MAX_FINAL_VIDEO_SECONDS;
+}
+
+function formatDuration(seconds: number) {
+  const safeSeconds = Math.max(0, Math.round(seconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return minutes
+    ? `${minutes}m ${remainingSeconds}s`
+    : `${remainingSeconds}s`;
+}
+
+function parseFrameRate(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const [rawNumerator, rawDenominator] = value.split("/");
+  const numerator = Number(rawNumerator);
+  const denominator = Number(rawDenominator ?? "1");
+
+  if (
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    numerator <= 0 ||
+    denominator <= 0
+  ) {
+    return undefined;
+  }
+
+  const fps = numerator / denominator;
+  if (fps < 0.1 || fps > 240) return undefined;
+
+  return rawDenominator ? `${numerator}/${denominator}` : `${numerator}`;
+}
+
+function parseTimemarkSeconds(timemark?: string) {
+  if (!timemark) return 0;
+
+  const [rawHours, rawMinutes, rawSeconds] = timemark.split(":");
+  const hours = Number(rawHours);
+  const minutes = Number(rawMinutes);
+  const seconds = Number(rawSeconds);
+
+  if (
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes) ||
+    !Number.isFinite(seconds)
+  ) {
+    return 0;
+  }
+
+  return Math.max(0, hours * 3600 + minutes * 60 + seconds);
+}
+
+async function getVideoProbeInfo(videoPath: string) {
+  return new Promise<{ duration: number; frameRate?: string }>(
+    (resolve, reject) => {
+      ffmpeg.ffprobe(videoPath, (err, metadata) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        const duration = Number(metadata.format.duration);
+        const videoStream = metadata.streams.find(
+          (stream) => stream.codec_type === "video",
+        );
+        resolve({
+          duration: Number.isFinite(duration) ? duration : 0,
+          frameRate:
+            parseFrameRate(videoStream?.avg_frame_rate) ??
+            parseFrameRate(videoStream?.r_frame_rate),
+        });
+      });
+    },
+  );
+}
+
+function assertVideoDurationIsAllowed(video: PreparedVideo, duration: number) {
+  const maxDuration = getMaxFinalVideoSeconds();
+  if (duration <= maxDuration) return;
+
+  throw new Error(
+    `Video "${path.basename(video.path)}" is ${formatDuration(
+      duration,
+    )}. Final video generation is limited to ${formatDuration(
+      maxDuration,
+    )}; trim the clip or upload a shorter video.`,
+  );
 }
 
 function getFinalVideoFrame(
@@ -234,28 +350,56 @@ function getFinalVideoBox(
   };
 }
 
-function getRoundedVideoAlphaExpression(
+async function writeRoundedMaskPgm(
   width: number,
   height: number,
   radius: number,
+  outputPath: string,
 ) {
   const rounded = Math.max(
     0,
     Math.min(Math.round(radius), Math.floor(width / 2), Math.floor(height / 2)),
   );
 
-  if (rounded === 0) return null;
+  const header = Buffer.from(`P5\n${width} ${height}\n255\n`, "ascii");
+  const pixels = Buffer.alloc(width * height, 255);
 
-  const right = width - rounded - 1;
-  const bottom = height - rounded - 1;
-  const radiusSq = rounded * rounded;
+  if (rounded > 0) {
+    const radiusSq = rounded * rounded;
+    const right = width - rounded - 1;
+    const bottom = height - rounded - 1;
 
-  return [
-    `if(lt(X,${rounded})*lt(Y,${rounded})*gt((X-${rounded})*(X-${rounded})+(Y-${rounded})*(Y-${rounded}),${radiusSq}),0,`,
-    `if(gt(X,${right})*lt(Y,${rounded})*gt((X-${right})*(X-${right})+(Y-${rounded})*(Y-${rounded}),${radiusSq}),0,`,
-    `if(lt(X,${rounded})*gt(Y,${bottom})*gt((X-${rounded})*(X-${rounded})+(Y-${bottom})*(Y-${bottom}),${radiusSq}),0,`,
-    `if(gt(X,${right})*gt(Y,${bottom})*gt((X-${right})*(X-${right})+(Y-${bottom})*(Y-${bottom}),${radiusSq}),0,255))))`,
-  ].join("");
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        let cx: number | null = null;
+        let cy: number | null = null;
+
+        if (x < rounded && y < rounded) {
+          cx = rounded;
+          cy = rounded;
+        } else if (x > right && y < rounded) {
+          cx = right;
+          cy = rounded;
+        } else if (x < rounded && y > bottom) {
+          cx = rounded;
+          cy = bottom;
+        } else if (x > right && y > bottom) {
+          cx = right;
+          cy = bottom;
+        }
+
+        if (cx == null || cy == null) continue;
+
+        const dx = x - cx;
+        const dy = y - cy;
+        if (dx * dx + dy * dy > radiusSq) {
+          pixels[y * width + x] = 0;
+        }
+      }
+    }
+  }
+
+  await fs.writeFile(outputPath, Buffer.concat([header, pixels]));
 }
 
 function buildVideoScreenshotPayload(
@@ -552,39 +696,46 @@ async function screenshotCoverPng(
 
 async function buildVideoInsideTemplateWithAudio(
   coverPngPath: string,
-  videos: Array<{
-    path: string;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    radius: number;
-    zIndex?: number;
-  }>,
+  videos: PreparedVideo[],
   foregroundPngPath: string,
   outputMp4Path: string,
   frame: FinalVideoFrame,
+  onProgress?: (elapsedSeconds: number) => void,
+  onCommand?: (command: ReturnType<typeof ffmpeg>) => void,
 ) {
   let ffErr = "";
   const sortedVideos = [...videos].sort(
     (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0),
   );
+  const outputFrameRate = sortedVideos[0]?.frameRate ?? "30";
+  const loopInputOptions = ["-loop 1", "-framerate", outputFrameRate];
   const complexFilters: string[] = [];
   let lastLabel = "[0:v]";
+  let nextInputIndex = 1;
 
-  sortedVideos.forEach((video, index) => {
-    const inputIndex = index + 1;
-    const alphaExpr = getRoundedVideoAlphaExpression(
-      video.w,
-      video.h,
-      video.radius,
-    );
+  const videoInputs = sortedVideos.map((video) => {
+    const videoIndex = nextInputIndex;
+    nextInputIndex += 1;
+    const maskIndex = video.maskPath ? nextInputIndex : undefined;
+    if (video.maskPath) nextInputIndex += 1;
+    return { video, videoIndex, maskIndex };
+  });
+  const foregroundInputIndex = nextInputIndex;
+
+  videoInputs.forEach(({ video, videoIndex, maskIndex }, index) => {
+    const scaledLabel = `[scaled${index}]`;
     const streamLabel = `[vid${index}]`;
     complexFilters.push(
-      alphaExpr
-        ? `[${inputIndex}:v]scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${alphaExpr}'${streamLabel}`
-        : `[${inputIndex}:v]scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h}${streamLabel}`,
+      `[${videoIndex}:v]fps=fps=${outputFrameRate}:round=near,scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba${scaledLabel}`,
     );
+    if (maskIndex != null) {
+      const maskLabel = `[mask${index}]`;
+      complexFilters.push(`[${maskIndex}:v]format=gray${maskLabel}`);
+      complexFilters.push(`${scaledLabel}${maskLabel}alphamerge${streamLabel}`);
+    } else {
+      complexFilters.push(`${scaledLabel}copy${streamLabel}`);
+    }
+
     const nextLabel =
       index === sortedVideos.length - 1 ? "[with_video]" : `[stage${index}]`;
     complexFilters.push(
@@ -593,32 +744,42 @@ async function buildVideoInsideTemplateWithAudio(
     lastLabel = nextLabel;
   });
 
-  const foregroundInputIndex = sortedVideos.length + 1;
   complexFilters.push(
-    `${lastLabel}[${foregroundInputIndex}:v]overlay=0:0:format=auto[v]`,
+    `${lastLabel}[${foregroundInputIndex}:v]overlay=0:0:format=auto:shortest=1[v]`,
   );
 
   await new Promise<void>((resolve, reject) => {
-    const command = ffmpeg().input(coverPngPath).inputOptions(["-loop 1"]);
+    const command = ffmpeg().input(coverPngPath).inputOptions(loopInputOptions);
+    onCommand?.(command);
 
     sortedVideos.forEach((video) => {
       command.input(video.path);
+      if (video.maskPath) {
+        command.input(video.maskPath).inputOptions(loopInputOptions);
+      }
     });
 
     command
       .input(foregroundPngPath)
+      .inputOptions(loopInputOptions)
       .complexFilter(complexFilters)
       .outputOptions([
         "-map [v]",
         "-map 1:a?",
         "-c:v libx264",
+        "-preset veryfast",
+        "-crf 23",
         "-pix_fmt yuv420p",
-        "-r 30",
+        "-r",
+        outputFrameRate,
         "-c:a aac",
         "-b:a 192k",
         "-shortest",
         "-movflags +faststart",
       ])
+      .on("progress", (progress) => {
+        onProgress?.(parseTimemarkSeconds(progress.timemark));
+      })
       .on("stderr", (line) => (ffErr += line + "\n"))
       .on("error", (err) =>
         reject(new Error((err?.message || "ffmpeg failed") + "\n" + ffErr)),
@@ -629,6 +790,8 @@ async function buildVideoInsideTemplateWithAudio(
 }
 
 export async function POST(req: Request) {
+  const jobMode = new URL(req.url).searchParams.get("job") === "1";
+  let keepTmpDir = false;
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "final-"));
   const coverPng = path.join(tmpDir, "cover.png");
   const foregroundPng = path.join(tmpDir, "foreground.png");
@@ -741,21 +904,132 @@ export async function POST(req: Request) {
       }),
     );
 
-    const finalFrame = await screenshotCoverPng(req, data, coverPng, "base");
-    await screenshotCoverPng(
-      req,
-      data,
-      foregroundPng,
-      "foreground",
-      finalFrame,
+    const preparedVideos = await Promise.all(
+      persistedVideos.map(async (video, index) => {
+        const probeInfo = await getVideoProbeInfo(video.path);
+        assertVideoDurationIsAllowed(video, probeInfo.duration);
+
+        const radius = Math.max(
+          0,
+          Math.min(video.radius, Math.floor(video.w / 2), Math.floor(video.h / 2)),
+        );
+        if (radius <= 0) {
+          return {
+            ...video,
+            frameRate: probeInfo.frameRate,
+            duration: probeInfo.duration,
+          };
+        }
+
+        const maskPath = path.join(tmpDir, `mask-${index}.pgm`);
+        await writeRoundedMaskPgm(video.w, video.h, radius, maskPath);
+        return {
+          ...video,
+          maskPath,
+          frameRate: probeInfo.frameRate,
+          duration: probeInfo.duration,
+        };
+      }),
     );
-    await buildVideoInsideTemplateWithAudio(
-      coverPng,
-      persistedVideos,
-      foregroundPng,
-      finalMp4,
-      finalFrame,
+
+    const totalSeconds = Math.max(
+      1,
+      Math.round(
+        preparedVideos
+          .map((video) => video.duration ?? 0)
+          .reduce((longest, duration) => Math.max(longest, duration), 0),
+      ),
     );
+
+    const generateFinalVideo = async (jobId?: string) => {
+      if (jobId) {
+        updateFinalVideoJob(jobId, {
+          status: "rendering",
+          percent: 3,
+          elapsedSeconds: 0,
+        });
+      }
+
+      const finalFrame = await screenshotCoverPng(req, data, coverPng, "base");
+      if (jobId) {
+        updateFinalVideoJob(jobId, { percent: 8 });
+      }
+
+      await screenshotCoverPng(
+        req,
+        data,
+        foregroundPng,
+        "foreground",
+        finalFrame,
+      );
+      if (jobId) {
+        updateFinalVideoJob(jobId, { percent: 12 });
+      }
+
+      await buildVideoInsideTemplateWithAudio(
+        coverPng,
+        preparedVideos,
+        foregroundPng,
+        finalMp4,
+        finalFrame,
+        (elapsedSeconds) => {
+          if (!jobId) return;
+          if (getFinalVideoJob(jobId)?.status === "canceled") return;
+          const safeElapsedSeconds = Math.min(
+            totalSeconds,
+            Math.max(0, Math.floor(elapsedSeconds)),
+          );
+          updateFinalVideoJob(jobId, {
+            elapsedSeconds: safeElapsedSeconds,
+            percent: Math.min(
+              99,
+              Math.max(
+                12,
+                12 + Math.round((safeElapsedSeconds / totalSeconds) * 87),
+              ),
+            ),
+          });
+        },
+        (command) => {
+          if (!jobId) return;
+          updateFinalVideoJob(jobId, {
+            cancel: () => command.kill("SIGTERM"),
+          });
+        },
+      );
+    };
+
+    if (jobMode) {
+      const job = createFinalVideoJob(tmpDir, totalSeconds);
+      keepTmpDir = true;
+
+      void generateFinalVideo(job.id)
+        .then(() => {
+          updateFinalVideoJob(job.id, {
+            status: "completed",
+            percent: 100,
+            elapsedSeconds: totalSeconds,
+            resultPath: finalMp4,
+          });
+        })
+        .catch((error: unknown) => {
+          const currentJob = getFinalVideoJob(job.id);
+          if (currentJob?.status === "canceled") return;
+
+          updateFinalVideoJob(job.id, {
+            status: "failed",
+            error:
+              error instanceof Error ? error.message : "final video failed",
+          });
+        });
+
+      return NextResponse.json({
+        jobId: job.id,
+        statusUrl: `/api/video/final/jobs/${job.id}`,
+      });
+    }
+
+    await generateFinalVideo();
 
     const out = await fs.readFile(finalMp4);
     return new NextResponse(out as unknown as BodyInit, {
@@ -770,8 +1044,10 @@ export async function POST(req: Request) {
       { status: 500 },
     );
   } finally {
-    try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {}
+    if (!keepTmpDir) {
+      try {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      } catch {}
+    }
   }
 }
