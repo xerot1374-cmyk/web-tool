@@ -106,6 +106,50 @@ function parseTemplateVideoUploadResponse(raw: string) {
   }
 }
 
+function getVideoDuration(video: VideoItem) {
+  return typeof video.durationSeconds === "number" &&
+    Number.isFinite(video.durationSeconds) &&
+    video.durationSeconds > 0
+    ? video.durationSeconds
+    : 0;
+}
+
+function getVideoTrimStart(video: VideoItem) {
+  const duration = getVideoDuration(video);
+  const start =
+    typeof video.trimStartSeconds === "number" &&
+    Number.isFinite(video.trimStartSeconds)
+      ? video.trimStartSeconds
+      : 0;
+  return clamp(start, 0, duration || Number.MAX_SAFE_INTEGER);
+}
+
+function getVideoTrimEnd(video: VideoItem) {
+  const duration = getVideoDuration(video);
+  const fallback = duration || 0;
+  const end =
+    typeof video.trimEndSeconds === "number" &&
+    Number.isFinite(video.trimEndSeconds)
+      ? video.trimEndSeconds
+      : fallback;
+  return duration > 0 ? clamp(end, 0, duration) : Math.max(0, end);
+}
+
+function getVideoTimelineStart(video: VideoItem) {
+  return typeof video.timelineStartSeconds === "number" &&
+    Number.isFinite(video.timelineStartSeconds)
+    ? Math.max(0, video.timelineStartSeconds)
+    : 0;
+}
+
+function getVideoTimelineDuration(video: VideoItem) {
+  const duration = getVideoDuration(video);
+  const trimStart = getVideoTrimStart(video);
+  const trimEnd = getVideoTrimEnd(video);
+  if (duration <= 0) return 0;
+  return Math.max(0.1, trimEnd - trimStart);
+}
+
 export default function useTemplateAMediaEditor({
   stageRef,
   previewScale,
@@ -820,6 +864,57 @@ export default function useTemplateAMediaEditor({
     return getSelectedVideo()?.radius ?? null;
   }
 
+  function setSelectedVideoTimelineStart(nextStart: number) {
+    updateSelectedVideo((prev) => ({
+      ...prev,
+      timelineStartSeconds: Math.max(0, nextStart),
+    }));
+  }
+
+  function setSelectedVideoTrimStart(nextStart: number) {
+    updateSelectedVideo((prev) => {
+      const duration = getVideoDuration(prev);
+      const currentEnd = getVideoTrimEnd(prev) || duration || nextStart + 0.1;
+      const maxStart = Math.max(0, currentEnd - 0.1);
+      return {
+        ...prev,
+        trimStartSeconds: clamp(nextStart, 0, maxStart),
+      };
+    });
+  }
+
+  function setSelectedVideoTrimEnd(nextEnd: number) {
+    updateSelectedVideo((prev) => {
+      const duration = getVideoDuration(prev);
+      const currentStart = getVideoTrimStart(prev);
+      const minEnd = currentStart + 0.1;
+      return {
+        ...prev,
+        trimEndSeconds:
+          duration > 0
+            ? clamp(nextEnd, minEnd, duration)
+            : Math.max(minEnd, nextEnd),
+      };
+    });
+  }
+
+  function placeSelectedVideoAfterPrevious() {
+    if (!selectedVideoId) return;
+    const sortedVideos = [...videos].sort(
+      (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0),
+    );
+    const selectedIndex = sortedVideos.findIndex(
+      (video) => video.id === selectedVideoId,
+    );
+    if (selectedIndex < 0) return;
+
+    const previousVideo = sortedVideos[selectedIndex - 1];
+    const nextStart = previousVideo
+      ? getVideoTimelineStart(previousVideo) + getVideoTimelineDuration(previousVideo)
+      : 0;
+    setSelectedVideoTimelineStart(nextStart);
+  }
+
   function clearSelection() {
     setSelectedId(null);
     setSelectedRect(null);
@@ -990,6 +1085,9 @@ export default function useTemplateAMediaEditor({
         fileName: file.name,
         mimeType: file.type,
         durationSeconds: undefined,
+        trimStartSeconds: 0,
+        trimEndSeconds: undefined,
+        timelineStartSeconds: 0,
         x: box.x,
         y: box.y,
         w: box.w,
@@ -1573,6 +1671,10 @@ export default function useTemplateAMediaEditor({
     getSelectedImageRadius,
     setSelectedVideoRadius,
     getSelectedVideoRadius,
+    setSelectedVideoTimelineStart,
+    setSelectedVideoTrimStart,
+    setSelectedVideoTrimEnd,
+    placeSelectedVideoAfterPrevious,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,

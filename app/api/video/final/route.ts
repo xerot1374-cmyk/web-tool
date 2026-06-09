@@ -67,6 +67,9 @@ type Payload = {
     h: number;
     radius: number;
     zIndex?: number;
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+    timelineStartSeconds?: number;
   }>;
 
   images?: unknown[];
@@ -138,6 +141,11 @@ type PreparedVideo = {
   maskPath?: string;
   frameRate?: string;
   duration?: number;
+  hasAudio?: boolean;
+  trimStart: number;
+  trimEnd: number;
+  timelineStart: number;
+  timelineEnd: number;
 };
 
 function makeEven(value: number) {
@@ -210,7 +218,7 @@ function parseTimemarkSeconds(timemark?: string) {
 }
 
 async function getVideoProbeInfo(videoPath: string) {
-  return new Promise<{ duration: number; frameRate?: string }>(
+  return new Promise<{ duration: number; frameRate?: string; hasAudio: boolean }>(
     (resolve, reject) => {
       ffmpeg.ffprobe(videoPath, (err, metadata) => {
         if (err) {
@@ -224,6 +232,9 @@ async function getVideoProbeInfo(videoPath: string) {
         );
         resolve({
           duration: Number.isFinite(duration) ? duration : 0,
+          hasAudio: metadata.streams.some(
+            (stream) => stream.codec_type === "audio",
+          ),
           frameRate:
             parseFrameRate(videoStream?.avg_frame_rate) ??
             parseFrameRate(videoStream?.r_frame_rate),
@@ -233,7 +244,43 @@ async function getVideoProbeInfo(videoPath: string) {
   );
 }
 
-function assertVideoDurationIsAllowed(video: PreparedVideo, duration: number) {
+function clampTimelineSeconds(value: unknown, fallback = 0) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return Math.max(0, value);
+}
+
+function getPreparedVideoTiming(
+  meta: {
+    trimStartSeconds?: number;
+    trimEndSeconds?: number;
+    timelineStartSeconds?: number;
+  },
+  duration: number,
+) {
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
+  const trimStart = Math.min(
+    safeDuration,
+    clampTimelineSeconds(meta.trimStartSeconds),
+  );
+  const rawTrimEnd = clampTimelineSeconds(meta.trimEndSeconds, safeDuration);
+  const trimEnd = safeDuration
+    ? Math.min(safeDuration, Math.max(trimStart + 0.1, rawTrimEnd))
+    : Math.max(trimStart + 0.1, rawTrimEnd);
+  const timelineStart = clampTimelineSeconds(meta.timelineStartSeconds);
+
+  return {
+    trimStart,
+    trimEnd,
+    timelineStart,
+    timelineEnd: timelineStart + Math.max(0.1, trimEnd - trimStart),
+  };
+}
+
+function formatFilterSeconds(value: number) {
+  return Number(value.toFixed(3)).toString();
+}
+
+function assertVideoDurationIsAllowed(video: { path: string }, duration: number) {
   const maxDuration = getMaxFinalVideoSeconds();
   if (duration <= maxDuration) return;
 
@@ -711,6 +758,7 @@ async function buildVideoInsideTemplateWithAudio(
   const outputFrameRate = sortedVideos[0]?.frameRate ?? "30";
   const loopInputOptions = ["-loop 1", "-framerate", outputFrameRate];
   const complexFilters: string[] = [];
+  const audioLabels: string[] = [];
   let lastLabel = "[0:v]";
   let nextInputIndex = 1;
 
@@ -725,29 +773,59 @@ async function buildVideoInsideTemplateWithAudio(
 
   videoInputs.forEach(({ video, videoIndex, maskIndex }, index) => {
     const scaledLabel = `[scaled${index}]`;
+    const timedVideoLabel = `[timed${index}]`;
     const streamLabel = `[vid${index}]`;
+    const trimStart = formatFilterSeconds(video.trimStart);
+    const trimEnd = formatFilterSeconds(video.trimEnd);
+    const timelineStart = formatFilterSeconds(video.timelineStart);
+    const timelineEnd = formatFilterSeconds(video.timelineEnd);
+
     complexFilters.push(
-      `[${videoIndex}:v]fps=fps=${outputFrameRate}:round=near,scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba${scaledLabel}`,
+      `[${videoIndex}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,fps=fps=${outputFrameRate}:round=near,scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba${scaledLabel}`,
     );
     if (maskIndex != null) {
       const maskLabel = `[mask${index}]`;
       complexFilters.push(`[${maskIndex}:v]format=gray${maskLabel}`);
-      complexFilters.push(`${scaledLabel}${maskLabel}alphamerge${streamLabel}`);
+      complexFilters.push(
+        `${scaledLabel}${maskLabel}alphamerge${timedVideoLabel}`,
+      );
     } else {
-      complexFilters.push(`${scaledLabel}copy${streamLabel}`);
+      complexFilters.push(`${scaledLabel}copy${timedVideoLabel}`);
     }
+
+    complexFilters.push(
+      `${timedVideoLabel}setpts=PTS+${timelineStart}/TB${streamLabel}`,
+    );
 
     const nextLabel =
       index === sortedVideos.length - 1 ? "[with_video]" : `[stage${index}]`;
     complexFilters.push(
-      `${lastLabel}${streamLabel}overlay=${video.x + frame.templateOffsetX}:${video.y}:shortest=1${nextLabel}`,
+      `${lastLabel}${streamLabel}overlay=${video.x + frame.templateOffsetX}:${video.y}:eof_action=pass:format=auto:enable='between(t,${timelineStart},${timelineEnd})'${nextLabel}`,
     );
     lastLabel = nextLabel;
+
+    if (video.hasAudio) {
+      const audioLabel = `[aud${index}]`;
+      const delayMs = Math.max(0, Math.round(video.timelineStart * 1000));
+      complexFilters.push(
+        `[${videoIndex}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS,adelay=${delayMs}:all=1${audioLabel}`,
+      );
+      audioLabels.push(audioLabel);
+    }
   });
 
   complexFilters.push(
     `${lastLabel}[${foregroundInputIndex}:v]overlay=0:0:format=auto:shortest=1[v]`,
   );
+  if (audioLabels.length === 1) {
+    complexFilters.push(
+      `${audioLabels[0]}atrim=0:${formatFilterSeconds(durationSeconds)}[a]`,
+    );
+  } else if (audioLabels.length > 1) {
+    complexFilters.push(
+      `${audioLabels.join("")}amix=inputs=${audioLabels.length}:duration=longest:dropout_transition=0,atrim=0:${formatFilterSeconds(durationSeconds)}[a]`,
+    );
+  }
 
   await new Promise<void>((resolve, reject) => {
     const command = ffmpeg().input(coverPngPath).inputOptions(loopInputOptions);
@@ -766,7 +844,7 @@ async function buildVideoInsideTemplateWithAudio(
       .complexFilter(complexFilters)
       .outputOptions([
         "-map [v]",
-        "-map 1:a?",
+        ...(audioLabels.length ? ["-map [a]"] : []),
         "-c:v libx264",
         "-preset veryfast",
         "-crf 23",
@@ -903,6 +981,9 @@ export async function POST(req: Request) {
           h: Math.round(meta.h),
           radius: meta.radius,
           zIndex: meta.zIndex,
+          trimStartSeconds: meta.trimStartSeconds,
+          trimEndSeconds: meta.trimEndSeconds,
+          timelineStartSeconds: meta.timelineStartSeconds,
         };
       }),
     );
@@ -911,6 +992,7 @@ export async function POST(req: Request) {
       persistedVideos.map(async (video, index) => {
         const probeInfo = await getVideoProbeInfo(video.path);
         assertVideoDurationIsAllowed(video, probeInfo.duration);
+        const timing = getPreparedVideoTiming(video, probeInfo.duration);
 
         const radius = Math.max(
           0,
@@ -921,6 +1003,8 @@ export async function POST(req: Request) {
             ...video,
             frameRate: probeInfo.frameRate,
             duration: probeInfo.duration,
+            hasAudio: probeInfo.hasAudio,
+            ...timing,
           };
         }
 
@@ -931,6 +1015,8 @@ export async function POST(req: Request) {
           maskPath,
           frameRate: probeInfo.frameRate,
           duration: probeInfo.duration,
+          hasAudio: probeInfo.hasAudio,
+          ...timing,
         };
       }),
     );
@@ -939,7 +1025,7 @@ export async function POST(req: Request) {
       1,
       Math.ceil(
         preparedVideos
-          .map((video) => video.duration ?? 0)
+          .map((video) => video.timelineEnd)
           .reduce((longest, duration) => Math.max(longest, duration), 0),
       ),
     );

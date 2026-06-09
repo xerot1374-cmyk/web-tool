@@ -95,6 +95,9 @@ export type VideoItem = {
   mimeType?: string;
   durationSeconds?: number;
   frameRate?: string;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number;
+  timelineStartSeconds?: number;
   x: number;
   y: number;
   w: number;
@@ -111,6 +114,9 @@ export type VideoPayloadItem = {
   mimeType?: string;
   durationSeconds?: number;
   frameRate?: string;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number;
+  timelineStartSeconds?: number;
   x: number;
   y: number;
   w: number;

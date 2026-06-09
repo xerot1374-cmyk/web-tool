@@ -16,6 +16,10 @@ type VideoListItem = {
   id: string;
   file: File;
   radius: number;
+  durationSeconds?: number;
+  trimStartSeconds?: number;
+  trimEndSeconds?: number;
+  timelineStartSeconds?: number;
 };
 
 const HIDDEN_FILE_INPUT_STYLE: React.CSSProperties = {
@@ -142,6 +146,11 @@ type Props = {
   setSelectedImageRadius: (radius: number) => void;
   selectedVideoRadius: number | null;
   setSelectedVideoRadius: (radius: number) => void;
+  selectedVideoTiming?: VideoListItem | null;
+  setSelectedVideoTimelineStart: (startSeconds: number) => void;
+  setSelectedVideoTrimStart: (startSeconds: number) => void;
+  setSelectedVideoTrimEnd: (endSeconds: number) => void;
+  placeSelectedVideoAfterPrevious: () => void;
   onAssignImageToFrameSlot: (slotId: string) => void;
 
   onPickVideos: (files: FileList | File[] | null) => void;
@@ -191,6 +200,11 @@ export default function LinkedInToolbox({
   setSelectedImageRadius,
   selectedVideoRadius,
   setSelectedVideoRadius,
+  selectedVideoTiming,
+  setSelectedVideoTimelineStart,
+  setSelectedVideoTrimStart,
+  setSelectedVideoTrimEnd,
+  placeSelectedVideoAfterPrevious,
   onAssignImageToFrameSlot,
   onPickVideos,
   videos,
@@ -203,6 +217,30 @@ export default function LinkedInToolbox({
     FRAME_PRESETS.find((preset) => preset.id === framePresetId) ??
     FRAME_PRESETS[0];
   const showContentPanel = false;
+  const selectedVideoDuration =
+    typeof selectedVideoTiming?.durationSeconds === "number" &&
+    Number.isFinite(selectedVideoTiming.durationSeconds)
+      ? selectedVideoTiming.durationSeconds
+      : 0;
+  const selectedVideoTrimStart =
+    typeof selectedVideoTiming?.trimStartSeconds === "number" &&
+    Number.isFinite(selectedVideoTiming.trimStartSeconds)
+      ? selectedVideoTiming.trimStartSeconds
+      : 0;
+  const selectedVideoTrimEnd =
+    typeof selectedVideoTiming?.trimEndSeconds === "number" &&
+    Number.isFinite(selectedVideoTiming.trimEndSeconds)
+      ? selectedVideoTiming.trimEndSeconds
+      : selectedVideoDuration;
+  const selectedVideoTimelineStart =
+    typeof selectedVideoTiming?.timelineStartSeconds === "number" &&
+    Number.isFinite(selectedVideoTiming.timelineStartSeconds)
+      ? selectedVideoTiming.timelineStartSeconds
+      : 0;
+  const selectedVideoClipDuration = Math.max(
+    0,
+    selectedVideoTrimEnd - selectedVideoTrimStart,
+  );
 
   return (
     <aside className="tb">
@@ -643,6 +681,83 @@ export default function LinkedInToolbox({
 
             <div className="tb__hint tb__hint--left">
               Select a video on canvas to adjust its corner radius.
+            </div>
+
+            <div className="tb__timelinePanel">
+              <div className="tb__timelineGrid">
+                <label className="tb__timelineField">
+                  <span>Start</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={
+                      selectedVideoTiming
+                        ? Number(selectedVideoTimelineStart.toFixed(2))
+                        : ""
+                    }
+                    disabled={!selectedVideoTiming}
+                    onChange={(e) =>
+                      setSelectedVideoTimelineStart(Number(e.target.value || 0))
+                    }
+                    className="editor-input"
+                  />
+                </label>
+                <label className="tb__timelineField">
+                  <span>Trim in</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={selectedVideoDuration || undefined}
+                    step={0.1}
+                    value={
+                      selectedVideoTiming
+                        ? Number(selectedVideoTrimStart.toFixed(2))
+                        : ""
+                    }
+                    disabled={!selectedVideoTiming}
+                    onChange={(e) =>
+                      setSelectedVideoTrimStart(Number(e.target.value || 0))
+                    }
+                    className="editor-input"
+                  />
+                </label>
+                <label className="tb__timelineField">
+                  <span>Trim out</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={selectedVideoDuration || undefined}
+                    step={0.1}
+                    value={
+                      selectedVideoTiming
+                        ? Number(selectedVideoTrimEnd.toFixed(2))
+                        : ""
+                    }
+                    disabled={!selectedVideoTiming}
+                    onChange={(e) =>
+                      setSelectedVideoTrimEnd(Number(e.target.value || 0))
+                    }
+                    className="editor-input"
+                  />
+                </label>
+              </div>
+              <div className="tb__timelineMeta">
+                <span>
+                  Clip {selectedVideoTiming ? selectedVideoClipDuration.toFixed(1) : "0.0"}s
+                </span>
+                <span>
+                  Source {selectedVideoDuration ? selectedVideoDuration.toFixed(1) : "unknown"}s
+                </span>
+              </div>
+              <button
+                type="button"
+                className="tb__timelineButton"
+                disabled={!selectedVideoTiming}
+                onClick={placeSelectedVideoAfterPrevious}
+              >
+                Place after previous
+              </button>
             </div>
 
             {videos.length ? (

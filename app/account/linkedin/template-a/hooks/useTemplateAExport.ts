@@ -341,16 +341,34 @@ export default function useTemplateAExport({
   }, [finalUrl]);
 
   const getEstimatedFinalSeconds = useCallback(() => {
-    const longestVideoSeconds = Math.max(
+    const longestTimelineEnd = Math.max(
       0,
-      ...videos.map((video) =>
-        typeof video.durationSeconds === "number" &&
-        Number.isFinite(video.durationSeconds)
-          ? video.durationSeconds
-          : 0,
-      ),
+      ...videos.map((video) => {
+        const duration =
+          typeof video.durationSeconds === "number" &&
+          Number.isFinite(video.durationSeconds)
+            ? video.durationSeconds
+            : 0;
+        const trimStart =
+          typeof video.trimStartSeconds === "number" &&
+          Number.isFinite(video.trimStartSeconds)
+            ? Math.max(0, video.trimStartSeconds)
+            : 0;
+        const trimEnd =
+          typeof video.trimEndSeconds === "number" &&
+          Number.isFinite(video.trimEndSeconds)
+            ? Math.max(trimStart, video.trimEndSeconds)
+            : duration;
+        const timelineStart =
+          typeof video.timelineStartSeconds === "number" &&
+          Number.isFinite(video.timelineStartSeconds)
+            ? Math.max(0, video.timelineStartSeconds)
+            : 0;
+
+        return timelineStart + Math.max(0, trimEnd - trimStart);
+      }),
     );
-    return Math.max(30, Math.ceil(longestVideoSeconds || 8 * 60));
+    return Math.max(30, Math.ceil(longestTimelineEnd || 8 * 60));
   }, [videos]);
 
   const pollFinalVideoJob = useCallback(
@@ -649,6 +667,9 @@ export default function useTemplateAExport({
           mimeType: video.mimeType,
           durationSeconds: video.durationSeconds,
           frameRate: video.frameRate,
+          trimStartSeconds: video.trimStartSeconds,
+          trimEndSeconds: video.trimEndSeconds,
+          timelineStartSeconds: video.timelineStartSeconds,
           x: video.x,
           y: video.y,
           w: video.w,

@@ -374,6 +374,10 @@ export default function TemplateAClient({
     getSelectedImageRadius,
     setSelectedVideoRadius,
     getSelectedVideoRadius,
+    setSelectedVideoTimelineStart,
+    setSelectedVideoTrimStart,
+    setSelectedVideoTrimEnd,
+    placeSelectedVideoAfterPrevious,
     assignSelectedImageToFrameSlot,
     clearSelection,
     computeRectRelativeToStage,
@@ -428,8 +432,16 @@ export default function TemplateAClient({
         id: video.id,
         file: video.file ?? ({ name: video.fileName ?? "Stored video" } as File),
         radius: video.radius,
+        durationSeconds: video.durationSeconds,
+        trimStartSeconds: video.trimStartSeconds,
+        trimEndSeconds: video.trimEndSeconds,
+        timelineStartSeconds: video.timelineStartSeconds,
       })),
     [videos],
+  );
+  const selectedToolboxVideo = useMemo(
+    () => toolboxVideos.find((video) => video.id === selectedVideoId) ?? null,
+    [selectedVideoId, toolboxVideos],
   );
 
   const {
@@ -998,6 +1010,9 @@ export default function TemplateAClient({
           mimeType: video.mimeType,
           durationSeconds: video.durationSeconds,
           frameRate: video.frameRate,
+          trimStartSeconds: video.trimStartSeconds,
+          trimEndSeconds: video.trimEndSeconds,
+          timelineStartSeconds: video.timelineStartSeconds,
           x: video.x,
           y: video.y,
           w: video.w,
@@ -2127,6 +2142,11 @@ export default function TemplateAClient({
             setSelectedImageRadius={setSelectedImageRadius}
             selectedVideoRadius={getSelectedVideoRadius()}
             setSelectedVideoRadius={setSelectedVideoRadius}
+            selectedVideoTiming={selectedToolboxVideo}
+            setSelectedVideoTimelineStart={setSelectedVideoTimelineStart}
+            setSelectedVideoTrimStart={setSelectedVideoTrimStart}
+            setSelectedVideoTrimEnd={setSelectedVideoTrimEnd}
+            placeSelectedVideoAfterPrevious={placeSelectedVideoAfterPrevious}
             onAssignImageToFrameSlot={assignSelectedImageToFrameSlot}
             onPickVideos={addVideoFiles}
             videos={toolboxVideos}
