@@ -143,6 +143,29 @@ function getDraftSummary(draft: TemplateDraftSummary): TemplateDraftSummary {
   };
 }
 
+function parseVideoFrameRate(value?: string) {
+  if (!value?.trim()) return null;
+
+  const [rawNumerator, rawDenominator] = value.split("/");
+  const numerator = Number(rawNumerator);
+  const denominator = Number(rawDenominator ?? "1");
+  if (
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    numerator <= 0 ||
+    denominator <= 0
+  ) {
+    return null;
+  }
+
+  return numerator / denominator;
+}
+
+function formatVideoFrameRate(value: number) {
+  const rounded = value >= 10 ? Math.round(value * 10) / 10 : Math.round(value * 100) / 100;
+  return `${rounded} fps`;
+}
+
 export default function TemplateAClient({
   sessionUser,
   initialDraft,
@@ -377,6 +400,28 @@ export default function TemplateAClient({
   });
 
   const hasVideo = videos.length > 0;
+  const videoFrameRateHint = useMemo(() => {
+    const sortedVideos = [...editorVideos].sort(
+      (a, b) => (a.zIndex ?? 0) - (b.zIndex ?? 0),
+    );
+    const frameRates = sortedVideos.flatMap((video) => {
+      const fps = parseVideoFrameRate(video.frameRate);
+      return fps == null ? [] : [fps];
+    });
+
+    if (frameRates.length < 2) return undefined;
+
+    const minFrameRate = Math.min(...frameRates);
+    const maxFrameRate = Math.max(...frameRates);
+    if (maxFrameRate - minFrameRate < 0.01) return undefined;
+
+    const firstFrameRate = parseVideoFrameRate(sortedVideos[0]?.frameRate);
+    return firstFrameRate == null
+      ? "Video frame rates do not match. The final video uses the first video layer's frame rate."
+      : `Video frame rates do not match. The final video uses the first video layer's frame rate (${formatVideoFrameRate(
+          firstFrameRate,
+        )}).`;
+  }, [editorVideos]);
   const toolboxVideos = useMemo(
     () =>
       videos.map((video) => ({
@@ -951,6 +996,8 @@ export default function TemplateAClient({
           src: video.src,
           fileName: video.fileName,
           mimeType: video.mimeType,
+          durationSeconds: video.durationSeconds,
+          frameRate: video.frameRate,
           x: video.x,
           y: video.y,
           w: video.w,
@@ -2133,6 +2180,7 @@ export default function TemplateAClient({
             finalLoading={finalLoading}
             finalProgress={finalProgress}
             finalUrl={finalUrl}
+            videoFrameRateHint={videoFrameRateHint}
             draftStatus={draftStatus}
             draftStatusMessage={draftStatusMessage}
             successMsg={successMsg}

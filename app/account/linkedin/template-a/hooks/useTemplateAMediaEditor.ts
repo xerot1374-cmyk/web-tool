@@ -55,6 +55,7 @@ type TemplateVideoUploadResponse = {
     src?: string;
     fileName?: string;
     mimeType?: string;
+    frameRate?: string;
   };
 };
 
@@ -230,6 +231,7 @@ export default function useTemplateAMediaEditor({
       src?: string;
       fileName?: string;
       mimeType?: string;
+      frameRate?: string;
     }>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
 
@@ -1034,6 +1036,7 @@ export default function useTemplateAMediaEditor({
                     src: uploaded.src,
                     fileName: uploaded.fileName ?? item.fileName,
                     mimeType: uploaded.mimeType ?? item.mimeType,
+                    frameRate: uploaded.frameRate ?? item.frameRate,
                   }
                 : item,
             ),

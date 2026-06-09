@@ -94,6 +94,7 @@ export type VideoItem = {
   fileName?: string;
   mimeType?: string;
   durationSeconds?: number;
+  frameRate?: string;
   x: number;
   y: number;
   w: number;
@@ -109,6 +110,7 @@ export type VideoPayloadItem = {
   fileName?: string;
   mimeType?: string;
   durationSeconds?: number;
+  frameRate?: string;
   x: number;
   y: number;
   w: number;

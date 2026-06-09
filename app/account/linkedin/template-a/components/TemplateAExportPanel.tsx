@@ -19,6 +19,7 @@ type TemplateAExportPanelProps = {
     wallElapsedSeconds: number;
   } | null;
   finalUrl: string | null;
+  videoFrameRateHint?: string;
   draftStatus: "idle" | "saving" | "saved" | "error";
   draftStatusMessage?: string;
   successMsg?: string;
@@ -35,6 +36,7 @@ export default function TemplateAExportPanel({
   finalLoading,
   finalProgress,
   finalUrl,
+  videoFrameRateHint,
   draftStatus,
   draftStatusMessage,
   successMsg,
@@ -128,6 +130,12 @@ export default function TemplateAExportPanel({
                 </>
               )}
             </div>
+          </div>
+        ) : null}
+
+        {videoFrameRateHint ? (
+          <div className="export-actions-panel__notice">
+            {videoFrameRateHint}
           </div>
         ) : null}
 

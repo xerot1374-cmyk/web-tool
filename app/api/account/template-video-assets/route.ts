@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import fs from "fs/promises";
 import path from "path";
+import ffmpeg from "fluent-ffmpeg";
 
+import { configureFfmpegPaths } from "@/app/lib/ffmpeg";
 import { requireCurrentUser } from "@/app/lib/currentUser";
 
 export const runtime = "nodejs";
@@ -70,6 +72,49 @@ function formatBytes(bytes: number) {
   return `${Math.round(mb)} MB`;
 }
 
+function parseFrameRate(value: unknown) {
+  if (typeof value !== "string" || !value.trim()) return undefined;
+
+  const [rawNumerator, rawDenominator] = value.split("/");
+  const numerator = Number(rawNumerator);
+  const denominator = Number(rawDenominator ?? "1");
+
+  if (
+    !Number.isFinite(numerator) ||
+    !Number.isFinite(denominator) ||
+    numerator <= 0 ||
+    denominator <= 0
+  ) {
+    return undefined;
+  }
+
+  const fps = numerator / denominator;
+  if (fps < 0.1 || fps > 240) return undefined;
+
+  return rawDenominator ? `${numerator}/${denominator}` : `${numerator}`;
+}
+
+async function getVideoFrameRate(videoPath: string) {
+  await configureFfmpegPaths();
+
+  return new Promise<string | undefined>((resolve) => {
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        resolve(undefined);
+        return;
+      }
+
+      const videoStream = metadata.streams.find(
+        (stream) => stream.codec_type === "video",
+      );
+      resolve(
+        parseFrameRate(videoStream?.avg_frame_rate) ??
+          parseFrameRate(videoStream?.r_frame_rate),
+      );
+    });
+  });
+}
+
 export async function POST(req: Request) {
   const user = await requireCurrentUser();
   let formData: FormData;
@@ -126,6 +171,7 @@ export async function POST(req: Request) {
   const outputPath = path.join(userDir, fileName);
 
   await fs.writeFile(outputPath, Buffer.from(await file.arrayBuffer()));
+  const frameRate = await getVideoFrameRate(outputPath);
 
   return NextResponse.json({
     ok: true,
@@ -135,6 +181,7 @@ export async function POST(req: Request) {
       fileName: file.name || fileName,
       mimeType: file.type || "video/mp4",
       size: file.size,
+      frameRate,
     },
   });
 }
