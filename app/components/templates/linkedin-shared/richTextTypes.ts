@@ -4,4 +4,5 @@ export type RichTextBlock = {
   end: number;
   contentStart: number;
   contentEnd: number;
+  textAlign?: "left" | "center" | "right";
 };

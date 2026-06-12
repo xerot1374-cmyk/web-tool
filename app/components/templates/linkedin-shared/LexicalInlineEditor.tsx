@@ -172,6 +172,14 @@ type NativeToolbarState = {
   canRedo: boolean;
 };
 
+function normalizeTextAlign(
+  value: string | null | undefined,
+): "left" | "center" | "right" | undefined {
+  return value === "center" || value === "right" || value === "left"
+    ? value
+    : undefined;
+}
+
 function cleanStyle(style: RichStyle): RichStyle {
   const next: RichStyle = {};
   if (style.fontFamily) next.fontFamily = style.fontFamily;
@@ -364,11 +372,15 @@ function syncEditorContent(
         }
 
         const item = $createListItemNode();
+        const textAlign = normalizeTextAlign(block.textAlign);
+        if (textAlign) item.setFormat(textAlign);
         appendMarkedRange(item, block.contentStart, block.contentEnd);
         activeList.append(item);
       } else {
         closeActiveList();
         const paragraph = $createParagraphNode();
+        const textAlign = normalizeTextAlign(block.textAlign);
+        if (textAlign) paragraph.setFormat(textAlign);
         appendMarkedRange(paragraph, block.contentStart, block.contentEnd);
         root.append(paragraph);
       }
@@ -437,6 +449,7 @@ function serializeEditorState(editorState: EditorState) {
             end: text.length,
             contentStart,
             contentEnd: text.length,
+            textAlign: normalizeTextAlign(child.getFormatType()),
           });
           if (index < items.length - 1) {
             text += "\n";
@@ -463,6 +476,7 @@ function serializeEditorState(editorState: EditorState) {
             end: text.length,
             contentStart: blockStart,
             contentEnd: text.length,
+            textAlign: normalizeTextAlign(node.getFormatType()),
           });
           text += "\n";
           return;
@@ -474,6 +488,7 @@ function serializeEditorState(editorState: EditorState) {
             end: text.length,
             contentStart: blockStart,
             contentEnd: text.length,
+            textAlign: normalizeTextAlign(node.getFormatType()),
           });
         }
       }

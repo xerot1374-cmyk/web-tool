@@ -1576,6 +1576,11 @@ export default function TemplateAClient({
 
     setFieldTextRaw(field, next);
 
+    if (isRichEditField(field)) {
+      getActiveBlocksState(field).setBlocks([]);
+      getActiveHtmlState(field).setHtml("");
+    }
+
     const { setMarks } = getActiveMarksState(field);
     setMarks((prevMarks) => {
       const shifted = shiftMarksAfterTextChange(
@@ -1814,6 +1819,10 @@ export default function TemplateAClient({
     return bodyBoxStyle.textAlign;
   }
 
+  function shouldUseBlockTextAlign(field: EditorTextField | null) {
+    return field === "badge" || field === "title" || field === "body";
+  }
+
   const bottomToolbarHasActiveEditor =
     isRichEditField(editField) || activeField === "caption";
 
@@ -2029,7 +2038,9 @@ export default function TemplateAClient({
             onSetTextAlign={(value) => {
               if (isRichEditField(editField)) {
                 getRichEditEditor(editField)?.setTextAlign(value);
-                setFieldTextAlign(editField, value);
+                if (!shouldUseBlockTextAlign(editField)) {
+                  setFieldTextAlign(editField, value);
+                }
                 return;
               }
               if (activeField === "caption") {

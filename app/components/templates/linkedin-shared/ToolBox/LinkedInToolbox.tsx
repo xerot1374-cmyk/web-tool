@@ -216,7 +216,6 @@ export default function LinkedInToolbox({
   const selectedFramePreset =
     FRAME_PRESETS.find((preset) => preset.id === framePresetId) ??
     FRAME_PRESETS[0];
-  const showContentPanel = false;
   const selectedVideoDuration =
     typeof selectedVideoTiming?.durationSeconds === "number" &&
     Number.isFinite(selectedVideoTiming.durationSeconds)
@@ -254,12 +253,7 @@ export default function LinkedInToolbox({
       </div>
 
       <div className="tb__scroll">
-        {showContentPanel ? (
-          <ToolboxSection
-            title="Content"
-            meta="Core message"
-            collapsible
-          >
+        <ToolboxSection title="Content" meta="Core message" collapsible>
             <ToolboxTextField
               label="Eye-Catcher"
               value={badgeText}
@@ -333,8 +327,7 @@ export default function LinkedInToolbox({
                 rows={6}
               />
             </div>
-          </ToolboxSection>
-        ) : null}
+        </ToolboxSection>
 
         {draftPanel}
 
@@ -442,7 +435,7 @@ export default function LinkedInToolbox({
           </div>
         </ToolboxSection>
 
-        <ToolboxSection title="Product" meta="Assets" collapsible>
+        <ToolboxSection title="Media" meta="Images & Video" collapsible>
           <div className="editor-field">
             <label className="editor-label">Add Image</label>
             <div className="tb__fileControlRow" style={FILE_CONTROL_ROW_STYLE}>
@@ -628,9 +621,6 @@ export default function LinkedInToolbox({
               </div>
             </>
           ) : null}
-        </ToolboxSection>
-
-        <ToolboxSection title="Media" meta="Video" collapsible>
           <div className="editor-field">
             <label className="editor-label">Video</label>
             <div className="tb__fileControlRow" style={FILE_CONTROL_ROW_STYLE}>
@@ -744,10 +734,18 @@ export default function LinkedInToolbox({
               </div>
               <div className="tb__timelineMeta">
                 <span>
-                  Clip {selectedVideoTiming ? selectedVideoClipDuration.toFixed(1) : "0.0"}s
+                  Clip{" "}
+                  {selectedVideoTiming
+                    ? selectedVideoClipDuration.toFixed(1)
+                    : "0.0"}
+                  s
                 </span>
                 <span>
-                  Source {selectedVideoDuration ? selectedVideoDuration.toFixed(1) : "unknown"}s
+                  Source{" "}
+                  {selectedVideoDuration
+                    ? selectedVideoDuration.toFixed(1)
+                    : "unknown"}
+                  s
                 </span>
               </div>
               <button

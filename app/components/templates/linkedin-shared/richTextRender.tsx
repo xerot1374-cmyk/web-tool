@@ -59,7 +59,8 @@ function normalizeBlocks(text: string, blocks?: RichTextBlock[]) {
       .filter(
         (block) =>
           block.end >= block.start && block.contentEnd >= block.contentStart,
-      ) ?? []
+      )
+      .sort((a, b) => a.start - b.start) ?? []
   );
 }
 
@@ -67,6 +68,47 @@ function cssFontSize(value: number | string | undefined) {
   if (value === undefined || value === null) return undefined;
   const raw = String(value);
   return typeof value === "number" || !raw.endsWith("px") ? `${raw}px` : raw;
+}
+
+function getAlignedListItemStyle(
+  textAlign: RichTextBlock["textAlign"],
+): React.CSSProperties {
+  if (textAlign === "right") {
+    return {
+      width: "fit-content",
+      maxWidth: "100%",
+      marginLeft: "auto",
+      marginRight: 0,
+    };
+  }
+
+  if (textAlign === "center") {
+    return {
+      width: "fit-content",
+      maxWidth: "100%",
+      marginLeft: "auto",
+      marginRight: "auto",
+    };
+  }
+
+  return {
+    width: "fit-content",
+    maxWidth: "100%",
+    marginLeft: 0,
+    marginRight: "auto",
+  };
+}
+
+function getAlignedListItemHtmlStyle(textAlign: RichTextBlock["textAlign"]) {
+  if (textAlign === "right") {
+    return "width:fit-content;max-width:100%;margin-left:auto;margin-right:0;";
+  }
+
+  if (textAlign === "center") {
+    return "width:fit-content;max-width:100%;margin-left:auto;margin-right:auto;";
+  }
+
+  return "width:fit-content;max-width:100%;margin-left:0;margin-right:auto;";
 }
 
 export function renderLinkedInRichText(
@@ -163,6 +205,7 @@ export function renderLinkedInRichText(
   const nodes: React.ReactNode[] = [];
   let listItems: React.ReactNode[] = [];
   let listType: "bullet" | "number" | null = null;
+  let cursor = 0;
 
   const flushList = () => {
     if (!listType || !listItems.length) return;
@@ -178,7 +221,22 @@ export function renderLinkedInRichText(
     listType = null;
   };
 
+  const pushPlainRange = (rangeStart: number, rangeEnd: number) => {
+    if (rangeEnd <= rangeStart) return;
+    const content = value.slice(rangeStart, rangeEnd);
+    if (!content.trim()) return;
+
+    flushList();
+    nodes.push(
+      <div key={`gap-${rangeStart}-${rangeEnd}`} style={{ whiteSpace: "pre-wrap" }}>
+        {renderSegment(rangeStart, rangeEnd)}
+      </div>,
+    );
+  };
+
   safeBlocks.forEach((block, index) => {
+    pushPlainRange(cursor, block.start);
+
     const content = renderSegment(block.contentStart, block.contentEnd);
 
     if (block.type === "bullet" || block.type === "number") {
@@ -198,7 +256,8 @@ export function renderLinkedInRichText(
             alignItems: "start",
             overflow: "visible",
             ...options.baseStyle,
-            ...itemStyle,
+            ...getAlignedListItemStyle(block.textAlign),
+            textAlign: block.textAlign,
           }}
         >
           <span
@@ -210,26 +269,43 @@ export function renderLinkedInRichText(
               display: "inline-block",
               textAlign: "right",
               flexShrink: 0,
+              ...itemStyle,
             }}
           >
             {block.type === "number" ? `${listItems.length + 1}.` : "•"}
           </span>
-          <div style={{ minWidth: 0, overflow: "visible" }}>{content}</div>
+          <div
+            style={{
+              minWidth: 0,
+              overflow: "visible",
+              textAlign: block.textAlign,
+            }}
+          >
+            {content}
+          </div>
         </div>,
       );
+      cursor = Math.max(cursor, block.end);
       return;
     }
 
     flushList();
     nodes.push(
-      <React.Fragment key={`p-${index}`}>
+      <div
+        key={`p-${index}`}
+        style={{
+          textAlign: block.textAlign,
+          whiteSpace: "pre-wrap",
+        }}
+      >
         {content}
-        {index < safeBlocks.length - 1 ? "\n" : null}
-      </React.Fragment>,
+      </div>,
     );
+    cursor = Math.max(cursor, block.end);
   });
 
   flushList();
+  pushPlainRange(cursor, value.length);
   return nodes;
 }
 
@@ -372,6 +448,7 @@ export function renderLinkedInRichTextHtml(
   const nodes: string[] = [];
   let listItems: string[] = [];
   let listType: "bullet" | "number" | null = null;
+  let cursor = 0;
 
   const flushList = () => {
     if (!listType || !listItems.length) return;
@@ -382,7 +459,26 @@ export function renderLinkedInRichTextHtml(
     listType = null;
   };
 
-  safeBlocks.forEach((block, index) => {
+  const pushPlainRange = (rangeStart: number, rangeEnd: number) => {
+    if (rangeEnd <= rangeStart) return;
+    const raw = value.slice(rangeStart, rangeEnd);
+    if (!raw.trim()) return;
+
+    flushList();
+    nodes.push(
+      `<div style="white-space:pre-wrap">${renderLinkedInRichTextHtmlRange(
+        value,
+        marks,
+        rangeStart,
+        rangeEnd,
+        options,
+      )}</div>`,
+    );
+  };
+
+  safeBlocks.forEach((block) => {
+    pushPlainRange(cursor, block.start);
+
     const content = renderLinkedInRichTextHtmlRange(
       value,
       marks,
@@ -399,17 +495,25 @@ export function renderLinkedInRichTextHtml(
         leadingStyleForRange(marks, block.contentStart, block.contentEnd),
         options,
       );
+      const alignStyle = block.textAlign
+        ? `text-align:${block.textAlign};`
+        : "";
+      const itemAlignStyle = getAlignedListItemHtmlStyle(block.textAlign);
       listItems.push(
-        `<div style="display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:0.65em;align-items:start;overflow:visible;${itemStyle}"><span aria-hidden="true" style="min-width:${block.type === "number" ? "1.8em" : "1.1em"};font:inherit;line-height:inherit;display:inline-block;text-align:right;flex-shrink:0">${marker}</span><div style="min-width:0;overflow:visible">${content}</div></div>`,
+        `<div style="display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:0.65em;align-items:start;overflow:visible;${itemAlignStyle}${alignStyle}"><span aria-hidden="true" style="min-width:${block.type === "number" ? "1.8em" : "1.1em"};font:inherit;line-height:inherit;display:inline-block;text-align:right;flex-shrink:0;${itemStyle}">${marker}</span><div style="min-width:0;overflow:visible;${alignStyle}">${content}</div></div>`,
       );
+      cursor = Math.max(cursor, block.end);
       return;
     }
 
     flushList();
-    nodes.push(content);
-    if (index < safeBlocks.length - 1) nodes.push("<br/>");
+    nodes.push(
+      `<div style="${block.textAlign ? `text-align:${block.textAlign};` : ""}white-space:pre-wrap">${content}</div>`,
+    );
+    cursor = Math.max(cursor, block.end);
   });
 
   flushList();
+  pushPlainRange(cursor, value.length);
   return nodes.join("");
 }

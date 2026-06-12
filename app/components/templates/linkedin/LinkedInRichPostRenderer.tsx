@@ -379,6 +379,7 @@ export default function LinkedInRichPostRenderer({
   const vHeadline = isEdit ? (data.headline ?? "") : clean(data.headline);
   const vSubline = isEdit ? (data.subline ?? "") : clean(data.subline);
   const vBody = isEdit ? (data.bodyText ?? "") : clean(data.bodyText);
+  const showBody = isEdit || Boolean(vBody);
 
   const urls = useMemo((): string[] => parseTemplateLinks(data), [data]);
 
@@ -846,7 +847,7 @@ export default function LinkedInRichPostRenderer({
             </div>
           ) : null}
 
-          {vBody ? (
+          {showBody ? (
             <div
               className="li2-body"
               data-select="body"
@@ -870,7 +871,7 @@ export default function LinkedInRichPostRenderer({
                 marks: data.bodyMarks,
                 blocks: data.bodyBlocks,
                 baseStyle: data.bodyStyle,
-                emptyFallback: null,
+                emptyFallback: isEdit ? "\u00A0" : null,
               })}
             </div>
           ) : null}

@@ -84,14 +84,14 @@ export default function TemplateAExportPanel({
             onDownloadPdf(event);
           }}
           disabled={loadingPdf || hasVideo}
-          className="tb__action tb__action--primary"
+          className="tb__action tb__action--primary export-actions-panel__action"
         >
           {loadingPdf ? "Generating PDF..." : "Download PDF"}
         </button>
         {hasVideo ? (
           <p className="export-actions-panel__hint">
             PDF export is disabled while a video object is on the canvas. Please
-            use Generate final.mp4.
+            use Generate Final Video.
           </p>
         ) : null}
 
@@ -144,9 +144,9 @@ export default function TemplateAExportPanel({
             type="button"
             onClick={onGenerateFinal}
             disabled={finalLoading || !hasVideo}
-            className="tb__action tb__action--dark"
+            className="tb__action tb__action--primary export-actions-panel__action"
           >
-            {finalLoading ? "Generating..." : "Generate final.mp4"}
+            {finalLoading ? "Generating..." : "Generate Final Video"}
           </button>
           {finalLoading ? (
             <button
@@ -184,8 +184,12 @@ export default function TemplateAExportPanel({
         ) : null}
 
         {finalUrl ? (
-          <a href={finalUrl} download="final.mp4" className="tb__download">
-            Download generated video
+          <a
+            href={finalUrl}
+            download="final.mp4"
+            className="tb__action tb__action--primary export-actions-panel__action"
+          >
+            Download Generated Video
           </a>
         ) : null}
       </div>

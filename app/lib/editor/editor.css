@@ -904,9 +904,16 @@
   gap: 10px;
 }
 
+.export-actions-panel__action {
+  width: 100%;
+  min-height: 46px;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
 .export-actions-panel__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-items: center;
 }
@@ -1062,12 +1069,18 @@
   color: var(--listitem-marker-color, inherit);
 }
 
+.template-inline-editor li:has(.template-inline-editor__textBold)::marker,
+.template-inline-editor li:has([style*="font-weight: 800"])::marker,
+.template-inline-editor li:has([style*="font-weight:800"])::marker,
 .template-captionEditor li:has(.template-inline-editor__textBold)::marker,
 .template-captionEditor li:has([style*="font-weight: 800"])::marker,
 .template-captionEditor li:has([style*="font-weight:800"])::marker {
   font-weight: 800;
 }
 
+.template-inline-editor li:has(.template-inline-editor__textItalic)::marker,
+.template-inline-editor li:has([style*="font-style: italic"])::marker,
+.template-inline-editor li:has([style*="font-style:italic"])::marker,
 .template-captionEditor li:has(.template-inline-editor__textItalic)::marker,
 .template-captionEditor li:has([style*="font-style: italic"])::marker,
 .template-captionEditor li:has([style*="font-style:italic"])::marker {
