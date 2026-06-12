@@ -170,6 +170,7 @@ export default function useTemplateAExport({
           id: img.id,
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
+          hasTransparency: img.hasTransparency,
           orientation: img.orientation,
           frameSlotId: img.frameSlotId,
           x: img.x,
@@ -181,6 +182,10 @@ export default function useTemplateAExport({
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
+          cropTop: img.cropTop ?? 0,
+          cropRight: img.cropRight ?? 0,
+          cropBottom: img.cropBottom ?? 0,
+          cropLeft: img.cropLeft ?? 0,
         })) ?? [];
 
       return {
@@ -525,6 +530,7 @@ export default function useTemplateAExport({
         id: img.id,
         src: img.src,
         base64: img.base64,
+        hasTransparency: img.hasTransparency,
         orientation: img.orientation,
         frameSlotId: img.frameSlotId,
         x: img.x,
@@ -536,6 +542,10 @@ export default function useTemplateAExport({
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
+        cropTop: img.cropTop ?? 0,
+        cropRight: img.cropRight ?? 0,
+        cropBottom: img.cropBottom ?? 0,
+        cropLeft: img.cropLeft ?? 0,
       }));
 
       const data: PdfPayload = {
@@ -639,6 +649,7 @@ export default function useTemplateAExport({
         id: img.id,
         src: img.src,
         base64: img.base64,
+        hasTransparency: img.hasTransparency,
         orientation: img.orientation,
         frameSlotId: img.frameSlotId,
         x: img.x,
@@ -650,6 +661,10 @@ export default function useTemplateAExport({
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
+        cropTop: img.cropTop ?? 0,
+        cropRight: img.cropRight ?? 0,
+        cropBottom: img.cropBottom ?? 0,
+        cropLeft: img.cropLeft ?? 0,
       }));
 
       const form = new FormData();
@@ -676,6 +691,10 @@ export default function useTemplateAExport({
           h: video.h,
           radius: video.radius,
           zIndex: video.zIndex,
+          cropTop: video.cropTop ?? 0,
+          cropRight: video.cropRight ?? 0,
+          cropBottom: video.cropBottom ?? 0,
+          cropLeft: video.cropLeft ?? 0,
         };
       });
 

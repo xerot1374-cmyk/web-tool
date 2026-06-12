@@ -357,6 +357,9 @@ export default function TemplateAClient({
     videoUploadProgress,
     editorVideos,
     selectedVideoId,
+    cropMode,
+    toggleCropMode,
+    commitSelectedCrop,
     addVideoFiles,
     selectedId,
     setSelectedId,
@@ -989,6 +992,7 @@ export default function TemplateAClient({
         id: img.id,
         src: img.base64 ?? img.src,
         base64: img.base64,
+        hasTransparency: img.hasTransparency,
         orientation: img.orientation,
         frameSlotId: img.frameSlotId,
         x: img.x,
@@ -1000,6 +1004,10 @@ export default function TemplateAClient({
         cropX: img.cropX ?? 50,
         cropY: img.cropY ?? 50,
         cropScale: img.cropScale ?? 1,
+        cropTop: img.cropTop ?? 0,
+        cropRight: img.cropRight ?? 0,
+        cropBottom: img.cropBottom ?? 0,
+        cropLeft: img.cropLeft ?? 0,
       })),
       videos: editorVideos
         .filter((video) => Boolean(video.src))
@@ -1019,6 +1027,10 @@ export default function TemplateAClient({
           h: video.h,
           radius: video.radius,
           zIndex: video.zIndex,
+          cropTop: video.cropTop ?? 0,
+          cropRight: video.cropRight ?? 0,
+          cropBottom: video.cropBottom ?? 0,
+          cropLeft: video.cropLeft ?? 0,
         })),
       videoRadius: editorVideos[0]?.radius ?? 20,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
@@ -2075,6 +2087,7 @@ export default function TemplateAClient({
             editorMediaImages={editorMediaImages}
             editorVideos={editorVideos}
             selectedVideoId={selectedVideoId}
+            cropMode={cropMode}
             caption={caption}
             captionMarks={captionMarks}
             captionBlocks={captionBlocks}
@@ -2106,6 +2119,8 @@ export default function TemplateAClient({
             onImageInteractionStart={startMediaInteraction}
             onVideoSelect={selectVideoObject}
             onVideoInteractionStart={startVideoInteraction}
+            onToggleCropMode={toggleCropMode}
+            onCommitCrop={commitSelectedCrop}
             onFrameSlotResizeStart={startSelectedFrameSlotResize}
             onRemoveSelectedImage={removeSelectedImage}
             onRemoveSelectedVideo={deleteSelectedVideo}

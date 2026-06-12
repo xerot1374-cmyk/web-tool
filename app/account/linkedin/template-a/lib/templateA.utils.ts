@@ -9,6 +9,13 @@ import type {
   SelectableId,
 } from "./templateA.types";
 
+export type MediaCrop = {
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
+};
+
 declare global {
   interface Window {
     __PDF_PAYLOAD__?: PdfPayload;
@@ -149,6 +156,49 @@ export function getCropY(img?: ImageItem | null) {
 
 export function getCropScale(img?: ImageItem | null) {
   return Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1;
+}
+
+export function getMediaCropValues(item?: MediaCrop | null) {
+  return {
+    cropTop: clamp(Number.isFinite(item?.cropTop) ? Number(item?.cropTop) : 0, 0, 90),
+    cropRight: clamp(Number.isFinite(item?.cropRight) ? Number(item?.cropRight) : 0, 0, 90),
+    cropBottom: clamp(
+      Number.isFinite(item?.cropBottom) ? Number(item?.cropBottom) : 0,
+      0,
+      90,
+    ),
+    cropLeft: clamp(Number.isFinite(item?.cropLeft) ? Number(item?.cropLeft) : 0, 0, 90),
+  };
+}
+
+export function normalizeMediaCrop(item?: MediaCrop | null) {
+  const crop = getMediaCropValues(item);
+  const horizontalTotal = crop.cropLeft + crop.cropRight;
+  const verticalTotal = crop.cropTop + crop.cropBottom;
+
+  if (horizontalTotal > 90) {
+    const scale = 90 / horizontalTotal;
+    crop.cropLeft *= scale;
+    crop.cropRight *= scale;
+  }
+
+  if (verticalTotal > 90) {
+    const scale = 90 / verticalTotal;
+    crop.cropTop *= scale;
+    crop.cropBottom *= scale;
+  }
+
+  return crop;
+}
+
+export function getCroppedMediaContentStyle(item?: MediaCrop | null) {
+  const crop = normalizeMediaCrop(item);
+  const inset = `${crop.cropTop}% ${crop.cropRight}% ${crop.cropBottom}% ${crop.cropLeft}%`;
+
+  return {
+    clipPath: `inset(${inset})`,
+    WebkitClipPath: `inset(${inset})`,
+  };
 }
 
 function getImageAspectRatio(image: Pick<ImageItem, "w" | "h" | "orientation">) {

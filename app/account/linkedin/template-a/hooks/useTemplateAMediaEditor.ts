@@ -36,6 +36,7 @@ import {
   fileToBase64,
   imageToViewportRect,
   isEditableTarget,
+  normalizeMediaCrop,
   normalizeAngle,
   uid,
 } from "../lib/templateA.utils";
@@ -196,6 +197,7 @@ export default function useTemplateAMediaEditor({
     h: 240,
   });
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [cropMode, setCropMode] = useState(false);
 
   const [productImage, setProductImage] = useState("");
   const [productImageFile, setProductImageFile] = useState<File | null>(null);
@@ -484,10 +486,21 @@ export default function useTemplateAMediaEditor({
     const img = await loadImageFromFile(file);
     const w0 = img.naturalWidth;
     const h0 = img.naturalHeight;
+    const isPng = file.type === "image/png" || /\.png$/i.test(file.name);
     const preset =
       w0 >= h0
-        ? { maxW: 1600, maxH: 1400, mime: "image/jpeg" as const, quality: 0.92 }
-        : { maxW: 1400, maxH: 1800, mime: "image/jpeg" as const, quality: 0.92 };
+        ? {
+            maxW: 1600,
+            maxH: 1400,
+            mime: isPng ? ("image/png" as const) : ("image/jpeg" as const),
+            quality: 0.92,
+          }
+        : {
+            maxW: 1400,
+            maxH: 1800,
+            mime: isPng ? ("image/png" as const) : ("image/jpeg" as const),
+            quality: 0.92,
+          };
 
     const { w, h } = calcFitSize(w0, h0, preset.maxW, preset.maxH);
     const canvas = document.createElement("canvas");
@@ -505,7 +518,9 @@ export default function useTemplateAMediaEditor({
         preset.quality,
       );
     });
-    return new File([blob], "product-resized.jpg", { type: preset.mime });
+    return new File([blob], isPng ? "product-resized.png" : "product-resized.jpg", {
+      type: preset.mime,
+    });
   }
 
   function getSelectedImage() {
@@ -603,6 +618,7 @@ export default function useTemplateAMediaEditor({
     const resized = await resizeImageFile(file);
     const img = await loadImageFromFile(resized);
     const base64 = await fileToBase64(resized);
+    const hasTransparency = resized.type === "image/png";
     const orientation =
       img.naturalWidth >= img.naturalHeight ? "landscape" : "portrait";
     const fit = calcFitSize(
@@ -616,6 +632,7 @@ export default function useTemplateAMediaEditor({
       src: URL.createObjectURL(resized),
       fileName: file.name,
       base64,
+      hasTransparency,
       orientation,
       frameSlotId: undefined,
       x: 200,
@@ -627,6 +644,10 @@ export default function useTemplateAMediaEditor({
       cropX: 50,
       cropY: 50,
       cropScale: 1,
+      cropTop: 0,
+      cropRight: 0,
+      cropBottom: 0,
+      cropLeft: 0,
     };
 
     const targetFrameSlotId =
@@ -922,6 +943,7 @@ export default function useTemplateAMediaEditor({
     setSelectedImageId(null);
     setSelectedVideoId(null);
     setSelectedFrameSlotId(null);
+    setCropMode(false);
   }
 
   function computeRectRelativeToStage(targetEl: HTMLElement) {
@@ -1013,6 +1035,80 @@ export default function useTemplateAMediaEditor({
     if (editField) setEditField(null);
   }
 
+  function toggleCropMode() {
+    if (selectedId !== "productImage" && selectedId !== "video") return;
+    setEditField(null);
+    setCropMode((prev) => !prev);
+  }
+
+  function exitCropMode() {
+    setCropMode(false);
+  }
+
+  function commitSelectedCrop() {
+    if (selectedId === "productImage") {
+      const current = getSelectedImage();
+      if (!current) return;
+      const crop = normalizeMediaCrop(current);
+      const next = clampImageBox(
+        {
+          x: Math.round(current.x + (crop.cropLeft / 100) * current.w),
+          y: Math.round(current.y + (crop.cropTop / 100) * current.h),
+          w: Math.round(
+            current.w * (1 - (crop.cropLeft + crop.cropRight) / 100),
+          ),
+          h: Math.round(
+            current.h * (1 - (crop.cropTop + crop.cropBottom) / 100),
+          ),
+        },
+        currentCanvas.w,
+        currentCanvas.h,
+      );
+      updateSelectedImage((prev) => ({
+        ...prev,
+        ...next,
+        cropTop: 0,
+        cropRight: 0,
+        cropBottom: 0,
+        cropLeft: 0,
+      }));
+      setSelectedRect(new DOMRect(next.x, next.y, next.w, next.h));
+      setMediaBox(next);
+      setCropMode(false);
+      return;
+    }
+
+    if (selectedId === "video") {
+      const current = getSelectedVideo();
+      if (!current) return;
+      const crop = normalizeMediaCrop(current);
+      const next = clampImageBox(
+        {
+          x: Math.round(current.x + (crop.cropLeft / 100) * current.w),
+          y: Math.round(current.y + (crop.cropTop / 100) * current.h),
+          w: Math.round(
+            current.w * (1 - (crop.cropLeft + crop.cropRight) / 100),
+          ),
+          h: Math.round(
+            current.h * (1 - (crop.cropTop + crop.cropBottom) / 100),
+          ),
+        },
+        currentCanvas.w,
+        currentCanvas.h,
+      );
+      updateSelectedVideo((prev) => ({
+        ...prev,
+        ...next,
+        cropTop: 0,
+        cropRight: 0,
+        cropBottom: 0,
+        cropLeft: 0,
+      }));
+      setSelectedRect(new DOMRect(next.x, next.y, next.w, next.h));
+      setCropMode(false);
+    }
+  }
+
   function createVideoSnapshot(): VideoSnapshot {
     return {
       video: getSelectedVideo() ? { ...getSelectedVideo()! } : null,
@@ -1093,6 +1189,10 @@ export default function useTemplateAMediaEditor({
         w: box.w,
         h: box.h,
         radius: 20,
+        cropTop: 0,
+        cropRight: 0,
+        cropBottom: 0,
+        cropLeft: 0,
       };
     });
 
@@ -1249,6 +1349,7 @@ export default function useTemplateAMediaEditor({
     e.preventDefault();
     e.stopPropagation();
     selectImageObject(current);
+    setCropMode((prev) => prev && mode.startsWith("crop-"));
 
     if (imageLayout === "frame") {
       const selectedSlot = current.frameSlotId
@@ -1310,6 +1411,7 @@ export default function useTemplateAMediaEditor({
     e.preventDefault();
     e.stopPropagation();
     selectVideoObject(current);
+    setCropMode((prev) => prev && mode.startsWith("crop-"));
     pushVideoUndoSnapshot();
     dragStateRef.current = {
       mode,
@@ -1366,6 +1468,21 @@ export default function useTemplateAMediaEditor({
 
       if (drag.mediaKind === "video" && drag.startVideo) {
         const start = drag.startVideo;
+        if (drag.mode.startsWith("crop-")) {
+          const startCrop = normalizeMediaCrop(start);
+          const nextCrop = { ...startCrop };
+          const xDelta = (dx / Math.max(start.w, 1)) * 100;
+          const yDelta = (dy / Math.max(start.h, 1)) * 100;
+
+          if (drag.mode === "crop-left") nextCrop.cropLeft = startCrop.cropLeft + xDelta;
+          if (drag.mode === "crop-right") nextCrop.cropRight = startCrop.cropRight - xDelta;
+          if (drag.mode === "crop-top") nextCrop.cropTop = startCrop.cropTop + yDelta;
+          if (drag.mode === "crop-bottom") nextCrop.cropBottom = startCrop.cropBottom - yDelta;
+
+          const fixedCrop = normalizeMediaCrop(nextCrop);
+          updateSelectedVideo((prev) => ({ ...prev, ...fixedCrop }));
+          return;
+        }
         let { x, y, w, h } = start;
         if (drag.mode === "move") {
           const fixed = clampImageBox(
@@ -1399,6 +1516,21 @@ export default function useTemplateAMediaEditor({
 
       const start = drag.startImage;
       if (!start) return;
+      if (drag.mode.startsWith("crop-")) {
+        const startCrop = normalizeMediaCrop(start);
+        const nextCrop = { ...startCrop };
+        const xDelta = (dx / Math.max(start.w, 1)) * 100;
+        const yDelta = (dy / Math.max(start.h, 1)) * 100;
+
+        if (drag.mode === "crop-left") nextCrop.cropLeft = startCrop.cropLeft + xDelta;
+        if (drag.mode === "crop-right") nextCrop.cropRight = startCrop.cropRight - xDelta;
+        if (drag.mode === "crop-top") nextCrop.cropTop = startCrop.cropTop + yDelta;
+        if (drag.mode === "crop-bottom") nextCrop.cropBottom = startCrop.cropBottom - yDelta;
+
+        const fixedCrop = normalizeMediaCrop(nextCrop);
+        updateSelectedImage((prev) => ({ ...prev, ...fixedCrop }));
+        return;
+      }
       if (drag.mode === "frame-swap") {
         const stagePoint = clientPointToStage(e.clientX, e.clientY);
         const slot = stagePoint ? getFrameSlotAtPoint(stagePoint.x, stagePoint.y) : undefined;
@@ -1540,6 +1672,12 @@ export default function useTemplateAMediaEditor({
     syncSelectedVideoRect();
   }, [selectedId, selectedVideoId, videos, previewScale, stageRef]);
 
+  useEffect(() => {
+    if (selectedId !== "productImage" && selectedId !== "video") {
+      setCropMode(false);
+    }
+  }, [selectedId]);
+
   const syncAutoImageLayout = useEffectEvent(() => {
     if (imageLayout === "manual") return;
     const nextFrameSlots = imageLayout === "frame" ? resolveFrameSlots(framePresetId, canvasPreset) : frameSlotsState;
@@ -1653,6 +1791,11 @@ export default function useTemplateAMediaEditor({
     videoUploadProgress,
     editorVideos,
     selectedVideoId,
+    cropMode,
+    setCropMode,
+    toggleCropMode,
+    exitCropMode,
+    commitSelectedCrop,
     addVideoFiles,
     selectedId,
     setSelectedId,

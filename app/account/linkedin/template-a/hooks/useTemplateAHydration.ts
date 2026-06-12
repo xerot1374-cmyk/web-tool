@@ -225,6 +225,7 @@ export default function useTemplateAHydration({
           id: img.id,
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
+          hasTransparency: img.hasTransparency,
           orientation: img.orientation,
           frameSlotId: img.frameSlotId,
           x: img.x,
@@ -236,6 +237,10 @@ export default function useTemplateAHydration({
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
+          cropTop: img.cropTop ?? 0,
+          cropRight: img.cropRight ?? 0,
+          cropBottom: img.cropBottom ?? 0,
+          cropLeft: img.cropLeft ?? 0,
         })),
       );
     } else {
@@ -265,6 +270,10 @@ export default function useTemplateAHydration({
               h: video.h,
               radius: video.radius ?? source.videoRadius ?? 20,
               zIndex: video.zIndex,
+              cropTop: video.cropTop ?? 0,
+              cropRight: video.cropRight ?? 0,
+              cropBottom: video.cropBottom ?? 0,
+              cropLeft: video.cropLeft ?? 0,
             },
           ];
         }) ?? [];

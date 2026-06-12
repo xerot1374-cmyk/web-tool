@@ -31,6 +31,7 @@ type ImagePayloadItem = {
   id: string;
   src?: string;
   base64?: string;
+  hasTransparency?: boolean;
   orientation: "landscape" | "portrait";
   frameSlotId?: string;
   x: number;
@@ -42,6 +43,10 @@ type ImagePayloadItem = {
   cropX?: number;
   cropY?: number;
   cropScale?: number;
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
 };
 
 type ImageLayoutMode = "manual" | "collage" | "frame";
@@ -238,6 +243,7 @@ export default function PdfRenderClient() {
           id: img.id,
           src: img.base64 ?? img.src ?? "",
           base64: img.base64,
+          hasTransparency: img.hasTransparency,
           orientation: img.orientation,
           frameSlotId: img.frameSlotId,
           x: img.x,
@@ -249,6 +255,10 @@ export default function PdfRenderClient() {
           cropX: img.cropX ?? 50,
           cropY: img.cropY ?? 50,
           cropScale: img.cropScale ?? 1,
+          cropTop: img.cropTop ?? 0,
+          cropRight: img.cropRight ?? 0,
+          cropBottom: img.cropBottom ?? 0,
+          cropLeft: img.cropLeft ?? 0,
         })) ?? [],
       productOrientation: payload.productOrientation ?? "landscape",
       productAlign: payload.productAlign ?? "center",

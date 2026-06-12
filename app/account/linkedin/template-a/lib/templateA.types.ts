@@ -50,6 +50,7 @@ export type ImageItem = {
   src: string;
   fileName?: string;
   base64?: string;
+  hasTransparency?: boolean;
   orientation: "landscape" | "portrait";
   frameSlotId?: string;
   x: number;
@@ -61,6 +62,10 @@ export type ImageItem = {
   cropX?: number;
   cropY?: number;
   cropScale?: number;
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
 };
 
 export type EditorMediaImage = ImageItem & {
@@ -73,6 +78,7 @@ export type ImagePayloadItem = {
   id: string;
   src?: string;
   base64?: string;
+  hasTransparency?: boolean;
   orientation: "landscape" | "portrait";
   frameSlotId?: string;
   x: number;
@@ -84,6 +90,10 @@ export type ImagePayloadItem = {
   cropX?: number;
   cropY?: number;
   cropScale?: number;
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
 };
 
 export type VideoItem = {
@@ -104,6 +114,10 @@ export type VideoItem = {
   h: number;
   radius: number;
   zIndex?: number;
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
 };
 
 export type VideoPayloadItem = {
@@ -123,6 +137,10 @@ export type VideoPayloadItem = {
   h: number;
   radius: number;
   zIndex?: number;
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
 };
 
 export type BoxTextStyle = {
@@ -237,6 +255,10 @@ export type DragMode =
   | "resize-nw"
   | "resize-se"
   | "resize-sw"
+  | "crop-left"
+  | "crop-right"
+  | "crop-top"
+  | "crop-bottom"
   | "rotate";
 
 export type SelectionHandle = {

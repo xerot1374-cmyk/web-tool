@@ -7,7 +7,15 @@ import LexicalInlineEditor, {
 } from "@/app/components/templates/linkedin-shared/LexicalInlineEditor";
 import { type CanvasPreset } from "@/app/lib/renderUtils";
 import type { FrameSlot, ImageLayoutMode } from "@/app/lib/imageLayouts";
-import { CANVAS_LABELS, getCropScale, getCropX, getCropY, isPreviewTextSelectableId } from "../lib/templateA.utils";
+import {
+  CANVAS_LABELS,
+  getCropScale,
+  getCropX,
+  getCropY,
+  getCroppedMediaContentStyle,
+  isPreviewTextSelectableId,
+  normalizeMediaCrop,
+} from "../lib/templateA.utils";
 import type {
   ActiveRichTextEditor,
   BoxTextStyle,
@@ -85,6 +93,7 @@ type TemplateAPreviewProps = {
   editorMediaImages: EditorMediaImage[];
   editorVideos: Array<VideoItem & { zIndex?: number }>;
   selectedVideoId: string | null;
+  cropMode: boolean;
   caption: string;
   captionMarks: TextMark[];
   captionBlocks: RichTextBlock[];
@@ -128,6 +137,8 @@ type TemplateAPreviewProps = {
     mode: DragMode,
     video?: VideoItem | null,
   ) => void;
+  onToggleCropMode: () => void;
+  onCommitCrop: () => void;
   onFrameSlotResizeStart: (
     e: MouseEvent<HTMLDivElement>,
     mode: DragMode,
@@ -154,6 +165,49 @@ const SELECTION_HANDLES = [
   top?: number | string;
   bottom?: number | string;
   transform?: string;
+}>;
+
+const CROP_HANDLES = [
+  {
+    key: "crop-left",
+    mode: "crop-left",
+    cursor: "ew-resize",
+    left: -6,
+    top: 0,
+    bottom: 0,
+  },
+  {
+    key: "crop-right",
+    mode: "crop-right",
+    cursor: "ew-resize",
+    right: -6,
+    top: 0,
+    bottom: 0,
+  },
+  {
+    key: "crop-top",
+    mode: "crop-top",
+    cursor: "ns-resize",
+    left: 0,
+    right: 0,
+    top: -6,
+  },
+  {
+    key: "crop-bottom",
+    mode: "crop-bottom",
+    cursor: "ns-resize",
+    left: 0,
+    right: 0,
+    bottom: -6,
+  },
+] satisfies Array<{
+  key: string;
+  cursor: string;
+  mode: DragMode;
+  left?: number;
+  right?: number;
+  top?: number;
+  bottom?: number;
 }>;
 
 function hasItalicMark(
@@ -230,6 +284,7 @@ export default function TemplateAPreview({
   editorMediaImages,
   editorVideos,
   selectedVideoId,
+  cropMode,
   caption,
   captionMarks,
   captionBlocks,
@@ -251,6 +306,8 @@ export default function TemplateAPreview({
   onImageInteractionStart,
   onVideoSelect,
   onVideoInteractionStart,
+  onToggleCropMode,
+  onCommitCrop,
   onFrameSlotResizeStart,
   onRemoveSelectedImage,
   onRemoveSelectedVideo,
@@ -259,6 +316,30 @@ export default function TemplateAPreview({
     () => (selectedRect ? SELECTION_HANDLES : []),
     [selectedRect],
   );
+  const selectedCrop = useMemo(() => {
+    if (!cropMode) return null;
+
+    if (selectedId === "productImage" && selectedImageId) {
+      return normalizeMediaCrop(
+        editorMediaImages.find((img) => img.id === selectedImageId),
+      );
+    }
+
+    if (selectedId === "video" && selectedVideoId) {
+      return normalizeMediaCrop(
+        editorVideos.find((video) => video.id === selectedVideoId),
+      );
+    }
+
+    return null;
+  }, [
+    cropMode,
+    editorMediaImages,
+    editorVideos,
+    selectedId,
+    selectedImageId,
+    selectedVideoId,
+  ]);
   const previewColumnWidth = Math.min(previewViewportW, currentCanvas.w);
 
   return (
@@ -385,6 +466,7 @@ export default function TemplateAPreview({
                   const cropX = getCropX(img);
                   const cropY = getCropY(img);
                   const cropScale = getCropScale(img);
+                  const cropContentStyle = getCroppedMediaContentStyle(img);
 
                   return (
                     <div
@@ -405,12 +487,10 @@ export default function TemplateAPreview({
                         clipPath: img.clipPath,
                         transform: `rotate(${img.rotation}deg)`,
                         transformOrigin: "center center",
-                        border:
-                          imageLayout === "collage"
-                            ? "1px solid rgba(255,255,255,0.92)"
-                            : "1px solid rgba(15,23,42,0.10)",
                         background:
-                          imageLayout === "collage" ? "#ffffff" : "transparent",
+                          imageLayout === "collage" && !img.hasTransparency
+                            ? "#ffffff"
+                            : "transparent",
                         pointerEvents: "auto",
                         boxSizing: "border-box",
                       }}
@@ -435,6 +515,19 @@ export default function TemplateAPreview({
                         onImageSelect(img);
                       }}
                     >
+                      <div
+                        style={{
+                          position: "absolute",
+                          overflow: "hidden",
+                          inset: 0,
+                          border:
+                            imageLayout === "collage"
+                              ? "1px solid rgba(255,255,255,0.92)"
+                              : "1px solid rgba(15,23,42,0.10)",
+                          boxSizing: "border-box",
+                          ...cropContentStyle,
+                        }}
+                      >
                       <img
                         src={img.src}
                         alt="product"
@@ -454,12 +547,16 @@ export default function TemplateAPreview({
                           pointerEvents: "none",
                         }}
                       />
+                      </div>
                     </div>
                   );
                 })}
 
-                {editorVideos.map((video) => (
-                  <div
+                {editorVideos.map((video) => {
+                  const cropContentStyle = getCroppedMediaContentStyle(video);
+
+                  return (
+                    <div
                     key={video.id}
                     data-select="video"
                     data-video-id={video.id}
@@ -474,8 +571,7 @@ export default function TemplateAPreview({
                       overflow: "hidden",
                       borderRadius: video.radius,
                       transformOrigin: "center center",
-                      border: "1px solid rgba(15,23,42,0.10)",
-                      background: "#111827",
+                      background: "transparent",
                       pointerEvents: "auto",
                       boxSizing: "border-box",
                     }}
@@ -495,7 +591,18 @@ export default function TemplateAPreview({
                       suppressNextCanvasClickRef.current = true;
                       onVideoSelect(video);
                     }}
-                  >
+                    >
+                    <div
+                      style={{
+                        position: "absolute",
+                        overflow: "hidden",
+                        inset: 0,
+                        background: "#111827",
+                        border: "1px solid rgba(15,23,42,0.10)",
+                        boxSizing: "border-box",
+                        ...cropContentStyle,
+                      }}
+                    >
                     <video
                       src={video.previewUrl}
                       muted
@@ -510,8 +617,10 @@ export default function TemplateAPreview({
                         userSelect: "none",
                       }}
                     />
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
 
                 {selectedRect ? (
                   <div
@@ -545,8 +654,18 @@ export default function TemplateAPreview({
                           ? "auto"
                           : "none",
                       boxSizing: "border-box",
+                      border:
+                        cropMode &&
+                        (selectedId === "productImage" ||
+                          selectedId === "video")
+                          ? 0
+                          : undefined,
                       cursor:
-                        selectedId === "productImage"
+                        cropMode &&
+                        (selectedId === "productImage" ||
+                          selectedId === "video")
+                          ? "default"
+                          : selectedId === "productImage"
                           ? imageLayout === "frame"
                             ? "grab"
                             : "move"
@@ -556,7 +675,9 @@ export default function TemplateAPreview({
                       zIndex: 9999,
                     }}
                     onMouseDown={
-                      selectedId === "productImage"
+                      cropMode
+                        ? undefined
+                        : selectedId === "productImage"
                         ? (e) => {
                             e.stopPropagation();
                             onImageInteractionStart(
@@ -569,7 +690,7 @@ export default function TemplateAPreview({
                               e.stopPropagation();
                               onVideoInteractionStart(e, "move");
                             }
-                          : undefined
+                        : undefined
                     }
                   >
                     {((selectedId === "productImage" && !editField && imageLayout !== "frame") ||
@@ -578,7 +699,102 @@ export default function TemplateAPreview({
                         !editField &&
                         (selectedId === "productImage" || selectedId === "frameSlot"))) && (
                       <>
-                        {selectionHandles.map((handle) => (
+                        {cropMode &&
+                        (selectedId === "productImage" || selectedId === "video")
+                          ? <>
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  left: `${selectedCrop?.cropLeft ?? 0}%`,
+                                  right: `${selectedCrop?.cropRight ?? 0}%`,
+                                  top: `${selectedCrop?.cropTop ?? 0}%`,
+                                  bottom: `${selectedCrop?.cropBottom ?? 0}%`,
+                                  border: "2px solid rgba(37,99,235,0.95)",
+                                  boxSizing: "border-box",
+                                  pointerEvents: "none",
+                                }}
+                              />
+                              {CROP_HANDLES.map((handle) => {
+                                const sideStyle =
+                                  handle.mode === "crop-left"
+                                    ? {
+                                        left: `${selectedCrop?.cropLeft ?? 0}%`,
+                                        top: `${selectedCrop?.cropTop ?? 0}%`,
+                                        bottom: `${selectedCrop?.cropBottom ?? 0}%`,
+                                        width: 12,
+                                        transform: "translateX(-50%)",
+                                      }
+                                    : handle.mode === "crop-right"
+                                      ? {
+                                          right: `${selectedCrop?.cropRight ?? 0}%`,
+                                          top: `${selectedCrop?.cropTop ?? 0}%`,
+                                          bottom: `${selectedCrop?.cropBottom ?? 0}%`,
+                                          width: 12,
+                                          transform: "translateX(50%)",
+                                        }
+                                      : handle.mode === "crop-top"
+                                        ? {
+                                            left: `${selectedCrop?.cropLeft ?? 0}%`,
+                                            right: `${selectedCrop?.cropRight ?? 0}%`,
+                                            top: `${selectedCrop?.cropTop ?? 0}%`,
+                                            height: 12,
+                                            transform: "translateY(-50%)",
+                                          }
+                                        : {
+                                            left: `${selectedCrop?.cropLeft ?? 0}%`,
+                                            right: `${selectedCrop?.cropRight ?? 0}%`,
+                                            bottom: `${selectedCrop?.cropBottom ?? 0}%`,
+                                            height: 12,
+                                            transform: "translateY(50%)",
+                                          };
+
+                                return (
+                              <div
+                                key={handle.key}
+                                data-resize-handle="true"
+                                style={{
+                                  position: "absolute",
+                                  ...sideStyle,
+                                  background: "rgba(37,99,235,0.20)",
+                                  border:
+                                    handle.mode === "crop-left"
+                                      ? "0 solid transparent"
+                                      : handle.mode === "crop-right"
+                                        ? "0 solid transparent"
+                                        : undefined,
+                                  borderLeft:
+                                    handle.mode === "crop-left"
+                                      ? "3px solid #2563eb"
+                                      : undefined,
+                                  borderRight:
+                                    handle.mode === "crop-right"
+                                      ? "3px solid #2563eb"
+                                      : undefined,
+                                  borderTop:
+                                    handle.mode === "crop-top"
+                                      ? "3px solid #2563eb"
+                                      : undefined,
+                                  borderBottom:
+                                    handle.mode === "crop-bottom"
+                                      ? "3px solid #2563eb"
+                                      : undefined,
+                                  cursor: handle.cursor,
+                                  boxSizing: "border-box",
+                                }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (selectedId === "video") {
+                                    onVideoInteractionStart(e, handle.mode);
+                                  } else {
+                                    onImageInteractionStart(e, handle.mode);
+                                  }
+                                }}
+                              />
+                                );
+                              })}
+                            </>
+                          : selectionHandles.map((handle) => (
                           <div
                             key={handle.key}
                             data-resize-handle="true"
@@ -719,6 +935,60 @@ export default function TemplateAPreview({
                             }}
                           >
                             Remove
+                          </button>
+                        ) : null}
+
+                        {selectedId === "productImage" || selectedId === "video" ? (
+                          <button
+                            type="button"
+                            style={{
+                              position: "absolute",
+                              left: -8,
+                              top: -40,
+                              height: 28,
+                              padding: "0 8px",
+                              borderRadius: 999,
+                              border: "1px solid rgba(0,0,0,0.12)",
+                              background: cropMode ? "#dbeafe" : "#fff",
+                              fontSize: 12,
+                              cursor: "pointer",
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onToggleCropMode();
+                            }}
+                          >
+                            Crop
+                          </button>
+                        ) : null}
+
+                        {cropMode ? (
+                          <button
+                            type="button"
+                            style={{
+                              position: "absolute",
+                              left: 46,
+                              top: -40,
+                              height: 28,
+                              padding: "0 8px",
+                              borderRadius: 999,
+                              border: "1px solid rgba(0,0,0,0.12)",
+                              background: "#fff",
+                              fontSize: 12,
+                              cursor: "pointer",
+                            }}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const confirmed = window.confirm(
+                                "Are you sure you want to apply this crop?",
+                              );
+                              if (!confirmed) return;
+                              onCommitCrop();
+                            }}
+                          >
+                            Done
                           </button>
                         ) : null}
                       </>

@@ -27,6 +27,7 @@ export type ImageItem = {
   id: string;
   src: string;
   base64?: string;
+  hasTransparency?: boolean;
   orientation: "landscape" | "portrait";
   frameSlotId?: string;
   x: number;
@@ -38,6 +39,10 @@ export type ImageItem = {
   cropX?: number;
   cropY?: number;
   cropScale?: number;
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
 };
 export type ImageLayoutMode = "manual" | "collage" | "frame";
 
@@ -247,6 +252,60 @@ function getCropValues(img?: ImageItem) {
     cropX: Number.isFinite(img?.cropX) ? Number(img?.cropX) : 50,
     cropY: Number.isFinite(img?.cropY) ? Number(img?.cropY) : 50,
     cropScale: Number.isFinite(img?.cropScale) ? Number(img?.cropScale) : 1,
+  };
+}
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function getSideCropValues(img?: ImageItem) {
+  const crop = {
+    cropTop: clampNumber(Number.isFinite(img?.cropTop) ? Number(img?.cropTop) : 0, 0, 90),
+    cropRight: clampNumber(
+      Number.isFinite(img?.cropRight) ? Number(img?.cropRight) : 0,
+      0,
+      90,
+    ),
+    cropBottom: clampNumber(
+      Number.isFinite(img?.cropBottom) ? Number(img?.cropBottom) : 0,
+      0,
+      90,
+    ),
+    cropLeft: clampNumber(
+      Number.isFinite(img?.cropLeft) ? Number(img?.cropLeft) : 0,
+      0,
+      90,
+    ),
+  };
+  const horizontalTotal = crop.cropLeft + crop.cropRight;
+  const verticalTotal = crop.cropTop + crop.cropBottom;
+
+  if (horizontalTotal > 90) {
+    const scale = 90 / horizontalTotal;
+    crop.cropLeft *= scale;
+    crop.cropRight *= scale;
+  }
+
+  if (verticalTotal > 90) {
+    const scale = 90 / verticalTotal;
+    crop.cropTop *= scale;
+    crop.cropBottom *= scale;
+  }
+
+  return crop;
+}
+
+function getSideCropContentStyle(img?: ImageItem) {
+  const crop = getSideCropValues(img);
+  const inset = `${crop.cropTop}% ${crop.cropRight}% ${crop.cropBottom}% ${crop.cropLeft}%`;
+
+  return {
+    position: "absolute" as const,
+    inset: 0,
+    overflow: "hidden" as const,
+    clipPath: `inset(${inset})`,
+    WebkitClipPath: `inset(${inset})`,
   };
 }
 
@@ -506,13 +565,22 @@ export default function LinkedInRichPostRenderer({
                         overflow: "hidden",
                         position: "relative",
                         borderRadius: slot.radius,
-                        background: "#ffffff",
-                        border: "1px solid rgba(255,255,255,0.96)",
+                        background: "transparent",
                         clipPath: slot.clipPath,
                       }}
                     >
                       {img ? (
-                        <div className="li2-productFrameInner--frame">
+                        <div
+                          className="li2-productFrameInner--frame"
+                          style={{
+                            ...getSideCropContentStyle(img),
+                            background: img.hasTransparency
+                              ? "transparent"
+                              : "#ffffff",
+                            border: "1px solid rgba(255,255,255,0.96)",
+                            boxSizing: "border-box",
+                          }}
+                        >
                           <img
                             className="li2-productImg li2-productImg--cropped"
                             src={img.src}
@@ -604,16 +672,24 @@ export default function LinkedInRichPostRenderer({
                         transform: `rotate(${img.rotation ?? 0}deg)`,
                         transformOrigin: "center center",
                         borderRadius: img.radius ?? 20,
-                        background: isCollage ? "#ffffff" : "transparent",
-                        border: isCollage
-                          ? "1px solid rgba(255,255,255,0.92)"
-                          : "1px solid rgba(15,23,42,0.10)",
+                        background: "transparent",
                       }}
                     >
                       <div
                         className={cx(
                           isCollage && "li2-productFrameInner--collage",
                         )}
+                        style={{
+                          ...getSideCropContentStyle(img),
+                          background:
+                            isCollage && !img.hasTransparency
+                              ? "#ffffff"
+                              : "transparent",
+                          border: isCollage
+                            ? "1px solid rgba(255,255,255,0.92)"
+                            : "1px solid rgba(15,23,42,0.10)",
+                          boxSizing: "border-box",
+                        }}
                       >
                         <img
                           className="li2-productImg li2-productImg--cropped"
