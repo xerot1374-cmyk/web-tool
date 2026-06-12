@@ -67,6 +67,10 @@ type Payload = {
     h: number;
     radius: number;
     zIndex?: number;
+    cropTop?: number;
+    cropRight?: number;
+    cropBottom?: number;
+    cropLeft?: number;
     trimStartSeconds?: number;
     trimEndSeconds?: number;
     timelineStartSeconds?: number;
@@ -146,6 +150,10 @@ type PreparedVideo = {
   trimEnd: number;
   timelineStart: number;
   timelineEnd: number;
+  cropTop: number;
+  cropRight: number;
+  cropBottom: number;
+  cropLeft: number;
 };
 
 function makeEven(value: number) {
@@ -155,6 +163,48 @@ function makeEven(value: number) {
 
 function clampVideoDimension(value: number) {
   return Math.min(MAX_FINAL_VIDEO_DIMENSION, Math.max(2, value));
+}
+
+function normalizeSideCrop(meta: {
+  cropTop?: number;
+  cropRight?: number;
+  cropBottom?: number;
+  cropLeft?: number;
+}) {
+  const crop = {
+    cropTop:
+      typeof meta.cropTop === "number" && Number.isFinite(meta.cropTop)
+        ? Math.max(0, Math.min(90, meta.cropTop))
+        : 0,
+    cropRight:
+      typeof meta.cropRight === "number" && Number.isFinite(meta.cropRight)
+        ? Math.max(0, Math.min(90, meta.cropRight))
+        : 0,
+    cropBottom:
+      typeof meta.cropBottom === "number" && Number.isFinite(meta.cropBottom)
+        ? Math.max(0, Math.min(90, meta.cropBottom))
+        : 0,
+    cropLeft:
+      typeof meta.cropLeft === "number" && Number.isFinite(meta.cropLeft)
+        ? Math.max(0, Math.min(90, meta.cropLeft))
+        : 0,
+  };
+  const horizontalTotal = crop.cropLeft + crop.cropRight;
+  const verticalTotal = crop.cropTop + crop.cropBottom;
+
+  if (horizontalTotal > 90) {
+    const scale = 90 / horizontalTotal;
+    crop.cropLeft *= scale;
+    crop.cropRight *= scale;
+  }
+
+  if (verticalTotal > 90) {
+    const scale = 90 / verticalTotal;
+    crop.cropTop *= scale;
+    crop.cropBottom *= scale;
+  }
+
+  return crop;
 }
 
 function getMaxFinalVideoSeconds() {
@@ -354,6 +404,7 @@ function normalizePayload(data: Payload): Payload {
               typeof video.zIndex === "number" && Number.isFinite(video.zIndex)
                 ? video.zIndex
                 : undefined,
+            ...normalizeSideCrop(video),
           },
         ];
       }) ?? [],
@@ -402,14 +453,40 @@ async function writeRoundedMaskPgm(
   height: number,
   radius: number,
   outputPath: string,
+  crop = {
+    cropTop: 0,
+    cropRight: 0,
+    cropBottom: 0,
+    cropLeft: 0,
+  },
 ) {
   const rounded = Math.max(
     0,
     Math.min(Math.round(radius), Math.floor(width / 2), Math.floor(height / 2)),
   );
+  const normalizedCrop = normalizeSideCrop(crop);
+  const cropLeftPx = Math.round((normalizedCrop.cropLeft / 100) * width);
+  const cropRightPx = Math.round((normalizedCrop.cropRight / 100) * width);
+  const cropTopPx = Math.round((normalizedCrop.cropTop / 100) * height);
+  const cropBottomPx = Math.round((normalizedCrop.cropBottom / 100) * height);
+  const cropRightEdge = width - cropRightPx;
+  const cropBottomEdge = height - cropBottomPx;
 
   const header = Buffer.from(`P5\n${width} ${height}\n255\n`, "ascii");
   const pixels = Buffer.alloc(width * height, 255);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (
+        x < cropLeftPx ||
+        x >= cropRightEdge ||
+        y < cropTopPx ||
+        y >= cropBottomEdge
+      ) {
+        pixels[y * width + x] = 0;
+      }
+    }
+  }
 
   if (rounded > 0) {
     const radiusSq = rounded * rounded;
@@ -482,6 +559,10 @@ function buildVideoScreenshotPayload(
     cropX: 50,
     cropY: 50,
     cropScale: 1,
+    cropTop: video.cropTop ?? 0,
+    cropRight: video.cropRight ?? 0,
+    cropBottom: video.cropBottom ?? 0,
+    cropLeft: video.cropLeft ?? 0,
   }));
 
   return {
@@ -808,7 +889,7 @@ async function buildVideoInsideTemplateWithAudio(
       const audioLabel = `[aud${index}]`;
       const delayMs = Math.max(0, Math.round(video.timelineStart * 1000));
       complexFilters.push(
-        `[${videoIndex}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS,adelay=${delayMs}:all=1${audioLabel}`,
+        `[${videoIndex}:a]atrim=start=${trimStart}:end=${trimEnd},asetpts=PTS-STARTPTS,adelay=${delayMs}|${delayMs}${audioLabel}`,
       );
       audioLabels.push(audioLabel);
     }
@@ -981,6 +1062,7 @@ export async function POST(req: Request) {
           h: Math.round(meta.h),
           radius: meta.radius,
           zIndex: meta.zIndex,
+          ...normalizeSideCrop(meta),
           trimStartSeconds: meta.trimStartSeconds,
           trimEndSeconds: meta.trimEndSeconds,
           timelineStartSeconds: meta.timelineStartSeconds,
@@ -998,7 +1080,12 @@ export async function POST(req: Request) {
           0,
           Math.min(video.radius, Math.floor(video.w / 2), Math.floor(video.h / 2)),
         );
-        if (radius <= 0) {
+        const hasCrop =
+          video.cropTop > 0 ||
+          video.cropRight > 0 ||
+          video.cropBottom > 0 ||
+          video.cropLeft > 0;
+        if (radius <= 0 && !hasCrop) {
           return {
             ...video,
             frameRate: probeInfo.frameRate,
@@ -1009,7 +1096,7 @@ export async function POST(req: Request) {
         }
 
         const maskPath = path.join(tmpDir, `mask-${index}.pgm`);
-        await writeRoundedMaskPgm(video.w, video.h, radius, maskPath);
+        await writeRoundedMaskPgm(video.w, video.h, radius, maskPath, video);
         return {
           ...video,
           maskPath,
