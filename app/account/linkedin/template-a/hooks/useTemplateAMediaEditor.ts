@@ -34,6 +34,8 @@ import {
   arrangeImagesForLayout,
   clamp,
   fileToBase64,
+  getMediaContentBounds,
+  hasMediaContentBounds,
   imageToViewportRect,
   isEditableTarget,
   normalizeMediaCrop,
@@ -149,6 +151,51 @@ function getVideoTimelineDuration(video: VideoItem) {
   const trimEnd = getVideoTrimEnd(video);
   if (duration <= 0) return 0;
   return Math.max(0.1, trimEnd - trimStart);
+}
+
+function getImageContentBoundsForCommit(image: ImageItem) {
+  if (hasMediaContentBounds(image)) {
+    return getMediaContentBounds(image);
+  }
+
+  const cropScale = Number.isFinite(image.cropScale)
+    ? Math.max(Number(image.cropScale), 0.01)
+    : 1;
+  const contentW = cropScale * 100;
+  const contentH = cropScale * 100;
+  const cropX = Number.isFinite(image.cropX) ? Number(image.cropX) : 50;
+  const cropY = Number.isFinite(image.cropY) ? Number(image.cropY) : 50;
+
+  return {
+    contentX: cropX - contentW / 2,
+    contentY: cropY - contentH / 2,
+    contentW,
+    contentH,
+  };
+}
+
+function getCommittedCropContentBounds(
+  item: ImageItem | VideoItem,
+  crop: ReturnType<typeof normalizeMediaCrop>,
+  fallback: {
+    contentX: number;
+    contentY: number;
+    contentW: number;
+    contentH: number;
+  },
+) {
+  const keepW = Math.max(0.01, 100 - crop.cropLeft - crop.cropRight);
+  const keepH = Math.max(0.01, 100 - crop.cropTop - crop.cropBottom);
+  const content = hasMediaContentBounds(item)
+    ? getMediaContentBounds(item)
+    : fallback;
+
+  return {
+    contentX: ((content.contentX - crop.cropLeft) / keepW) * 100,
+    contentY: ((content.contentY - crop.cropTop) / keepH) * 100,
+    contentW: (content.contentW / keepW) * 100,
+    contentH: (content.contentH / keepH) * 100,
+  };
 }
 
 export default function useTemplateAMediaEditor({
@@ -1050,6 +1097,11 @@ export default function useTemplateAMediaEditor({
       const current = getSelectedImage();
       if (!current) return;
       const crop = normalizeMediaCrop(current);
+      const content = getCommittedCropContentBounds(
+        current,
+        crop,
+        getImageContentBoundsForCommit(current),
+      );
       const next = clampImageBox(
         {
           x: Math.round(current.x + (crop.cropLeft / 100) * current.w),
@@ -1067,6 +1119,7 @@ export default function useTemplateAMediaEditor({
       updateSelectedImage((prev) => ({
         ...prev,
         ...next,
+        ...content,
         cropTop: 0,
         cropRight: 0,
         cropBottom: 0,
@@ -1082,6 +1135,12 @@ export default function useTemplateAMediaEditor({
       const current = getSelectedVideo();
       if (!current) return;
       const crop = normalizeMediaCrop(current);
+      const content = getCommittedCropContentBounds(current, crop, {
+        contentX: 0,
+        contentY: 0,
+        contentW: 100,
+        contentH: 100,
+      });
       const next = clampImageBox(
         {
           x: Math.round(current.x + (crop.cropLeft / 100) * current.w),
@@ -1099,6 +1158,7 @@ export default function useTemplateAMediaEditor({
       updateSelectedVideo((prev) => ({
         ...prev,
         ...next,
+        ...content,
         cropTop: 0,
         cropRight: 0,
         cropBottom: 0,

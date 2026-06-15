@@ -43,6 +43,10 @@ export type ImageItem = {
   cropRight?: number;
   cropBottom?: number;
   cropLeft?: number;
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
 };
 export type ImageLayoutMode = "manual" | "collage" | "frame";
 
@@ -309,6 +313,27 @@ function getSideCropContentStyle(img?: ImageItem) {
   };
 }
 
+function hasMediaContentBounds(img?: ImageItem) {
+  return (
+    Number.isFinite(img?.contentX) &&
+    Number.isFinite(img?.contentY) &&
+    Number.isFinite(img?.contentW) &&
+    Number.isFinite(img?.contentH)
+  );
+}
+
+function getMediaContentStyle(img?: ImageItem) {
+  return {
+    position: "absolute" as const,
+    left: `${Number.isFinite(img?.contentX) ? Number(img?.contentX) : 0}%`,
+    top: `${Number.isFinite(img?.contentY) ? Number(img?.contentY) : 0}%`,
+    width: `${Number.isFinite(img?.contentW) ? Number(img?.contentW) : 100}%`,
+    height: `${Number.isFinite(img?.contentH) ? Number(img?.contentH) : 100}%`,
+    maxWidth: "none",
+    maxHeight: "none",
+  };
+}
+
 function renderRichTextContent(params: {
   active: React.ReactNode | null;
   html?: string;
@@ -510,6 +535,13 @@ export default function LinkedInRichPostRenderer({
             ? frameSlots.map((slot, index) => {
                 const img = images.find((item) => item.frameSlotId === slot.id);
                 const crop = getCropValues(img);
+                const committedContentStyle =
+                  img && hasMediaContentBounds(img)
+                    ? {
+                        ...getMediaContentStyle(img),
+                        transform: "none",
+                      }
+                    : null;
                 const imageOrientationClass =
                   img?.orientation === "portrait"
                     ? "li2-productFrame--portrait"
@@ -587,14 +619,16 @@ export default function LinkedInRichPostRenderer({
                             alt="product"
                             draggable={false}
                             style={{
-                              position: "absolute",
-                              left: `${crop.cropX}%`,
-                              top: `${crop.cropY}%`,
-                              width: `${crop.cropScale * 100}%`,
-                              height: `${crop.cropScale * 100}%`,
-                              maxWidth: "none",
-                              maxHeight: "none",
-                              transform: "translate(-50%, -50%)",
+                              ...(committedContentStyle ?? {
+                                position: "absolute",
+                                left: `${crop.cropX}%`,
+                                top: `${crop.cropY}%`,
+                                width: `${crop.cropScale * 100}%`,
+                                height: `${crop.cropScale * 100}%`,
+                                maxWidth: "none",
+                                maxHeight: "none",
+                                transform: "translate(-50%, -50%)",
+                              }),
                               objectFit: "cover",
                               display: "block",
                               userSelect: "none",
@@ -611,6 +645,12 @@ export default function LinkedInRichPostRenderer({
               })
             : images.map((img, index) => {
                 const crop = getCropValues(img);
+                const committedContentStyle = hasMediaContentBounds(img)
+                  ? {
+                      ...getMediaContentStyle(img),
+                      transform: "none",
+                    }
+                  : null;
                 const isCollage = data.imageLayout === "collage";
                 const imageOrientationClass =
                   img.orientation === "portrait"
@@ -697,14 +737,16 @@ export default function LinkedInRichPostRenderer({
                           alt="product"
                           draggable={false}
                           style={{
-                            position: "absolute",
-                            left: `${crop.cropX}%`,
-                            top: `${crop.cropY}%`,
-                            width: `${crop.cropScale * 100}%`,
-                            height: `${crop.cropScale * 100}%`,
-                            maxWidth: "none",
-                            maxHeight: "none",
-                            transform: "translate(-50%, -50%)",
+                            ...(committedContentStyle ?? {
+                              position: "absolute",
+                              left: `${crop.cropX}%`,
+                              top: `${crop.cropY}%`,
+                              width: `${crop.cropScale * 100}%`,
+                              height: `${crop.cropScale * 100}%`,
+                              maxWidth: "none",
+                              maxHeight: "none",
+                              transform: "translate(-50%, -50%)",
+                            }),
                             objectFit: "cover",
                             display: "block",
                             userSelect: "none",

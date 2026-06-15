@@ -66,6 +66,10 @@ export type ImageItem = {
   cropRight?: number;
   cropBottom?: number;
   cropLeft?: number;
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
 };
 
 export type EditorMediaImage = ImageItem & {
@@ -94,6 +98,10 @@ export type ImagePayloadItem = {
   cropRight?: number;
   cropBottom?: number;
   cropLeft?: number;
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
 };
 
 export type VideoItem = {
@@ -118,6 +126,10 @@ export type VideoItem = {
   cropRight?: number;
   cropBottom?: number;
   cropLeft?: number;
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
 };
 
 export type VideoPayloadItem = {
@@ -141,6 +153,10 @@ export type VideoPayloadItem = {
   cropRight?: number;
   cropBottom?: number;
   cropLeft?: number;
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
 };
 
 export type BoxTextStyle = {

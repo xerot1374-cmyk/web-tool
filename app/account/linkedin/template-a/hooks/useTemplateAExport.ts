@@ -186,6 +186,10 @@ export default function useTemplateAExport({
           cropRight: img.cropRight ?? 0,
           cropBottom: img.cropBottom ?? 0,
           cropLeft: img.cropLeft ?? 0,
+          contentX: img.contentX,
+          contentY: img.contentY,
+          contentW: img.contentW,
+          contentH: img.contentH,
         })) ?? [];
 
       return {
@@ -546,6 +550,10 @@ export default function useTemplateAExport({
         cropRight: img.cropRight ?? 0,
         cropBottom: img.cropBottom ?? 0,
         cropLeft: img.cropLeft ?? 0,
+        contentX: img.contentX,
+        contentY: img.contentY,
+        contentW: img.contentW,
+        contentH: img.contentH,
       }));
 
       const data: PdfPayload = {
@@ -665,6 +673,10 @@ export default function useTemplateAExport({
         cropRight: img.cropRight ?? 0,
         cropBottom: img.cropBottom ?? 0,
         cropLeft: img.cropLeft ?? 0,
+        contentX: img.contentX,
+        contentY: img.contentY,
+        contentW: img.contentW,
+        contentH: img.contentH,
       }));
 
       const form = new FormData();
@@ -695,6 +707,10 @@ export default function useTemplateAExport({
           cropRight: video.cropRight ?? 0,
           cropBottom: video.cropBottom ?? 0,
           cropLeft: video.cropLeft ?? 0,
+          contentX: video.contentX,
+          contentY: video.contentY,
+          contentW: video.contentW,
+          contentH: video.contentH,
         };
       });
 

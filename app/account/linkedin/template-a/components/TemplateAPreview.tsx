@@ -13,6 +13,8 @@ import {
   getCropX,
   getCropY,
   getCroppedMediaContentStyle,
+  getMediaContentStyle,
+  hasMediaContentBounds,
   isPreviewTextSelectableId,
   normalizeMediaCrop,
 } from "../lib/templateA.utils";
@@ -467,6 +469,12 @@ export default function TemplateAPreview({
                   const cropY = getCropY(img);
                   const cropScale = getCropScale(img);
                   const cropContentStyle = getCroppedMediaContentStyle(img);
+                  const committedContentStyle = hasMediaContentBounds(img)
+                    ? {
+                        ...getMediaContentStyle(img),
+                        transform: "none",
+                      }
+                    : null;
 
                   return (
                     <div
@@ -533,14 +541,16 @@ export default function TemplateAPreview({
                         alt="product"
                         draggable={false}
                         style={{
-                          position: "absolute",
-                          left: `${cropX}%`,
-                          top: `${cropY}%`,
-                          width: `${cropScale * 100}%`,
-                          height: `${cropScale * 100}%`,
-                          maxWidth: "none",
-                          maxHeight: "none",
-                          transform: "translate(-50%, -50%)",
+                          ...(committedContentStyle ?? {
+                            position: "absolute",
+                            left: `${cropX}%`,
+                            top: `${cropY}%`,
+                            width: `${cropScale * 100}%`,
+                            height: `${cropScale * 100}%`,
+                            maxWidth: "none",
+                            maxHeight: "none",
+                            transform: "translate(-50%, -50%)",
+                          }),
                           objectFit: "cover",
                           display: "block",
                           userSelect: "none",
@@ -609,9 +619,8 @@ export default function TemplateAPreview({
                       playsInline
                       preload="metadata"
                       style={{
+                        ...getMediaContentStyle(video),
                         display: "block",
-                        width: "100%",
-                        height: "100%",
                         objectFit: "cover",
                         pointerEvents: "none",
                         userSelect: "none",

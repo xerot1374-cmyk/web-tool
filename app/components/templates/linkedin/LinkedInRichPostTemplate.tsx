@@ -52,6 +52,10 @@ export type ImageItem = {
   cropRight?: number;
   cropBottom?: number;
   cropLeft?: number;
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
 };
 
 export type ImageLayoutMode = "manual" | "collage" | "frame";

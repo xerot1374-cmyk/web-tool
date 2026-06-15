@@ -16,6 +16,13 @@ export type MediaCrop = {
   cropLeft?: number;
 };
 
+export type MediaContentBounds = {
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
+};
+
 declare global {
   interface Window {
     __PDF_PAYLOAD__?: PdfPayload;
@@ -198,6 +205,40 @@ export function getCroppedMediaContentStyle(item?: MediaCrop | null) {
   return {
     clipPath: `inset(${inset})`,
     WebkitClipPath: `inset(${inset})`,
+  };
+}
+
+export function hasMediaContentBounds(
+  item?: MediaContentBounds | null,
+): item is Required<MediaContentBounds> {
+  return (
+    Number.isFinite(item?.contentX) &&
+    Number.isFinite(item?.contentY) &&
+    Number.isFinite(item?.contentW) &&
+    Number.isFinite(item?.contentH)
+  );
+}
+
+export function getMediaContentBounds(item?: MediaContentBounds | null) {
+  return {
+    contentX: Number.isFinite(item?.contentX) ? Number(item?.contentX) : 0,
+    contentY: Number.isFinite(item?.contentY) ? Number(item?.contentY) : 0,
+    contentW: Number.isFinite(item?.contentW) ? Number(item?.contentW) : 100,
+    contentH: Number.isFinite(item?.contentH) ? Number(item?.contentH) : 100,
+  };
+}
+
+export function getMediaContentStyle(item?: MediaContentBounds | null) {
+  const content = getMediaContentBounds(item);
+
+  return {
+    position: "absolute" as const,
+    left: `${content.contentX}%`,
+    top: `${content.contentY}%`,
+    width: `${content.contentW}%`,
+    height: `${content.contentH}%`,
+    maxWidth: "none",
+    maxHeight: "none",
   };
 }
 

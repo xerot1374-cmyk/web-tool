@@ -71,6 +71,10 @@ type Payload = {
     cropRight?: number;
     cropBottom?: number;
     cropLeft?: number;
+    contentX?: number;
+    contentY?: number;
+    contentW?: number;
+    contentH?: number;
     trimStartSeconds?: number;
     trimEndSeconds?: number;
     timelineStartSeconds?: number;
@@ -154,6 +158,10 @@ type PreparedVideo = {
   cropRight: number;
   cropBottom: number;
   cropLeft: number;
+  contentX: number;
+  contentY: number;
+  contentW: number;
+  contentH: number;
 };
 
 function makeEven(value: number) {
@@ -205,6 +213,32 @@ function normalizeSideCrop(meta: {
   }
 
   return crop;
+}
+
+function normalizeContentBounds(meta: {
+  contentX?: number;
+  contentY?: number;
+  contentW?: number;
+  contentH?: number;
+}) {
+  return {
+    contentX:
+      typeof meta.contentX === "number" && Number.isFinite(meta.contentX)
+        ? meta.contentX
+        : 0,
+    contentY:
+      typeof meta.contentY === "number" && Number.isFinite(meta.contentY)
+        ? meta.contentY
+        : 0,
+    contentW:
+      typeof meta.contentW === "number" && Number.isFinite(meta.contentW)
+        ? Math.max(1, meta.contentW)
+        : 100,
+    contentH:
+      typeof meta.contentH === "number" && Number.isFinite(meta.contentH)
+        ? Math.max(1, meta.contentH)
+        : 100,
+  };
 }
 
 function getMaxFinalVideoSeconds() {
@@ -330,6 +364,29 @@ function formatFilterSeconds(value: number) {
   return Number(value.toFixed(3)).toString();
 }
 
+function getVideoContentCropFilter(video: PreparedVideo) {
+  const contentW = Math.max(
+    video.w,
+    Math.round((video.contentW / 100) * video.w),
+  );
+  const contentH = Math.max(
+    video.h,
+    Math.round((video.contentH / 100) * video.h),
+  );
+  const maxCropX = Math.max(0, contentW - video.w);
+  const maxCropY = Math.max(0, contentH - video.h);
+  const cropX = Math.max(
+    0,
+    Math.min(maxCropX, Math.round((-video.contentX / 100) * video.w)),
+  );
+  const cropY = Math.max(
+    0,
+    Math.min(maxCropY, Math.round((-video.contentY / 100) * video.h)),
+  );
+
+  return `scale=${contentW}:${contentH}:force_original_aspect_ratio=increase,crop=${contentW}:${contentH},crop=${video.w}:${video.h}:${cropX}:${cropY}`;
+}
+
 function assertVideoDurationIsAllowed(video: { path: string }, duration: number) {
   const maxDuration = getMaxFinalVideoSeconds();
   if (duration <= maxDuration) return;
@@ -405,6 +462,7 @@ function normalizePayload(data: Payload): Payload {
                 ? video.zIndex
                 : undefined,
             ...normalizeSideCrop(video),
+            ...normalizeContentBounds(video),
           },
         ];
       }) ?? [],
@@ -563,6 +621,10 @@ function buildVideoScreenshotPayload(
     cropRight: video.cropRight ?? 0,
     cropBottom: video.cropBottom ?? 0,
     cropLeft: video.cropLeft ?? 0,
+    contentX: video.contentX ?? 0,
+    contentY: video.contentY ?? 0,
+    contentW: video.contentW ?? 100,
+    contentH: video.contentH ?? 100,
   }));
 
   return {
@@ -862,7 +924,7 @@ async function buildVideoInsideTemplateWithAudio(
     const timelineEnd = formatFilterSeconds(video.timelineEnd);
 
     complexFilters.push(
-      `[${videoIndex}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,fps=fps=${outputFrameRate}:round=near,scale=${video.w}:${video.h}:force_original_aspect_ratio=increase,crop=${video.w}:${video.h},format=rgba${scaledLabel}`,
+      `[${videoIndex}:v]trim=start=${trimStart}:end=${trimEnd},setpts=PTS-STARTPTS,fps=fps=${outputFrameRate}:round=near,${getVideoContentCropFilter(video)},format=rgba${scaledLabel}`,
     );
     if (maskIndex != null) {
       const maskLabel = `[mask${index}]`;
@@ -1063,6 +1125,7 @@ export async function POST(req: Request) {
           radius: meta.radius,
           zIndex: meta.zIndex,
           ...normalizeSideCrop(meta),
+          ...normalizeContentBounds(meta),
           trimStartSeconds: meta.trimStartSeconds,
           trimEndSeconds: meta.trimEndSeconds,
           timelineStartSeconds: meta.timelineStartSeconds,

@@ -1008,6 +1008,10 @@ export default function TemplateAClient({
         cropRight: img.cropRight ?? 0,
         cropBottom: img.cropBottom ?? 0,
         cropLeft: img.cropLeft ?? 0,
+        contentX: img.contentX,
+        contentY: img.contentY,
+        contentW: img.contentW,
+        contentH: img.contentH,
       })),
       videos: editorVideos
         .filter((video) => Boolean(video.src))
@@ -1031,6 +1035,10 @@ export default function TemplateAClient({
           cropRight: video.cropRight ?? 0,
           cropBottom: video.cropBottom ?? 0,
           cropLeft: video.cropLeft ?? 0,
+          contentX: video.contentX,
+          contentY: video.contentY,
+          contentW: video.contentW,
+          contentH: video.contentH,
         })),
       videoRadius: editorVideos[0]?.radius ?? 20,
       badgeText: badgeText?.trim() ? badgeText.trim() : undefined,
