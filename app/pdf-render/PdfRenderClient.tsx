@@ -310,6 +310,7 @@ export default function PdfRenderClient() {
   return (
     <div
       className="pdf-emoji-font-scope"
+      role="presentation"
       style={{
         width: frame.w,
         background: "#ffffff",
@@ -320,6 +321,15 @@ export default function PdfRenderClient() {
         {`
           .pdf-emoji-font-scope .li2-root {
             font-family: ${PDF_DETERMINISTIC_FONT};
+          }
+
+          .pdf-emoji-font-scope h1.li2-linkTitle,
+          .pdf-emoji-font-scope p.li2-company,
+          .pdf-emoji-font-scope p.li2-headline,
+          .pdf-emoji-font-scope p.li2-subline,
+          .pdf-emoji-font-scope p.li2-body,
+          .pdf-emoji-font-scope p.li2-linkRow {
+            margin-block-end: 0;
           }
 
           .pdf-emoji-font-scope .template-inline-editor {
@@ -380,7 +390,12 @@ export default function PdfRenderClient() {
           }
         `}
       </style>
-      <LinkedInRichPostTemplate {...effective} scale={1} mode="preview" />
+      <LinkedInRichPostTemplate
+        {...effective}
+        scale={1}
+        mode="preview"
+        pdfSemantic
+      />
     </div>
   );
 }

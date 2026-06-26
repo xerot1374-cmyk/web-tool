@@ -63,6 +63,7 @@ export type ImageLayoutMode = "manual" | "collage" | "frame";
 type Props = LinkedInRichPostTemplateData & {
   scale?: number;
   mode?: "edit" | "preview" | "export";
+  pdfSemantic?: boolean;
   activeRichTextEditor?: React.ComponentProps<
     typeof LinkedInRichPostRenderer
   >["activeRichTextEditor"];
@@ -115,6 +116,7 @@ export default function LinkedInRichPostTemplate(props: Props) {
   const {
     scale,
     mode = "preview",
+    pdfSemantic,
     bodyStyle,
     bodyHtml,
     bodyMarks,
@@ -180,6 +182,7 @@ export default function LinkedInRichPostTemplate(props: Props) {
         canvasPreset,
       }}
       mode={mode}
+      pdfSemantic={pdfSemantic}
       scale={scale}
       activeRichTextEditor={activeRichTextEditor}
       onStartFrameImageDrag={onStartFrameImageDrag}

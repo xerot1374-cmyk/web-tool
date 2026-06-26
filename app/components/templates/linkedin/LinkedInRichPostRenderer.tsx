@@ -157,6 +157,7 @@ export type TextMark = {
 export type LinkedInRichPostRendererProps = {
   data: LinkedInRichPostTemplateData;
   mode: "edit" | "preview" | "export";
+  pdfSemantic?: boolean;
   scale?: number;
   activeRichTextEditor?: {
     field: "badge" | "title" | "body" | "company";
@@ -367,6 +368,7 @@ function renderRichTextContent(params: {
 export default function LinkedInRichPostRenderer({
   data,
   mode,
+  pdfSemantic = false,
   scale = 1,
   activeRichTextEditor = null,
   onFieldChange,
@@ -380,6 +382,8 @@ export default function LinkedInRichPostRenderer({
 
   const isEdit = mode === "edit";
   const isPreviewLike = mode === "preview" || mode === "edit";
+  const TextTitleTag: React.ElementType = pdfSemantic ? "h1" : "div";
+  const TextBlockTag: React.ElementType = pdfSemantic ? "p" : "div";
   const renderActiveRichTextEditor = (
     field: "badge" | "title" | "body" | "company",
   ) => {
@@ -509,6 +513,7 @@ export default function LinkedInRichPostRenderer({
         `li2-viewport--${presetClass}`,
         isPreviewLike && "li2-viewport--autoHeight",
       )}
+      role={pdfSemantic ? "presentation" : undefined}
       style={{ "--li2-scale": String(s) } as React.CSSProperties}
     >
       <div
@@ -524,12 +529,14 @@ export default function LinkedInRichPostRenderer({
         style={{
           position: "relative",
         }}
+        role={pdfSemantic ? "presentation" : undefined}
       >
         <div
           className={cx(
             "li2-header",
             hasProductImage ? "li2-header--hasimg" : "li2-header--noimg",
           )}
+          aria-hidden={pdfSemantic ? true : undefined}
         >
           {data.imageLayout === "frame"
             ? frameSlots.map((slot, index) => {
@@ -834,9 +841,10 @@ export default function LinkedInRichPostRenderer({
             "li2-content",
             isPreviewLike && "li2-content--autoHeight",
           )}
+          role={pdfSemantic ? "presentation" : undefined}
         >
           {vTitle ? (
-            <div
+            <TextTitleTag
               className="li2-linkTitle"
               data-select="title"
               onClick={(event) => onSelectableClick?.("title", event)}
@@ -860,11 +868,11 @@ export default function LinkedInRichPostRenderer({
                 blocks: data.titleBlocks,
                 baseStyle: data.titleStyle,
               })}
-            </div>
+            </TextTitleTag>
           ) : null}
 
           {vCompany ? (
-            <div
+            <TextBlockTag
               className="li2-company"
               data-select="company"
               onClick={(event) => onSelectableClick?.("company", event)}
@@ -888,7 +896,7 @@ export default function LinkedInRichPostRenderer({
                 blocks: data.companyBlocks,
                 baseStyle: data.companyStyle,
               })}
-            </div>
+            </TextBlockTag>
           ) : null}
 
           {isEdit && vHeadline ? (
@@ -912,7 +920,7 @@ export default function LinkedInRichPostRenderer({
               />
             </div>
           ) : vHeadline ? (
-            <div
+            <TextBlockTag
               className="li2-headline"
               data-select="headline"
               style={{
@@ -925,7 +933,7 @@ export default function LinkedInRichPostRenderer({
               }}
             >
               {vHeadline}
-            </div>
+            </TextBlockTag>
           ) : null}
 
           {isEdit && vSubline ? (
@@ -949,7 +957,7 @@ export default function LinkedInRichPostRenderer({
               />
             </div>
           ) : vSubline ? (
-            <div
+            <TextBlockTag
               className="li2-subline"
               data-select="subline"
               style={{
@@ -962,11 +970,11 @@ export default function LinkedInRichPostRenderer({
               }}
             >
               {vSubline}
-            </div>
+            </TextBlockTag>
           ) : null}
 
           {showBody ? (
-            <div
+            <TextBlockTag
               className="li2-body"
               data-select="body"
               onClick={(event) => onSelectableClick?.("body", event)}
@@ -991,10 +999,33 @@ export default function LinkedInRichPostRenderer({
                 baseStyle: data.bodyStyle,
                 emptyFallback: isEdit ? "\u00A0" : null,
               })}
-            </div>
+            </TextBlockTag>
           ) : null}
 
-          {hashtags.length ? (
+          {hashtags.length && pdfSemantic ? (
+            <p
+              className="li2-linkRow"
+              data-select="hashtags"
+              aria-label="Hashtags"
+            >
+              {hashtags.map((hashtag, index) => (
+                <a
+                  key={`${hashtag}-${index}`}
+                  className="li2-link"
+                  href={buildHashtagHref(hashtag)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: "#64748b",
+                    display: "inline-block",
+                    marginRight: 12,
+                  }}
+                >
+                  {hashtag}
+                </a>
+              ))}
+            </p>
+          ) : hashtags.length ? (
             <div className="li2-linkRow" data-select="hashtags">
               <div className="li2-linksList">
                 {hashtags.map((hashtag, index) => (
@@ -1017,7 +1048,33 @@ export default function LinkedInRichPostRenderer({
             </div>
           ) : null}
 
-          {urls.length ? (
+          {urls.length && pdfSemantic ? (
+            <p className="li2-linkRow" data-select="links" aria-label="Links">
+              {urls.length === 1 ? (
+                <a
+                  className="li2-link"
+                  href={urls[0]}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {linkText}
+                </a>
+              ) : (
+                urls.map((u, i) => (
+                  <a
+                    key={`${u}-${i}`}
+                    className="li2-link"
+                    href={u}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ display: "inline-block", marginRight: 12 }}
+                  >
+                    {linkLabel(u)}
+                  </a>
+                ))
+              )}
+            </p>
+          ) : urls.length ? (
             <div className="li2-linkRow" data-select="links">
               {urls.length === 1 ? (
                 <a
@@ -1056,7 +1113,10 @@ export default function LinkedInRichPostRenderer({
           ) : null}
         </div>
 
-        <div className="li2-bottom">
+        <div
+          className="li2-bottom"
+          aria-hidden={pdfSemantic ? true : undefined}
+        >
           <div className="li2-bottomLeft">
             <img
               className="li2-profileMini"
