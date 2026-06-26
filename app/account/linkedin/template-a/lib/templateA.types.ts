@@ -313,6 +313,7 @@ export type ActiveRichTextEditor = {
   className: string;
   style: CSSProperties;
   onAlignChange: (align: "left" | "center" | "right") => void;
+  onFontSizeChange: (fontSize: number) => void;
   onChange: (payload: {
     text: string;
     marks: TextMark[];

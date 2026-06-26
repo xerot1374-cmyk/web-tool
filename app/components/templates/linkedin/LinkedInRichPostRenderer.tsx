@@ -177,6 +177,7 @@ export type LinkedInRichPostRendererProps = {
     onMouseDown: (event: React.MouseEvent<HTMLElement>) => void;
     onClick: (event: React.MouseEvent<HTMLElement>) => void;
     onDoubleClick: (event: React.MouseEvent<HTMLElement>) => void;
+    onFontSizeChange: (fontSize: number) => void;
     onChange: (payload: {
       text: string;
       marks: TextMark[];
@@ -408,6 +409,7 @@ export default function LinkedInRichPostRenderer({
         onMouseDown={activeRichTextEditor.onMouseDown}
         onClick={activeRichTextEditor.onClick}
         onDoubleClick={activeRichTextEditor.onDoubleClick}
+        onFontSizeChange={activeRichTextEditor.onFontSizeChange}
         onChange={activeRichTextEditor.onChange}
       />
     );

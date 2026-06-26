@@ -1707,6 +1707,25 @@ export default function TemplateAClient({
     }
   }
 
+  function setFieldFontSize(field: EditorTextField, fontSize: number) {
+    if (field === "caption") {
+      setCaptionStyle((prev) => ({ ...prev, fontSize }));
+    } else if (field === "title") {
+      setTitleStyle((prev) => ({ ...prev, fontSize }));
+    } else if (field === "company") {
+      setCompanyStyle((prev) => ({ ...prev, fontSize }));
+    } else if (field === "badge") {
+      setBadgeStyle((prev) => ({ ...prev, fontSize }));
+    } else {
+      setBodyBoxStyle((prev) => ({ ...prev, fontSize }));
+    }
+
+    setActiveField(field);
+    if (editField === field) {
+      setEditStyle((prev) => ({ ...prev, fontSize }));
+    }
+  }
+
   function handleNumberedListEnter(
     field: "body",
     e: React.KeyboardEvent<HTMLElement>,
@@ -1839,6 +1858,15 @@ export default function TemplateAClient({
     return bodyBoxStyle.textAlign;
   }
 
+  function getToolbarFontSize() {
+    const field = editField ?? activeField;
+    if (field === "caption") return captionStyle.fontSize;
+    if (field === "title") return titleStyle.fontSize;
+    if (field === "company") return companyStyle.fontSize;
+    if (field === "badge") return badgeStyle.fontSize;
+    return bodyBoxStyle.fontSize;
+  }
+
   function shouldUseBlockTextAlign(field: EditorTextField | null) {
     return field === "badge" || field === "title" || field === "body";
   }
@@ -1891,6 +1919,8 @@ export default function TemplateAClient({
         } satisfies CSSProperties,
         onAlignChange: (align: "left" | "center" | "right") =>
           setFieldTextAlign(editField, align),
+        onFontSizeChange: (fontSize: number) =>
+          setFieldFontSize(editField, fontSize),
         onChange: (payload) =>
           handleRichEditableInput(editField, payload),
         onBlur: onEditBlur,
@@ -1970,6 +2000,7 @@ export default function TemplateAClient({
             activeField={activeField}
             editField={isRichEditField(editField) ? editField : null}
             currentMarks={getActiveMarksState().marks}
+            currentFontSize={getToolbarFontSize()}
             currentTextAlign={getToolbarTextAlign()}
             canUndo={bottomToolbarHasActiveEditor}
             canRedo={bottomToolbarHasActiveEditor}
@@ -2021,11 +2052,17 @@ export default function TemplateAClient({
             }}
             onSetFontSize={(value) => {
               if (isRichEditField(editField)) {
+                setFieldFontSize(editField, value);
                 getRichEditEditor(editField)?.setFontSize(value);
                 return;
               }
               if (activeField === "caption") {
+                setFieldFontSize("caption", value);
                 captionEditRef.current?.setFontSize(value);
+                return;
+              }
+              if (isRichEditField(activeField)) {
+                setFieldFontSize(activeField, value);
               }
             }}
             onSetColor={(value) => {

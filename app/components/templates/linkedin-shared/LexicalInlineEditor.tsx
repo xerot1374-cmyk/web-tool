@@ -107,6 +107,7 @@ type Props = {
   toolbarMode?: "full" | "caption";
   stripPasteFormatting?: boolean;
   onAlignChange?: (align: "left" | "center" | "right") => void;
+  onFontSizeChange?: (fontSize: number) => void;
   onBlur: (event: FocusEvent<HTMLElement>) => void;
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
   onKeyUp: () => void;
@@ -611,11 +612,13 @@ function NativeToolbarPlugin({
   enabled,
   mode,
   onAlignChange,
+  onFontSizeChange,
 }: {
   multiline: boolean;
   enabled: boolean;
   mode: "full" | "caption";
   onAlignChange?: (align: "left" | "center" | "right") => void;
+  onFontSizeChange?: (fontSize: number) => void;
 }) {
   const [editor] = useLexicalComposerContext();
   const toolbarRef = useRef<HTMLDivElement | null>(null);
@@ -673,9 +676,16 @@ function NativeToolbarPlugin({
           "font-family",
           "system-ui",
         ) || "system-ui";
+      const rootFontSize =
+        root instanceof HTMLElement
+          ? window.getComputedStyle(root).fontSize
+          : "16px";
       const fontSizeValue =
-        $getSelectionStyleValueForProperty(selection, "font-size", "16px") ||
-        "16px";
+        $getSelectionStyleValueForProperty(
+          selection,
+          "font-size",
+          rootFontSize,
+        ) || rootFontSize;
       const parsedFontSize = Number.parseFloat(fontSizeValue);
       const color =
         $getSelectionStyleValueForProperty(selection, "color", "#111827") ||
@@ -904,9 +914,11 @@ function NativeToolbarPlugin({
           <select
             className="lexical-toolbar__select lexical-toolbar__select--size"
             value={String(toolbar.fontSize)}
-            onChange={(event) =>
-              patchSelectionStyle({ "font-size": `${event.target.value}px` })
-            }
+            onChange={(event) => {
+              const nextFontSize = Number(event.target.value);
+              patchSelectionStyle({ "font-size": `${nextFontSize}px` });
+              onFontSizeChange?.(nextFontSize);
+            }}
           >
             {SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>
@@ -1037,6 +1049,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
       toolbarMode = "full",
       stripPasteFormatting = false,
       onAlignChange,
+      onFontSizeChange,
       onBlur,
       onKeyDown,
       onKeyUp,
@@ -1119,6 +1132,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
               }
             });
           });
+          onFontSizeChange?.(value);
         },
         setColor(value) {
           const editor = editorRef.current;
@@ -1206,7 +1220,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
           });
         },
       }),
-      [],
+      [onFontSizeChange],
     );
 
     useEffect(() => {
@@ -1246,6 +1260,7 @@ const LexicalInlineEditor = forwardRef<LexicalInlineEditorHandle, Props>(
           enabled={editable && showToolbar}
           mode={toolbarMode}
           onAlignChange={onAlignChange}
+          onFontSizeChange={onFontSizeChange}
         />
         <ListPlugin />
         <RichTextPlugin

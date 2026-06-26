@@ -20,6 +20,7 @@ type Props = {
   editField: RichEditField | null;
   visible: boolean;
   currentMarks: TextMark[];
+  currentFontSize: number;
   currentTextAlign: "left" | "center" | "right";
   canUndo: boolean;
   canRedo: boolean;
@@ -36,11 +37,11 @@ type Props = {
   onSetTextAlign: (value: "left" | "center" | "right") => void;
 };
 
-function getCurrentStyle(marks: TextMark[]) {
+function getCurrentStyle(marks: TextMark[], currentFontSize: number) {
   const latest = marks.at(-1)?.style ?? {};
   return {
     fontFamily: latest.fontFamily ?? "system-ui",
-    fontSize: latest.fontSize ?? 16,
+    fontSize: latest.fontSize ?? currentFontSize,
     color: latest.color ?? "#111827",
     highlightColor: latest.highlightColor ?? "#facc15",
     bold:
@@ -56,6 +57,7 @@ export default function TemplateAStickyToolbar({
   editField,
   visible,
   currentMarks,
+  currentFontSize,
   currentTextAlign,
   canUndo,
   canRedo,
@@ -72,7 +74,10 @@ export default function TemplateAStickyToolbar({
   onSetTextAlign,
 }: Props) {
   const [showEmojiMenu, setShowEmojiMenu] = useState(false);
-  const currentStyle = useMemo(() => getCurrentStyle(currentMarks), [currentMarks]);
+  const currentStyle = useMemo(
+    () => getCurrentStyle(currentMarks, currentFontSize),
+    [currentFontSize, currentMarks],
+  );
 
   if (!visible) return null;
 

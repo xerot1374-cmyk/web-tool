@@ -1040,6 +1040,7 @@ export default function TemplateAPreview({
                 wordBreak: "break-word",
               }}
               onAlignChange={() => {}}
+              onFontSizeChange={() => {}}
               onChange={onCaptionChange}
               onBlur={onCaptionBlur}
               onKeyDown={() => {}}
